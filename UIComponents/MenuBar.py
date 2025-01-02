@@ -121,12 +121,7 @@ class MenuBar:
         menu.addAction(self._create_action(
             "Restart", 
             "restart_app", 
-            lambda: (
-                subprocess.Popen([executable_path] + sys.argv) 
-                if os.path.exists(executable_path := os.path.join(os.path.dirname(os.path.abspath(__file__)), "FC Rollback Tool.exe")) 
-                else subprocess.Popen([sys.executable, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "Main.py")] + sys.argv),
-                QApplication.quit()
-            )
+            restart_application  # ربط الدالة هنا بدلاً من lambda
         ))
         # Add Exit Action
         menu.addAction(self._create_action("Exit", "exit", QApplication.quit, "Alt+F4"))
@@ -165,3 +160,19 @@ class MenuBar:
             window.show()
         except Exception as e:
             logger.error(f"Error opening window: {e}")
+
+
+def restart_application():
+    try:
+        executable_path = sys.argv[0]
+        logger.error(f"Restart Executable: {executable_path}")
+        if os.path.exists(executable_path) and executable_path.lower().endswith('.exe'):
+            if not ctypes.windll.shell32.IsUserAnAdmin():
+                ctypes.windll.shell32.ShellExecuteW(None, "runas", executable_path, " ".join(sys.argv[1:]), None, 1)
+            else:
+                subprocess.Popen([executable_path] + sys.argv[1:])
+        else:
+            raise FileNotFoundError
+    except Exception as e:
+        logger.error(f"Error occurred: {str(e)}")
+    QApplication.quit()

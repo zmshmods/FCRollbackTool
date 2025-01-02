@@ -465,20 +465,19 @@ class Window(AcrylicWindow):
 
 # ----------------------------------- تغيير اللعبة -----------------------------------
     def change_game(self):
-        """تغيير اللعبة وإعادة تشغيل التطبيق."""
+        """تغيير اللعبة وإعادة فتح نافذة اختيار اللعبة."""
         try:
-            Core.Initializer.Initializer.reset_selected_game()
-            
-            executable_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "FC Rollback Tool.exe")
-            
-            if os.path.exists(executable_path):
-                subprocess.Popen([executable_path] + sys.argv)
-            else:
-                subprocess.Popen([sys.executable, "main.py"] + sys.argv)
-            
+            # إغلاق نافذة Main (نافذة اللعبة الحالية)
             self.close()
+
+            # استدعاء نافذة اختيار اللعبة
+            self.select_game_window = SelectGameWindow()
+
+            # عرض نافذة اختيار اللعبة
+            self.select_game_window.show()
+
         except Exception as e:
-            self.handle_error(f"Error while restarting the application: {e}")  # خطأ أثناء إعادة تشغيل التطبيق
+            self.handle_error(f"Error while changing the game: {e}")  # خطأ أثناء تغيير اللعبة
 # ----------------------------------- معالجة الأخطاء -----------------------------------
     def handle_error(self, message):
         """معالجة الأخطاء."""
