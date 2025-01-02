@@ -1,5 +1,5 @@
 <p align="center">
-  <img width="120px" src="https://github.com/zmshmods/FCRollbackTool/blob/main/Assets/Icons/FRICON.png?raw=true" align="center" alt="FC Rollback Tool Icon" />
+  <img width="120px" src="https://github.com/user-attachments/assets/0b2694cf-a4b4-4e51-94b7-78fa2ccf7df1" align="center" alt="FC Rollback Tool Icon" />
   <h1 align="center">FC Rollback Tool</h1>
   <p align="center">A simple tool for managing updates of EA Sports FC games and restoring previous versions.</p>
 </p>
