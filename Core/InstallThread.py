@@ -199,17 +199,29 @@ class InstallThread(QObject, threading.Thread):
                         rf.extract(member, self.selected_game_path)
                         self.update_ui(member.filename, i, total_files)
             elif file_path.endswith((".7z", ".zip")):
+                # تشغيل 7z بشكل صامت
                 cmd = [SEVEN_ZIP_PATH, "x", file_path, f"-o{self.selected_game_path}", "-y"]
-                result = subprocess.run(cmd, capture_output=True, text=True)
-                if result.returncode != 0:
-                    raise RuntimeError(f"Extraction failed for {file_path}: {result.stderr}")
-                self.process_7z_output(result.stdout)
+
+                # إعداد التشغيل الصامت (إخفاء نافذة CMD)
+                startupinfo = subprocess.STARTUPINFO()
+                startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+
+                # تنفيذ الأمر باستخدام Popen لتشغيله بشكل صامت
+                self.process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, 
+                                                universal_newlines=True, bufsize=1, startupinfo=startupinfo)
+                stdout, stderr = self.process.communicate()
+
+                # معالجة مخرجات العملية
+                if self.process.returncode != 0:
+                    raise RuntimeError(f"Extraction failed for {file_path}: {stderr}")
+                self.process_7z_output(stdout)
             else:
                 raise ValueError(f"Unsupported file extension for {file_path}")
         except rarfile.Error as e:
             self.handle_error(f"Rarfile extraction error: {str(e)}")
         except Exception as e:
             self.handle_error(f"Error during extraction: {str(e)}")
+
 
     def update_ui(self, path, index, total):
         parts = path.split("/")

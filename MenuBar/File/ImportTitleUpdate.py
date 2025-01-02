@@ -116,19 +116,32 @@ class TitleUpdate:
     @staticmethod
     def extract_with_7z(archive_path):
         try:
+            # إعداد مجلد مؤقت لاستخراج الملفات
             temp_folder = os.path.join(os.getenv("LOCALAPPDATA"), "fc_rollback_tool", "temp")
             os.makedirs(temp_folder, exist_ok=True)
+
+            # إعداد الأمر لاستخراج الملفات باستخدام 7z
             command = [
-                os.path.join(os.getcwd(),"Data", "ThirdParty", "7-Zip", "7z.exe"),
+                os.path.join(os.getcwd(), "Data", "ThirdParty", "7-Zip", "7z.exe"),
                 "x", archive_path, f"-o{temp_folder}", "-y", "-r", "FC25.exe", "FC24.exe"
             ]
-            result = subprocess.run(command, capture_output=True, text=True)
+
+            # إعداد التشغيل الصامت
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW  # إخفاء نافذة الـ CMD
+
+            # تشغيل subprocess بدون نافذة CMD
+            result = subprocess.run(command, capture_output=True, text=True, startupinfo=startupinfo)
+
             if result.returncode == 0:
-                return temp_folder
-            logger.error(f"7z Error Output: {result.stderr}")
-            TitleUpdate.handle_error(archive_path, f"Error extracting file: {result.stderr}")
-            return None
+                return temp_folder  # إذا تمت العملية بنجاح
+            else:
+                # إذا حدث خطأ في استخراج الملفات
+                logger.error(f"7z Error Output: {result.stderr}")
+                TitleUpdate.handle_error(archive_path, f"Error extracting file: {result.stderr}")
+                return None
         except Exception as e:
+            # التعامل مع أي استثناءات
             TitleUpdate.show_generic_error(f"Error extracting archive: {e}")
             return None
 
