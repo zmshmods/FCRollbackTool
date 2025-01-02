@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <a href="https://patreon.com/zmsh"><img src="https://img.shields.io/badge/Download-FC_Rollback_Tool-blue" alt="Download FC Rollback Tool" /></a>
+  <a href="https://www.patreon.com/posts/118475020"><img src="https://img.shields.io/badge/Download-FC_Rollback_Tool-blue" alt="Download FC Rollback Tool" /></a>
 </p>
 
 ## Support the Project
