@@ -8,7 +8,6 @@ from PySide6.QtCore import QThread, Signal
 from PySide6.QtWidgets import QApplication, QFileDialog
 from Core.Logger import logger
 from Core.Initializer import Initializer
-ThirdPartyPath = os.path.join("Data", "ThirdParty") if getattr(sys, 'frozen', False) else "ThirdParty"
 
 class TitleUpdateWorker(QThread):
     update_detected = Signal(str)
@@ -120,7 +119,7 @@ class TitleUpdate:
             temp_folder = os.path.join(os.getenv("LOCALAPPDATA"), "fc_rollback_tool", "temp")
             os.makedirs(temp_folder, exist_ok=True)
             command = [
-                os.path.join(os.getcwd(), ThirdPartyPath, "7-Zip", "7z.exe"),
+                os.path.join(os.getcwd(),"Data", "ThirdParty", "7-Zip", "7z.exe"),
                 "x", archive_path, f"-o{temp_folder}", "-y", "-r", "FC25.exe", "FC24.exe"
             ]
             result = subprocess.run(command, capture_output=True, text=True)
