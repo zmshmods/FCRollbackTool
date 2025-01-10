@@ -20,7 +20,7 @@ class ChangelogWindow(AcrylicWindow):
         self.config_cache = None
         super().__init__(parent=parent)
         self.setWindowTitle("Changelog")  # تعيين عنوان النافذة
-        self.resize(640, 400)
+        self.resize(620, 440)
         AcrylicEffect(self)  # تفعيل أو تعطيل تأثير الأكريليك بناءً على نوع الويندوز
         self.setup_ui()  # إعداد واجهة المستخدم
         # ضبط موقع النافذة في وسط الشاشة

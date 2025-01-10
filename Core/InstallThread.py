@@ -58,8 +58,7 @@ class InstallThread(QObject, threading.Thread):
 
         if installed_update:
             self.backup_files_if_enabled(short_game_name, installed_update, install_source)
-            
-            # تخطي التنظيف إذا تم تفعيل خيار الباك أب
+
             config = Core.Initializer.Initializer.initialize_and_load_config()
             if config.get("install_options", {}).get("backup_checkbox", False):
                 logger.info("Skipping cleaning as backup option is enabled.")
@@ -77,6 +76,24 @@ class InstallThread(QObject, threading.Thread):
         self.update_message.emit("<span style='color:white'>Installation completed successfully.</span>")
         logger.info("Installation completed successfully.")
 
+        # تنفيذ دالة handle_non_steam_files بعد انتهاء التثبيت
+        self.handle_non_steam_files()
+
+
+    def handle_non_steam_files(self):
+        if "steam" not in self.selected_game_path.lower():
+            files_to_delete = ["installscript.vdf", "EAStore.ini", "steam_appid.txt"]
+            logger.info("Detected EA App/Epic Games game version.")
+            for file_name in files_to_delete:
+                file_path = os.path.join(self.selected_game_path, file_name)
+                if os.path.exists(file_path):  # تأكد من وجود الملف قبل محاولة حذفه
+                    try:
+                        os.remove(file_path)
+                        logger.info(f"Deleted {file_path}")
+                    except Exception as e:
+                        logger.error(f"Failed to delete {file_path}: {e}")
+        #else:
+            #logger.info("Detected Steam game version.")
 
     def find_install_source(self, game_name):
         source = os.path.join(PROFILES_DIR, game_name, "TitleUpdates", self.update_name)
@@ -252,10 +269,17 @@ class InstallThread(QObject, threading.Thread):
         os.makedirs(backup_dir, exist_ok=True)
         self.update_message.emit(f"<span style='color:white'>Current Task:</span> <span style='color:yellow;'>Backing-Up</span><br />Your current TU: {installed_update}")
         
+        # استثناء الملفات الخاصة بـ Steam
+        excluded_files = ["installscript.vdf", "EAStore.ini", "steam_appid.txt"]
+        is_steam_game = "steam" in self.selected_game_path.lower()
+
         for item in set(self.get_source_contents(source)[0] + self.get_source_contents(source)[1]):
-            source_path, backup_path = os.path.join(self.selected_game_path, item), os.path.join(backup_dir, item)
+            source_path = os.path.join(self.selected_game_path, item)
+            backup_path = os.path.join(backup_dir, item)
+            # إذا كانت اللعبة ليست من Steam، استثنِ الملفات المحددة
+            if not is_steam_game and os.path.basename(source_path) in excluded_files:
+                continue
             if not os.path.exists(source_path):
-                logger.warning(f"Source not found: {source_path}. Skipping.")
                 continue
             try:
                 # إذا كان العنصر موجودًا في الوجهة، قم بحذفه

@@ -11,7 +11,7 @@ from UIComponents.AcrylicEffect import AcrylicEffect
 from Core.Logger import logger
 from UIComponents.MainStyles import MainStyles
 
-ToolVersion = "1.0 Beta"
+ToolVersion = "1.1 Beta"
 UpdateManifest = "https://raw.githubusercontent.com/zmshmods/FCRollbackToolUpdates/main/toolupdate.json"
 ChangelogBaseURL = "https://raw.githubusercontent.com/zmshmods/FCRollbackToolUpdates/main/Changelogs/"
 

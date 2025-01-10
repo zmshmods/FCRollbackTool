@@ -18,7 +18,7 @@ class InformationWindow(AcrylicWindow):
         self.config_cache = None
         super().__init__(parent=parent)
         self.setWindowTitle("Information")  # تعيين عنوان النافذة
-        self.resize(640, 400)
+        self.resize(620, 440)
         AcrylicEffect(self)  # تفعيل أو تعطيل تأثير الأكريليك بناءً على نوع الويندوز
         self.setup_ui()  # إعداد واجهة المستخدم
     # وظيفة لضبط موقع النافذة في وسط الشاشة
@@ -156,7 +156,7 @@ class InformationWindow(AcrylicWindow):
             layout.addWidget(self._create_separator())
 
             # Footer
-            footer_label = QLabel("Version 1.0 Beta - Maintained by zmshactov")
+            footer_label = QLabel("Version 1.1 Beta - Maintained by zmshactov")
             footer_label.setStyleSheet("color: rgba(255, 255, 255, 0.5); font-size: 12px; background-color: transparent;")
             footer_label.setAlignment(Qt.AlignCenter)
             layout.addWidget(footer_label)

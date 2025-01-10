@@ -240,6 +240,12 @@ def launch_vanilla_threaded():
             else:
                 raise Exception("Selected game not recognized.")
 
+            # تعريف App ID للألعاب
+            SteamAppID = {
+                "FC24": 2195250,
+                "FC25": 2669320
+            }
+
             # تحقق إذا كانت اللعبة تعمل بالفعل
             running_proc = is_game_running(game_exe)
             if running_proc:
@@ -260,55 +266,38 @@ def launch_vanilla_threaded():
                         # إذا كانت العملية غير موجودة، تجاهل الخطأ وأعد تشغيل اللعبة
                         logger.warning("Game process was already terminated. Continuing to launch.")
 
-            # تحقق من وجود الملفات وتغيير الأسماء إذا لزم الأمر
-            # للتأكد أن اللايف إديتور لا يستخدم الفيك أنتي شيت
-            cheat_service_path = os.path.join(selected_game_path, "EAAntiCheat.GameServiceLauncher.exe")
-            cheat_service_backup_path = cheat_service_path + ".backup"
-            cheat_dll_path = os.path.join(selected_game_path, "EAAntiCheat.GameServiceLauncher.dll")
-            cheat_dll_backup_path = cheat_dll_path + ".backup"
-
-            try:
-                if os.path.exists(cheat_service_path) and os.path.exists(cheat_service_backup_path):
-                    os.remove(cheat_service_path)
-                    os.rename(cheat_service_backup_path, cheat_service_path)
-                    logger.info("Replaced FakeEAACLauncher (EAAntiCheat.GameServiceLauncher.exe) with original one.")
-
-                if os.path.exists(cheat_dll_backup_path):
-                    if os.path.exists(cheat_dll_path):
-                        os.remove(cheat_dll_path)
-                    os.rename(cheat_dll_backup_path, cheat_dll_path)
-            except Exception as e:
-                logger.error(f"Error handling EAAntiCheat files: {e}")
-
-            # تحقق من وجود مجلدات وتغيير الأسماء إذا لزم الأمر
-            # MM/FET للتأكد أن لا يفعلون أي مودات على اللعبة
-            data_folder = os.path.join(selected_game_path, "Data")
-            patch_folder = os.path.join(selected_game_path, "Patch")
-            original_data_folder = os.path.join(selected_game_path, "original_Data")
-            original_patch_folder = os.path.join(selected_game_path, "original_Patch")
-
-            if os.path.exists(data_folder) and os.path.exists(patch_folder) and os.path.exists(original_data_folder) and os.path.exists(original_patch_folder):
-                try:
-                    shutil.rmtree(data_folder)
-                    shutil.rmtree(patch_folder)
-                    os.rename(original_data_folder, data_folder)
-                    os.rename(original_patch_folder, patch_folder)
-                    logger.info("Replaced Data and Patch folders with their original backups.")
-                except Exception as e:
-                    logger.error(f"Error handling Data and Patch folders: {e}")
-
             # نسخ احتياطي للملفات
             handle_configs(selected_game_path, action="backup")
 
-            if os.path.exists(game_exe):
-                logger.info(f"Launching game: {game_exe}")
-                subprocess.Popen([game_exe], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            # تشغيل اللعبة بناءً على المنصة
+            if "steam" in selected_game_path.lower():
+                # تشغيل اللعبة عبر Steam باستخدام App ID
+                logger.info("Detected Steam platform. Launching via Steam...")
+                steam_path = get_steam_path_from_registry()
+                if not steam_path:
+                    raise Exception("Steam path could not be determined from the registry.")
 
-                # انتظار استقرار اللعبة
-                if not wait_ea_processes(os.path.basename(game_exe)):
-                    raise Exception("Game process did not stabilize.")
+                # تحديد App ID بناءً على اللعبة
+                app_id = SteamAppID.get("FC24" if FC24 in selected_game_path else "FC25")
+                if not app_id:
+                    raise Exception("Steam App ID not found for the selected game.")
 
-                logger.info("Game launched successfully.")
+                steam_exe = os.path.join(steam_path, "Steam.exe")
+                command = [steam_exe, "-applaunch", str(app_id)]
+                subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                logger.info(f"Launched game via Steam with App ID: {app_id}")
+
+            else:
+                # تشغيل اللعبة من ملف EXE 
+                if os.path.exists(game_exe):
+                    logger.info(f"Launching game: {game_exe}")
+                    subprocess.Popen([game_exe], creationflags=subprocess.CREATE_BREAKAWAY_FROM_JOB)
+
+                    # انتظار استقرار اللعبة
+                    if not wait_ea_processes(os.path.basename(game_exe)):
+                        raise Exception("Game process did not stabilize.")
+
+                    logger.info("Game launched successfully.")
 
         except Exception as e:
             handle_error(f"Error occurred: {str(e)}", log=True)

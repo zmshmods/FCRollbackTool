@@ -1,5 +1,5 @@
 # --------------------------------------- Standard Libraries ---------------------------------------
-import sys, os, ctypes, subprocess, webbrowser , requests
+import sys, os,  subprocess, webbrowser, requests, win32api, win32con
 # --------------------------------------- Third-Party Libraries ---------------------------------------
 from PySide6.QtWidgets import QApplication, QVBoxLayout, QLabel, QPushButton, QHBoxLayout, QMenu, QWidgetAction, QFrame, QWidget, QSpacerItem, QSizePolicy, QGraphicsOpacityEffect
 from PySide6.QtCore import Qt, QSize, QPoint, QOperatingSystemVersion, QTimer, QSharedMemory, QPropertyAnimation
@@ -55,7 +55,7 @@ class Window(AcrylicWindow):
         self.content_version = self.game_manager.load_game_data()
         combined_version = f"{ToolVersion} {self.content_version}" 
         self.setWindowTitle(f"FC Rollback Tool - {combined_version}")
-        self.resize(640, 400)
+        self.resize(620, 440)
         AcrylicEffect(self)
         screen = QGuiApplication.primaryScreen().geometry()
         window_geometry = self.geometry()
@@ -479,13 +479,13 @@ class Window(AcrylicWindow):
         except Exception as e:
             self.handle_error(f"Error while changing the game: {e}")  # خطأ أثناء تغيير اللعبة
 # ----------------------------------- معالجة الأخطاء -----------------------------------
-    def handle_error(self, message):
-        """معالجة الأخطاء."""
-        logger.error(message)
-        ctypes.windll.user32.MessageBoxW(0, message, "Error", 0x10)
+def handle_error(message):
+    """معالجة الأخطاء."""
+    logger.error(message)
+    win32api.MessageBox(0, message, "Error", win32con.MB_ICONERROR)
 # ----------------------------------- الدالة الرئيسية -----------------------------------
 from Core.ToolUpdater import ToolVersion, check_for_updates, UpdateWindow, should_show_update
-from ctypes import windll
+
 def main():
     try:
         app = QApplication(sys.argv)
@@ -493,7 +493,7 @@ def main():
         shared_memory = QSharedMemory("FCRollbackToolSharedMemory")
 
         if not shared_memory.create(1):
-            ctypes.windll.user32.MessageBoxW(0, "FC Rollback Tool is already running.", "Error", 0x10)
+            win32api.MessageBox(0, "FC Rollback Tool is already running.", "Error", win32con.MB_ICONERROR)
             sys.exit()
 
         app.setStyleSheet(MainStyles())
@@ -527,7 +527,7 @@ def main():
 
                 # عرض نافذة التحديث
                 def show_update_window():
-                    windll.user32.MessageBeep(0xFFFFFFFF)  # إصدار صوت التنبيه الافتراضي للنظام
+                    win32api.MessageBeep(win32con.MB_ICONINFORMATION)  # إصدار صوت التنبيه
                     update_window = UpdateWindow(new_version=latest_version)
                     update_window.setWindowModality(Qt.ApplicationModal)  # جعل النافذة إجبارية
                     update_window.show()
@@ -539,7 +539,7 @@ def main():
 
     except Exception as e:
         logger.error(f"Application error: {e}")
-        ctypes.windll.user32.MessageBoxW(0, f"Error: {e}", "Error", 0x10)
+        win32api.MessageBox(0, f"Error: {e}", "Error", win32con.MB_ICONERROR)
 
 if __name__ == "__main__":
     main()
