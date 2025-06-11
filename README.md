@@ -1,5 +1,5 @@
 <p align="center">
-  <img width="120px" src="https://github.com/user-attachments/assets/0b2694cf-a4b4-4e51-94b7-78fa2ccf7df1" alt="FC Rollback Tool Icon" />
+  <img width="120px" src="https://raw.githubusercontent.com/zmshmods/FCRollbackTool/refs/heads/main/Data/Assets/Icons/FRICON.png" alt="FC Rollback Tool Icon" />
   <h1 align="center" style="color: #029144; font-size: 2.5em;">FC Rollback Tool</h1>
 </p>
 
