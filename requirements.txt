@@ -1,0 +1,10 @@
+PySide6-Fluent-Widgets
+PySideSix-Frameless-Window
+requests
+psutil
+py7zr
+rarfile
+cloudscraper
+lxml
+openpyxl
+pywin32

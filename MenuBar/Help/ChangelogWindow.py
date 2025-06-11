@@ -1,171 +1,99 @@
-# --------------------------------------- Standard Libraries ---------------------------------------
-import sys, importlib.resources, ctypes
-# --------------------------------------- Third-Party Libraries ---------------------------------------
-from PySide6.QtWidgets import QApplication, QVBoxLayout, QLabel, QPushButton, QHBoxLayout, QWidget, QSizePolicy
-from qfluentwidgets import setTheme, setThemeColor, Theme
-from qframelesswindow import AcrylicWindow, StandardTitleBar
-from PySide6.QtGui import QGuiApplication, QPixmap
+import sys
+from PySide6.QtWidgets import QApplication, QVBoxLayout, QLabel, QWidget, QSizePolicy
+from PySide6.QtGui import QGuiApplication, QIcon
 from PySide6.QtCore import Qt
-# --------------------------------------- Project-Specific Imports ---------------------------------------
-from UIComponents.AcrylicEffect import AcrylicEffect
-from UIComponents.Tooltips import apply_tooltip
-from Core.Logger import logger
+from qframelesswindow import AcrylicWindow
+from qfluentwidgets import Theme, setTheme, setThemeColor
+from UIComponents.Personalization import AcrylicEffect
 from UIComponents.MainStyles import MainStyles
-import requests
-from Core.ToolUpdater import ToolVersion, ChangelogBaseURL
+from Core.Logger import logger
+from UIComponents.TitleBar import TitleBar
+from Core.Initializer import ToolUpdateManager, ErrorHandler
 
-# ----------------------------------- مفتاح الاداة -----------------------------------
+WINDOW_TITLE = "Changelog"
+WINDOW_SIZE = (720, 480)
+THEME_COLOR = "#00FF00"
+ICON_PATH = "Data/Assets/Icons/ic_fluent_code_24_filled.png"
+SEPARATOR_STYLE = "background-color: rgba(255, 255, 255, 0.1);"
+SPACER_WIDTH = 75
+BAR_HEIGHT = 32
+SHOW_MAX_BUTTON = False
+SHOW_MIN_BUTTON = False
+SHOW_CLOSE_BUTTON = True
+
 class ChangelogWindow(AcrylicWindow):
     def __init__(self, parent=None):
-        self.config_cache = None
         super().__init__(parent=parent)
-        self.setWindowTitle("Changelog")  # تعيين عنوان النافذة
-        self.resize(620, 440)
-        AcrylicEffect(self)  # تفعيل أو تعطيل تأثير الأكريليك بناءً على نوع الويندوز
-        self.setup_ui()  # إعداد واجهة المستخدم
-        # ضبط موقع النافذة في وسط الشاشة
+        self.tool_update_manager = ToolUpdateManager()
+        self.setWindowTitle(WINDOW_TITLE)
+        self.resize(*WINDOW_SIZE)
+        AcrylicEffect(self)
+        self.center_window()
+        self.main_layout = QVBoxLayout(self)
+        self.main_layout.setContentsMargins(0, 0, 0, 0)
+        self.main_layout.setSpacing(0)
+        self.setup_ui()
+
+    def setup_ui(self) -> None:
+        try:
+            self._setup_title_bar()
+            self._setup_main_container()
+        except Exception as e:
+            ErrorHandler.handleError(f"Error setting up UI: {e}")
+
+    def center_window(self) -> None:
         screen = QGuiApplication.primaryScreen().geometry()
-        window_geometry = self.geometry()
-        x = (screen.width() - window_geometry.width()) // 2
-        y = (screen.height() - window_geometry.height()) // 2
-        self.move(x, y)
+        self.move((screen.width() - self.width()) // 2, (screen.height() - self.height()) // 2)
 
-    def create_title_bar(self):
-        try:
-            # استخدام StandardTitleBar كما هو
-            title_bar = StandardTitleBar(self)
-            self.setTitleBar(title_bar)
-            # إخفاء أزرار التكبير
-            title_bar.maxBtn.hide()
-            title_bar.minBtn.hide()
-            # تعطيل التفاعل مع شريط العنوان
-            title_bar.setDoubleClickEnabled(False)
-            # إنشاء حاوية لشريط العنوان
-            self.title_bar_container = QWidget(self)
-            self.title_bar_container.setStyleSheet("background-color: transparent;")  # لون الخلفية
-            self.title_bar_container.setFixedHeight(32)  # تحديد ارتفاع شريط العنوان
-            self.title_bar_container.setAttribute(Qt.WA_TransparentForMouseEvents, True)  # عدم اعتراض الماوس
-            # إنشاء تخطيط أفقي لشريط العنوان
-            title_bar_layout = QHBoxLayout(self.title_bar_container)
-            title_bar_layout.setContentsMargins(10, 0, 10, 0)  # الهوامش الداخلية
-            # **إضافة الأيقونة إلى شريط العنوان**
-            icon_label = QLabel(self)
-            icon_pixmap = QPixmap("Data/Assets/Icons/ic_fluent_code_24_filled.png")  # تحميل الأيقونة
-            # ضبط حجم الأيقونة
-            icon_pixmap = icon_pixmap.scaled(24, 24, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-            icon_label.setPixmap(icon_pixmap)
-            icon_label.setFixedSize(24, 24)  # تحديد حجم الأيقونة
-            icon_label.setStyleSheet("background-color: transparent;")  # تعيين خلفية شفافة
-            icon_label.setAlignment(Qt.AlignVCenter | Qt.AlignLeft)
-            # إضافة الأيقونة إلى التخطيط
-            title_bar_layout.addWidget(icon_label)
-            # إنشاء عنوان النافذة
-            self.title_label = QLabel(self.windowTitle(), self)
-            self.title_label.setStyleSheet("color: white; background-color: transparent; font-size: 16px;")
-            self.title_label.setAlignment(Qt.AlignVCenter | Qt.AlignLeft)  # محاذاة العنوان يسار ووسط رأسيًا
-            self.title_label.setAttribute(Qt.WA_TransparentForMouseEvents, True)
-            # إضافة العنوان إلى التخطيط
-            title_bar_layout.addWidget(self.title_label)
-            self.main_layout.setContentsMargins(0, 0, 0, 0)  # إزالة الهوامش من التخطيط الرئيسي
-            self.main_layout.addWidget(self.title_bar_container)
-            # إضافة خط فاصل تحت شريط العنوان
-            separator = QWidget(self)
-            separator.setStyleSheet("background-color: rgba(255, 255, 255, 0.1);")
-            separator.setFixedHeight(1)
-            self.main_layout.addWidget(separator)
-        except Exception as e:
-            self.handle_error(f"Error creating title bar: {e}")
+    def _setup_title_bar(self) -> None:
+        title_bar = TitleBar(
+            self,
+            title=WINDOW_TITLE,
+            icon_path=ICON_PATH,
+            spacer_width=SPACER_WIDTH,
+            show_max_button=SHOW_MAX_BUTTON,
+            show_min_button=SHOW_MIN_BUTTON,
+            show_close_button=SHOW_CLOSE_BUTTON,
+            bar_height=BAR_HEIGHT
+        )
+        title_bar.create_title_bar()
 
-    def setup_ui(self):
-        """إعداد واجهة المستخدم."""
-        try:
-            self.main_layout = QVBoxLayout(self)
-            self.main_layout.setContentsMargins(0, 5, 0, 5)
-            self.create_title_bar()  # إنشاء شريط العنوان
-            self.create_transparent_container()  # إنشاء الحاوية الشفافة
-            self.main_layout.setSpacing(0)
-        except Exception as e:
-            self.handle_error(f"Error setting up UI: {e}")
-
-    def create_transparent_container(self):
-        """إنشاء الحاوية الشفافة لعرض المحتوى وجلب ملف التغييرات."""
-        try:
-            # إذا كانت الحاوية موجودة مسبقًا، نظفها
-            if hasattr(self, "transparent_container") and self.transparent_container.layout():
-                layout = self.transparent_container.layout()
-                while layout.count():
-                    child = layout.takeAt(0)
-                    if child.widget():
-                        child.widget().deleteLater()
+    def _setup_main_container(self) -> None:
+        self.main_container = QWidget(self, styleSheet="background-color: transparent;", sizePolicy=QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding))
+        container_layout = QVBoxLayout(self.main_container)
+        container_layout.setContentsMargins(10, 10, 10, 10)
+        title_label = QLabel(f"v{self.tool_update_manager.getToolVersion()} Release")
+        title_label.setStyleSheet("font-size: 16px; font-weight: bold; color: white; background-color: transparent;")
+        title_label.setAlignment(Qt.AlignLeft)
+        container_layout.addWidget(title_label)
+        container_layout.addWidget(QWidget(self, styleSheet=SEPARATOR_STYLE, fixedHeight=1))
+        changelog_container = QWidget(self)
+        changelog_layout = QVBoxLayout(changelog_container)
+        changelog_layout.setContentsMargins(0, 5, 0, 5)
+        changelog_layout.setSpacing(5)
+        for line in self.tool_update_manager.getToolChangelog():
+            stripped_line = line.strip()
+            if stripped_line.startswith("- *"):
+                changelog_label = QLabel(f"Note: {stripped_line[3:].strip()}")
+                changelog_label.setStyleSheet("font-size: 14px; color: yellow; background-color: transparent;")
             else:
-                # إنشاء الحاوية إذا لم تكن موجودة
-                self.transparent_container = QWidget(self)
-                self.transparent_container.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-                self.transparent_container.setStyleSheet("background-color: rgba(0, 0, 0, 0.1);")
-                layout = QVBoxLayout(self.transparent_container)
-                layout.setAlignment(Qt.AlignTop)  # جعل المحتوى يلتصق بالأعلى
-                self.main_layout.addWidget(self.transparent_container)
+                changelog_label = QLabel(f"• {stripped_line[1:].strip()}")
+                changelog_label.setStyleSheet("font-size: 14px; color: white; background-color: transparent;")
+            changelog_label.setWordWrap(True)
+            changelog_layout.addWidget(changelog_label)
+        container_layout.addWidget(changelog_container)
+        container_layout.addStretch()
+        self.main_layout.addWidget(self.main_container)
 
-            # محاولة تحميل وعرض ملف التغييرات
-            try:
-                # تكوين رابط ملف التغييرات
-                changelog_url = f"{ChangelogBaseURL}{ToolVersion}.txt"
-                response = requests.get(changelog_url, timeout=10)
-                response.raise_for_status()
-
-                # عنوان رقم النسخة
-                version_label = QLabel(f"<b>FC Rollback Tool {ToolVersion}:</b>", self)
-                version_label.setStyleSheet("font-size: 16px; color: white; background-color: transparent;")
-                version_label.setAlignment(Qt.AlignLeft)
-                layout.addWidget(version_label)
-
-                # معالجة النصوص
-                lines = response.text.splitlines()
-                formatted_lines = [f"\u2022 {line.lstrip('-').strip()}" for line in lines if line.strip()]
-
-                # عرض النصوص في الحاوية الشفافة
-                for line in formatted_lines:
-                    label = QLabel(line, self)
-                    label.setStyleSheet("font-size: 16px; color: white; background-color: transparent;")
-                    label.setAlignment(Qt.AlignLeft)
-                    layout.addWidget(label)
-            except Exception as e:
-                # إذا حدث خطأ، عرض رسالة
-                error_label = QLabel("Unable to fetch changelog.", self)
-                error_label.setStyleSheet("font-size: 14px; color: red; background-color: transparent;")
-                error_label.setAlignment(Qt.AlignCenter)
-                layout.addWidget(error_label)
-                logger.error(f"Error fetching changelog: {e}")
-        except Exception as e:
-            self.handle_error(f"Error creating transparent container: {e}")
-
-    def _create_separator(self):
-        separator = QWidget(self)
-        separator.setStyleSheet("background-color: rgba(255, 255, 255, 0.05);")
-        separator.setFixedHeight(1)
-        return separator
-
-    # معالجة الأخطاء
-    def handle_error(self, message):
-        logger.error(message)  # تسجيل الخطأ
-        ctypes.windll.user32.MessageBoxW(0, message, "Error", 0x10)  # عرض رسالة الخطأ للمستخدم
-# ----------------------------------- الدالة الرئيسية -----------------------------------
 def main():
-    try:
-        # إنشاء تطبيق Qt
-        app = QApplication(sys.argv)
-        app.setStyleSheet(MainStyles())
-        setTheme(Theme.DARK)  # تحديد السمة الداكنة
-        setThemeColor("#00FF00")  # تحديد اللون الأخضر
-        # إنشاء النافذة الرئيسية
-        main_window = ChangelogWindow()
-        main_window.show()  # عرض النافذة
-        # بدء التطبيق
-        return app.exec()
-    except Exception as e:
-        logger.error(f"Error in main: {e}")  # تسجيل الخطأ
-        ctypes.windll.user32.MessageBoxW(0, f"Error: {e}", "Error", 0x10)  # عرض رسالة الخطأ
+    app = QApplication(sys.argv)
+    app.setStyleSheet(MainStyles())
+    app.setWindowIcon(QIcon(ICON_PATH))
+    setTheme(Theme.DARK)
+    setThemeColor(THEME_COLOR)
+    window = ChangelogWindow()
+    window.show()
+    return app.exec()
 
-# تشغيل التطبيق
 if __name__ == "__main__":
     main()

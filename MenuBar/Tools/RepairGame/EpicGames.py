@@ -1,27 +1,26 @@
-# --------------------------------------- Standard Libraries ---------------------------------------
-import sys, importlib.resources, ctypes, winreg, psutil, os
-# --------------------------------------- Third-Party Libraries ---------------------------------------
+import sys, ctypes, winreg, psutil, os
 from PySide6.QtWidgets import QApplication, QVBoxLayout, QLabel, QPushButton, QHBoxLayout, QWidget, QSizePolicy
 from qfluentwidgets import setTheme, setThemeColor, Theme
 from qframelesswindow import AcrylicWindow, StandardTitleBar
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtCore import Qt
-# --------------------------------------- Project-Specific Imports ---------------------------------------
-from UIComponents.AcrylicEffect import AcrylicEffect
+from UIComponents.Personalization import AcrylicEffect
 from UIComponents.Tooltips import apply_tooltip
 from Core.Logger import logger
-# ----------------------------------- نافذة تطبيق Epic Games -----------------------------------
+from UIComponents.MainStyles import MainStyles
+from Core.Initializer import ErrorHandler
+
 class EpicGamesWindow(AcrylicWindow):
     def __init__(self, parent=None):
         self.config_cache = None
         super().__init__(parent=parent)
-        self.setWindowTitle("Repair Game - Epic Games")  # عنوان النافذة
-        self.resize(370, 100)  # حجم النافذة
-        self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnTopHint)  # تثبيت النافذة أعلى النوافذ الأخرى
-        AcrylicEffect(self)  # تأثير الأكريليك
-        self.center_window()  # ضبط الموقع
-        self.manage_epicgames()  # إدارة تشغيل التطبيق
-        self.setup_ui()  # إعداد الواجهة
+        self.setWindowTitle("Repair Game - Epic Games")
+        self.resize(370, 100)
+        self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnTopHint)
+        AcrylicEffect(self)
+        self.center_window()
+        self.manage_epicgames()
+        self.setup_ui()
 
     def center_window(self):
         screen = QGuiApplication.primaryScreen().geometry()
@@ -60,7 +59,7 @@ class EpicGamesWindow(AcrylicWindow):
             separator.setFixedHeight(1)
             self.main_layout.addWidget(separator)
         except Exception as e:
-            self.handle_error(f"Error creating title bar: {e}")
+            ErrorHandler.handleError(f"Error creating title bar: {e}")
 
     def setup_ui(self):
         try:
@@ -70,10 +69,9 @@ class EpicGamesWindow(AcrylicWindow):
             self.create_transparent_container()
             self.main_layout.setSpacing(0)
         except Exception as e:
-            self.handle_error(f"Error setting up UI: {e}")
+            ErrorHandler.handleError(f"Error setting up UI: {e}")
 
     def manage_epicgames(self):
-        """إدارة تشغيل تطبيق Epic Games Launcher"""
         try:
             pid = next((proc.info['pid'] for proc in psutil.process_iter(['pid', 'name']) if proc.info['name'] == "EpicGamesLauncher.exe"), None)
 
@@ -93,7 +91,7 @@ class EpicGamesWindow(AcrylicWindow):
                     os.startfile(app_path)
                     logger.info(f"Epic Games Launcher started successfully from: {app_path}")
                 else:
-                    logger.error("Failed to find Epic Games Launcher executable path for restarting.")
+                    ErrorHandler.handleError("Failed to find Epic Games Launcher executable path for restarting.")
             else:
                 logger.info("Epic Games Launcher is not running. Starting application...")
                 app_path = self.get_epicgames_path()
@@ -101,12 +99,11 @@ class EpicGamesWindow(AcrylicWindow):
                     os.startfile(app_path)
                     logger.info(f"Epic Games Launcher started successfully from: {app_path}")
                 else:
-                    logger.error("Failed to find Epic Games Launcher executable path.")
+                    ErrorHandler.handleError("Failed to find Epic Games Launcher executable path.")
         except Exception as e:
-            logger.error(f"Error managing Epic Games Launcher: {e}")
+            ErrorHandler.handleError(f"Error managing Epic Games Launcher: {e}")
 
     def get_epicgames_path(self):
-        """الحصول على مسار Epic Games Launcher من الريجستري"""
         try:
             registry_path = r"SOFTWARE\WOW6432Node\Epic Games\EOS\InstallHelper"
             registry_key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, registry_path)
@@ -115,20 +112,18 @@ class EpicGamesWindow(AcrylicWindow):
             full_path = base_path + r"\Launcher\Portal\Binaries\Win64\EpicGamesLauncher.exe"
             return full_path
         except FileNotFoundError:
-            logger.error("Epic Games registry key not found.")
+            ErrorHandler.handleError("Epic Games registry key not found.")
             return None
 
     def create_transparent_container(self):
         try:
-            # إنشاء الحاوية الشفافة
             self.transparent_container = QWidget(self)
-            self.transparent_container.setStyleSheet("background-color: rgba(0, 0, 0, 0.1);")  # تحديد اللون الشفاف
-            self.transparent_container.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)  # جعل الحاوية قابلة للتوسيع
-            layout = QVBoxLayout(self.transparent_container)  # إعداد تخطيط للحاوية الشفافة
+            self.transparent_container.setStyleSheet("background-color: rgba(0, 0, 0, 0.1);")
+            self.transparent_container.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+            layout = QVBoxLayout(self.transparent_container)
             layout.setContentsMargins(10, 10, 10, 10)
-            layout.setAlignment(Qt.AlignTop | Qt.AlignLeft)  # محاذاة النصوص إلى الأعلى واليسار
+            layout.setAlignment(Qt.AlignTop | Qt.AlignLeft)
 
-            # التعليمات
             steps = """
             <p style="color: white; font-size: 14px; font-weight: bold; white-space: nowrap;">
             1. Go to library.<br>
@@ -138,49 +133,34 @@ class EpicGamesWindow(AcrylicWindow):
             </p>
             """
 
-            # إنشاء QLabel للتعليمات
             steps_label = QLabel(steps, self)
-            steps_label.setStyleSheet("background-color: transparent;")  # جعل خلفية النص شفافة
-            steps_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)  # محاذاة النص إلى الأعلى واليسار
-            steps_label.setWordWrap(False)  # تعطيل تغليف النص
+            steps_label.setStyleSheet("background-color: transparent;")
+            steps_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+            steps_label.setWordWrap(False)
 
-            # إضافة QLabel للتعليمات
             layout.addWidget(steps_label)
 
-            # الرسالة الإضافية
             additional_message = QLabel(
                 "It may take some time to repair, you can close this window.",
                 self
             )
             additional_message.setStyleSheet("color: rgba(255, 255, 255, 0.8); font-size: 12px; background-color: transparent;")
-            additional_message.setAlignment(Qt.AlignLeft | Qt.AlignTop)  # محاذاة النص إلى الأعلى واليسار
+            additional_message.setAlignment(Qt.AlignLeft | Qt.AlignTop)
 
-            # إضافة الرسالة الإضافية إلى الحاوية
             layout.addWidget(additional_message)
 
-            # إضافة الحاوية إلى التخطيط الرئيسي
             self.main_layout.addWidget(self.transparent_container)
         except Exception as e:
-            self.handle_error(f"Error creating transparent container: {e}")
+            ErrorHandler.handleError(f"Error creating transparent container: {e}")
 
-    def handle_error(self, message):
-        logger.error(message)
-        ctypes.windll.user32.MessageBoxW(0, message, "Error", 0x10)
-
-# ----------------------------------- الدالة الرئيسية -----------------------------------
 def main():
-    try:
         app = QApplication(sys.argv)
-        with importlib.resources.open_text('UIComponents', 'Styles.qss', encoding="utf-8") as f:
-            app.setStyleSheet(f.read())
+        app.setStyleSheet(MainStyles())
         setTheme(Theme.DARK)
         setThemeColor("#00FF00")
         main_window = EpicGamesWindow()
         main_window.show()
         return app.exec()
-    except Exception as e:
-        logger.error(f"Error in main: {e}")
-        ctypes.windll.user32.MessageBoxW(0, f"Error: {e}", "Error", 0x10)
 
 if __name__ == "__main__":
     main()

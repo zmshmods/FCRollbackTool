@@ -5,6 +5,7 @@ import shutil
 import winreg
 import time
 from Core.Logger import logger
+from Core.Initializer import ErrorHandler
 
 EACachePaths = [
     os.path.join(os.getenv("USERPROFILE"), "AppData", "Roaming", "EA"),
@@ -14,19 +15,19 @@ EACachePaths = [
     os.path.join(os.getenv("USERPROFILE"), "AppData", "Local", "EALaunchHelper")
 ]
 
-# === الدوال المساعدة ===
+# === Helpers ===
 def is_eadesktop_running():
-    """التحقق إذا كان تطبيق EA Desktop قيد التشغيل"""
+    """Check if EA Desktop application is running"""
     try:
         return next((proc.info['pid'] for proc in psutil.process_iter(['pid', 'name']) if proc.info['name'] == "EADesktop.exe"), None)
     except psutil.Error as e:
-        logger.error(f"Error checking if EA Desktop is running: {e}")
+        ErrorHandler.handleError(f"Error checking if EA Desktop is running: {e}")
         return None
 
 def terminate_eadesktop(pid):
-    """إنهاء تطبيق EA Desktop وجميع العمليات التابعة بالقوة إذا كانت قيد التشغيل"""
+    """Force terminate EA Desktop and all related subprocesses if running"""
     try:
-        # إنهاء جميع العمليات التابعة EACefSubProcess.exe
+        # Terminate all EACefSubProcess.exe subprocesses
         logger.info("Scanning for EACefSubProcess.exe processes.")
         cef_count = 0
         for proc in psutil.process_iter(['pid', 'name']):
@@ -40,13 +41,13 @@ def terminate_eadesktop(pid):
                         sub_process.wait(timeout=10)
                         logger.info(f"EACefSubProcess.exe (PID: {sub_pid}) force closed.")
             except (psutil.NoSuchProcess, psutil.AccessDenied, Exception) as e:
-                logger.error(f"Failed to process EACefSubProcess.exe with error: {e}")
+                ErrorHandler.handleError(f"Failed to process EACefSubProcess.exe with error: {e}")
         if cef_count > 0:
             logger.info(f"Total EACefSubProcess.exe processes found and terminated: {cef_count}")
         else:
             logger.info("No EACefSubProcess.exe processes found running.")
 
-        # إضافة إغلاق EALocalHostSvc.exe
+        # terminate EALocalHostSvc.exe
         logger.info("Scanning for EALocalHostSvc.exe processes.")
         svc_count = 0
         for proc in psutil.process_iter(['pid', 'name']):
@@ -60,13 +61,13 @@ def terminate_eadesktop(pid):
                         svc_process.wait(timeout=10)
                         logger.info(f"EALocalHostSvc.exe (PID: {svc_pid}) force closed.")
             except (psutil.NoSuchProcess, psutil.AccessDenied, Exception) as e:
-                logger.error(f"Failed to process EALocalHostSvc.exe with error: {e}")
+                ErrorHandler.handleError(f"Failed to process EALocalHostSvc.exe with error: {e}")
         if svc_count > 0:
             logger.info(f"Total EALocalHostSvc.exe processes found and terminated: {svc_count}")
         else:
             logger.info("No EALocalHostSvc.exe processes found running.")
 
-        # إنهاء العملية الرئيسية EADesktop.exe
+        # Terminate the main EADesktop.exe process
         logger.info(f"Attempting to terminate EADesktop.exe with PID: {pid}")
         try:
             process = psutil.Process(pid)
@@ -77,27 +78,25 @@ def terminate_eadesktop(pid):
             else:
                 logger.warning(f"EADesktop.exe (PID: {pid}) is not running.")
         except (psutil.NoSuchProcess, psutil.AccessDenied, Exception) as e:
-            logger.error(f"Failed to terminate EADesktop.exe with error: {e}")
+            ErrorHandler.handleError(f"Failed to terminate EADesktop.exe with error: {e}")
 
-        # الانتظار لمدة 5 ثوانٍ بعد الإغلاق
         logger.info("Waiting 5 seconds before proceeding with cleanup...")
         time.sleep(5)
 
         return True
     except (psutil.NoSuchProcess, psutil.AccessDenied, Exception) as e:
-        logger.error(f"Failed to force close EA Desktop or its subprocesses: {e}")
+        ErrorHandler.handleError(f"Failed to force close EA Desktop or its subprocesses: {e}")
         return False
 
 def confirm_action(message, title, icon=0x20 | 0x4):
-    """عرض مربع حوار لتأكيد إجراء من المستخدم"""
     return ctypes.windll.user32.MessageBoxW(0, message, title, icon)
 
 def delete_cache_files():
-    """حذف ملفات الكاش وإعادة تشغيل EA Desktop"""
+    """Delete cache files and restart EA Desktop"""
     try:
         logger.info("=== Starting EA Desktop Cache Cleanup ===")
 
-        # تأكيد المستخدم لمسح الكاش
+        # Ask user to confirm cache clearing
         if confirm_action(
             "Clearing the cache may help resolve common issues.\nYou will need to re-login after clearing the cache.\n\n Do you want to continue?",
             "Clear EA Cache") != 6:
@@ -112,10 +111,10 @@ def delete_cache_files():
                 return
 
             if not terminate_eadesktop(pid):
-                logger.error("Failed to close EA Desktop. Aborting cleanup.")
+                ErrorHandler.handleError("Failed to close EA Desktop. Aborting cleanup.")
                 return
 
-        # حذف ملفات الكاش
+        # Delete cache files
         logger.info("Deleting cache files...")
         deleted_files, total_files = 0, len(EACachePaths)
         for path in EACachePaths:
@@ -129,13 +128,13 @@ def delete_cache_files():
                         logger.info(f"Deleted file: {path}")
                     deleted_files += 1
                 except Exception as e:
-                    logger.error(f"Error deleting {path}: {e}")
+                    ErrorHandler.handleError(f"Error deleting {path}: {e}")
             else:
                 logger.warning(f"Path not found: {path}")
 
         logger.info(f"Cache cleanup complete. Deleted {deleted_files}/{total_files} files.")
 
-        # إعادة تشغيل التطبيق
+        # Restart the application
         logger.info("Restarting EA Desktop...")
         try:
             reg_key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\\Electronic Arts\\EA Desktop")
@@ -146,13 +145,12 @@ def delete_cache_files():
                 os.startfile(app_path)
                 logger.info(f"EA Desktop restarted from: {app_path}")
             else:
-                logger.error("EA Desktop path not found in registry.")
+                ErrorHandler.handleError("EA Desktop path not found in registry.")
         except Exception as e:
-            logger.error(f"Failed to restart EA Desktop: {e}")
+            ErrorHandler.handleError(f"Failed to restart EA Desktop: {e}")
 
     except Exception as e:
-        logger.error(f"Unexpected error during cache cleanup: {e}")
-        ctypes.windll.user32.MessageBoxW(0, f"Error: {e}", "Error", 0x10)
+        ErrorHandler.handleError(f"Unexpected error during cache cleanup: {e}")
 
 if __name__ == "__main__":
     delete_cache_files()

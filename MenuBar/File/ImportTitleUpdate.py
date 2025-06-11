@@ -1,208 +1,228 @@
 import os
-import sys
 import shutil
-import ctypes
-import requests
-import subprocess
+import zipfile
+import py7zr
+import rarfile
+import pickle
+import zlib
 from PySide6.QtCore import QThread, Signal
-from PySide6.QtWidgets import QApplication, QFileDialog
+from Core.Initializer import MainDataManager, GameManager, AppDataManager, ErrorHandler
 from Core.Logger import logger
-from Core.Initializer import Initializer
+from enum import Enum
 
-class TitleUpdateWorker(QThread):
-    update_detected = Signal(str)
-    error_occurred = Signal(str)
+class ImportState(Enum):
+    SEARCHING_EXECUTABLE = "Searching for executable file..."
+    DETECTING_TITLE = "Detecting title update..."
+    IMPORTING = "Importing to profile directory..."
+    COMPLETED = "Completed successfully!"
 
-    def __init__(self, input_path):
+class ImportTitleUpdate(QThread):
+    state_changed = Signal(ImportState, int, str, bool)
+    completed_signal = Signal()
+    error_signal = Signal(str)
+    cancel_signal = Signal()
+
+    def __init__(self, input_path: str, game_mgr: GameManager, data_mgr: MainDataManager, app_data_mgr: AppDataManager, operation_id: str):
         super().__init__()
         self.input_path = input_path
-        self._is_running = True
+        self.game_mgr = game_mgr
+        self.data_mgr = data_mgr
+        self.app_data_mgr = app_data_mgr
+        self.operation_id = operation_id
+        self.temp_path = os.path.join(self.app_data_mgr.getTempFolder(), f"ImportTitleUpdate_{operation_id}")
+        self.exe_path_in_source = None
+        self.is_canceled = False
+        self.is_cleaned = False
+        os.makedirs(self.temp_path, exist_ok=True)
+
+    def get_file_size(self):
+        try:
+            size = os.path.getsize(self.input_path) if os.path.isfile(self.input_path) else \
+                   sum(os.path.getsize(os.path.join(root, f)) for root, _, files in os.walk(self.input_path) for f in files)
+            return f"{size / (1024 ** 3):.2f} GB" if size >= 1024 ** 3 else f"{size / (1024 ** 2):.2f} MB"
+        except Exception as e:
+            logger.error(f"Failed to calculate size for {self.input_path}: {str(e)}")
+            return "Unknown size"
+
+    def emit_state(self, state: ImportState, progress: int, details: str = "", is_success: bool = False):
+        if not self.is_canceled:
+            try:
+                self.state_changed.emit(state, progress, details, is_success)
+            except Exception as e:
+                ErrorHandler.handleError(f"Failed to emit state: {str(e)}")
+                if not self.is_canceled:
+                    self.error_signal.emit(str(e))
+
+    def cancel(self):
+        if not self.is_canceled:
+            self.is_canceled = True
+            self._cleanup()
+            self.cancel_signal.emit()
+            self.quit()
+            self.wait()
+
+    def _handle_error(self, msg: str):
+        ErrorHandler.handleError(msg)
+        self.error_signal.emit(msg)
+        self._cleanup()
 
     def run(self):
+        zf = rf = szf = None
         try:
-            TitleUpdate.process_input(self.input_path)
-        finally:
-            self._is_running = False
+            ext = os.path.splitext(self.input_path)[1].lower()
+            is_compressed = os.path.isfile(self.input_path) and ext in self.data_mgr.getCompressedFileExtensions()
+            is_folder = os.path.isdir(self.input_path)
+            if not (is_compressed or is_folder):
+                self._handle_error(f"Failed to import title update: No expected executable found in {self.input_path}.\nExpected: {', '.join(self.game_mgr.GAME_VERSION)}.exe")
+                return
 
-    def quit(self):
-        self._is_running = False
-        super().quit()
-        self.wait()
+            expected_exes = [f"{self.game_mgr.GAME_PREFIX}{version}.exe" for version in self.game_mgr.GAME_VERSION]
+            exe_name = temp_exe_path = root_dir = None
+            self.emit_state(ImportState.SEARCHING_EXECUTABLE, 10, "Searching for executable...")
 
-    def is_running(self):
-        return self._is_running
-
-
-class TitleUpdate:
-    @staticmethod
-    def select_compressed_file():
-        try:
-            file, _ = QFileDialog.getOpenFileName(None, "Import Title Update from Compressed File", "", "Compressed Files (*.rar *.zip *.7z)")
-            if file:
-                worker = TitleUpdateWorker(file)
-                worker.update_detected.connect(TitleUpdate.on_update_detected)
-                worker.error_occurred.connect(TitleUpdate.on_error_occurred)
-                worker.finished.connect(lambda: worker.wait())
-                worker.start()
-                return worker
-        except Exception as e:
-            TitleUpdate.show_generic_error(f"Error in select_compressed_file: {e}")
-        return None
-
-    @staticmethod
-    def select_folder():
-        try:
-            folder = QFileDialog.getExistingDirectory(None, "Import Title Update from Folder")
-            if folder:
-                worker = TitleUpdateWorker(folder)
-                worker.update_detected.connect(TitleUpdate.on_update_detected)
-                worker.error_occurred.connect(TitleUpdate.on_error_occurred)
-                worker.finished.connect(lambda: worker.wait())
-                worker.start()
-                return worker
-        except Exception as e:
-            TitleUpdate.show_generic_error(f"Error in select_folder: {e}")
-        return None
-
-    @staticmethod
-    def process_input(input_path):
-        try:
-            if os.path.isdir(input_path):
-                TitleUpdate.process_directory(input_path)
-            elif os.path.isfile(input_path):
-                TitleUpdate.process_file(input_path)
-            else:
-                TitleUpdate.handle_error(input_path, "Invalid path. Please provide a valid file or directory.")
-        except Exception as e:
-            TitleUpdate.show_generic_error(f"Error in process_input: {e}")
-
-    @staticmethod
-    def process_directory(input_path):
-        for root, _, files in os.walk(input_path):
-            for file in files:
-                if file.lower() in ("fc25.exe", "fc24.exe"):
-                    exe_path = os.path.join(root, file)
-                    game_name = "FC25" if "fc25.exe" in file.lower() else "FC24"
-                    crc_value = Initializer.calculate_crc(exe_path)
-                    TitleUpdate.VerifyTitleUpdate(crc_value, game_name, input_path)
+            if is_compressed:
+                try:
+                    pwd = self.data_mgr.getKey()
+                    if ext == ".zip":
+                        zf = zipfile.ZipFile(self.input_path, "r")
+                        if pwd: zf.setpassword(pwd.encode('utf-8'))
+                    elif ext == ".7z":
+                        szf = py7zr.SevenZipFile(self.input_path, "r", password=pwd)
+                    elif ext == ".rar":
+                        unrar_path = self.data_mgr.getUnRAR()
+                        if not os.path.exists(unrar_path):
+                            self._handle_error(f"UnRAR tool not found at: {unrar_path}")
+                            return
+                        rarfile.UNRAR_TOOL = unrar_path
+                        rf = rarfile.RarFile(self.input_path, "r")
+                        if pwd: rf.setpassword(pwd)
+                    else:
+                        self._handle_error(f"Unsupported archive type: {ext}")
+                        return
+                except Exception as e:
+                    self._handle_error(f"Failed to open archive {self.input_path}: {str(e)}")
                     return
-        TitleUpdate.handle_error(input_path, "Does not contain any EXE. It must contain the game's executable file.")
 
-    @staticmethod
-    def process_file(input_path):
-        ext = os.path.splitext(input_path)[1].lower()
-        if ext in (".zip", ".rar", ".7z"):
-            extracted_folder = TitleUpdate.extract_with_7z(input_path)
-            if extracted_folder:
-                exe_path = TitleUpdate.find_exe(extracted_folder)
-                if exe_path:
-                    game_name = "FC25" if "FC25.exe" in exe_path else "FC24"
-                    crc_value = Initializer.calculate_crc(exe_path)
-                    TitleUpdate.VerifyTitleUpdate(crc_value, game_name, input_path)
-                    os.remove(exe_path)
-                else:
-                    TitleUpdate.handle_error(input_path, "Does not contain any EXE. It must contain the game's executable file.")
-        else:
-            TitleUpdate.handle_error(input_path, "Unsupported file type. Only .zip, .rar, and .7z are supported.")
+                archive_files = zf.namelist() if ext == ".zip" else szf.getnames() if ext == ".7z" else rf.namelist()
+                for file in archive_files:
+                    if os.path.basename(file).lower() in [e.lower() for e in expected_exes]:
+                        self.exe_path_in_source = file
+                        exe_name = os.path.basename(file)
+                        root_dir = os.path.dirname(file)
+                        break
+                if not self.exe_path_in_source:
+                    found_exes = sorted(list(set(os.path.basename(f) for f in archive_files if f.lower().endswith('.exe'))), key=lambda x: (not x.lower().startswith('f'), x))
+                    found_exes = found_exes[:3]
+                    self._handle_error(
+                        f"Failed to import title update: No expected executable found in {self.input_path}.\n"
+                        f"Expected: {' or '.join(expected_exes)}\nBut got:\n" + (''.join(f"- {exe}\n" for exe in found_exes) if found_exes else "no executable found\n")
+                    )
+                    return
 
-    @staticmethod
-    def find_exe(folder):
-        for root, _, files in os.walk(folder):
-            for file in files:
-                if file.lower() in ("fc25.exe", "fc24.exe"):
-                    return os.path.join(root, file)
-        return None
-
-    @staticmethod
-    def extract_with_7z(archive_path):
-        try:
-            # إعداد مجلد مؤقت لاستخراج الملفات
-            temp_folder = os.path.join(os.getenv("LOCALAPPDATA"), "fc_rollback_tool", "temp")
-            os.makedirs(temp_folder, exist_ok=True)
-
-            # إعداد الأمر لاستخراج الملفات باستخدام 7z
-            command = [
-                os.path.join(os.getcwd(), "Data", "ThirdParty", "7-Zip", "7z.exe"),
-                "x", archive_path, f"-o{temp_folder}", "-y", "-r", "FC25.exe", "FC24.exe"
-            ]
-
-            # إعداد التشغيل الصامت
-            startupinfo = subprocess.STARTUPINFO()
-            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW  # إخفاء نافذة الـ CMD
-
-            # تشغيل subprocess بدون نافذة CMD
-            result = subprocess.run(command, capture_output=True, text=True, startupinfo=startupinfo)
-
-            if result.returncode == 0:
-                return temp_folder  # إذا تمت العملية بنجاح
+                try:
+                    if ext == ".zip":
+                        zf.extract(self.exe_path_in_source, path=self.temp_path)
+                    elif ext == ".7z":
+                        szf.extract(targets=[self.exe_path_in_source], path=self.temp_path)
+                    elif ext == ".rar":
+                        rf.extract(self.exe_path_in_source, path=self.temp_path)
+                    extracted_path = os.path.join(self.temp_path, self.exe_path_in_source)
+                    temp_exe_path = os.path.join(self.temp_path, exe_name)
+                    if os.path.exists(extracted_path):
+                        os.makedirs(os.path.dirname(temp_exe_path), exist_ok=True)
+                        shutil.move(extracted_path, temp_exe_path)
+                    if not os.path.exists(temp_exe_path):
+                        self._handle_error(f"Failed to extract executable: {exe_name} not found")
+                        return
+                    self.emit_state(ImportState.SEARCHING_EXECUTABLE, 50, f"{exe_name} found!", True)
+                except Exception as e:
+                    self._handle_error(f"Failed to extract executable {exe_name}: {str(e)}")
+                    return
             else:
-                # إذا حدث خطأ في استخراج الملفات
-                logger.error(f"7z Error Output: {result.stderr}")
-                TitleUpdate.handle_error(archive_path, f"Error extracting file: {result.stderr}")
-                return None
-        except Exception as e:
-            # التعامل مع أي استثناءات
-            TitleUpdate.show_generic_error(f"Error extracting archive: {e}")
-            return None
+                for root, _, files in os.walk(self.input_path):
+                    for file in files:
+                        if file.lower() in [e.lower() for e in expected_exes]:
+                            temp_exe_path = os.path.join(root, file)
+                            self.exe_path_in_source = temp_exe_path
+                            exe_name = os.path.basename(temp_exe_path)
+                            root_dir = root
+                            break
+                    if temp_exe_path: break
+                if not temp_exe_path:
+                    found_exes = sorted(list(set(os.path.basename(f) for root, _, files in os.walk(self.input_path) for f in files if f.lower().endswith('.exe'))), key=lambda x: (not x.lower().startswith('f'), x))
+                    found_exes = found_exes[:3]
+                    self._handle_error(
+                        f"Failed to import title update: No expected executable found in {self.input_path}.\n"
+                        f"Expected: {' or '.join(expected_exes)}\nBut got:\n" + (''.join(f"- {exe}\n" for exe in found_exes) if found_exes else "no executable found\n")
+                    )
+                    return
+                dst = os.path.join(self.temp_path, exe_name)
+                os.makedirs(os.path.dirname(dst), exist_ok=True)
+                shutil.copy2(temp_exe_path, dst)
+                temp_exe_path = dst
+                self.emit_state(ImportState.SEARCHING_EXECUTABLE, 50, f"{exe_name} found!", True)
 
-    @staticmethod
-    def VerifyTitleUpdate(crc_value, game_name, source_path):
-        try:
-            response = requests.get(f"https://raw.githubusercontent.com/zmshmods/FCRollbackToolUpdates/main/TitleUpdateProfiles/{game_name.lower()}.json", timeout=5)
-            response.raise_for_status()
-            updates = response.json().get(f"{game_name.lower()}tu-updates", [])
-            matched_update = next((update for update in updates if update["crc"] == crc_value), None)
+            self.emit_state(ImportState.DETECTING_TITLE, 60, "Validating SHA1...")
+            sha1 = self.game_mgr.calculateSHA1(temp_exe_path)
+            if not sha1:
+                self._handle_error(f"Failed to calculate SHA1 for executable")
+                return
 
-            if matched_update:
-                logger.info(f"Detected Title Update: {matched_update['name']}")
-                TitleUpdate.SaveFileToProfile(source_path, game_name, matched_update["name"])
+            short_game_name = os.path.splitext(exe_name)[0].lower()
+            cache_file = os.path.join(self.app_data_mgr.getDataFolder(), f"{short_game_name}.cache") \
+                        or os.path.join(self.data_mgr.getBaseCache(), f"{short_game_name}.cache")
+            try:
+                with open(cache_file, "rb") as file:
+                    content = pickle.loads(zlib.decompress(file.read()))
+            except Exception as e:
+                self._handle_error(f"Failed to load cache for {short_game_name}: {str(e)}")
+                return
+
+            title_updates = content.get(self.game_mgr.getProfileTypeTitleUpdate(), {}).get(self.game_mgr.getContentKeyTitleUpdate(), [])
+            update = next((u for u in title_updates if u.get(self.game_mgr.getTitleUpdateSHA1Key()) == sha1), None)
+            if not update:
+                self._handle_error(f"No matching Title Update found for SHA1: {sha1}")
+                return
+            update_name = update.get(self.game_mgr.getTitleUpdateNameKey())
+            self.emit_state(ImportState.DETECTING_TITLE, 80, f"Found {update_name} ({sha1})", True)
+
+            target_dir = self.game_mgr.getProfileDirectory(short_game_name, self.game_mgr.getProfileTypeTitleUpdate())
+            os.makedirs(target_dir, exist_ok=True)
+            update_size = self.get_file_size()
+            final_path = os.path.join(target_dir, f"{update_name}{ext}" if is_compressed else update_name)
+            self.emit_state(ImportState.IMPORTING, 90, f"Importing {update_name} ({update_size})")
+
+            if is_compressed:
+                if os.path.exists(final_path):
+                    os.remove(final_path)
+                shutil.copy2(self.input_path, final_path)
             else:
-                TitleUpdate.handle_error(source_path, "The Title Update you are trying to import seems to be unrecognized or corrupted")
+                if os.path.exists(final_path):
+                    shutil.rmtree(final_path, ignore_errors=True)
+                os.makedirs(final_path, exist_ok=True)
+                for item in os.listdir(root_dir):
+                    src, dst = os.path.join(root_dir, item), os.path.join(final_path, item)
+                    if os.path.isfile(src):
+                        shutil.copy2(src, dst)
+                    elif os.path.isdir(src):
+                        shutil.copytree(src, dst, dirs_exist_ok=True)
+
+            self.emit_state(ImportState.IMPORTING, 90, f"{update_name} ({update_size})", True)
+            self._cleanup()
+            self.emit_state(ImportState.COMPLETED, 100, "", True)
+            self.completed_signal.emit()
         except Exception as e:
-            TitleUpdate.show_generic_error(f"Error verifying update: {e}")
+            if not self.is_canceled:
+                self.error_signal.emit(f"Import failed: {str(e)}")
+        finally:
+            self._cleanup()
+            self.quit()
 
-    @staticmethod
-    def SaveFileToProfile(source_path, game_name, update_name):
-        try:
-            profiles_directory = os.path.join(os.getcwd(), "Profiles", game_name, "TitleUpdates")
-            os.makedirs(profiles_directory, exist_ok=True)
-            original_extension = os.path.splitext(source_path)[1]
-            destination_path = os.path.join(profiles_directory, update_name + original_extension)
-
-            if os.path.isdir(source_path):
-                shutil.copytree(source_path, os.path.join(profiles_directory, update_name), dirs_exist_ok=True)
-            else:
-                shutil.copy2(source_path, destination_path)
-
-            logger.info(f"File Imported Successfully: {update_name} at {destination_path}")
-        except Exception as e:
-            TitleUpdate.show_generic_error(f"Error saving update: {e}")
-
-    @staticmethod
-    def handle_error(file_path, message):
-        folder_name = os.path.basename(file_path)
-        error_msg = f"Error while trying Import: {folder_name}\n\n{message}"
-        logger.error(error_msg)
-        ctypes.windll.user32.MessageBoxW(0, error_msg, "Importing error", 0x10)
-
-    @staticmethod
-    def show_generic_error(message):
-        logger.error(message)
-        ctypes.windll.user32.MessageBoxW(0, message, "Error", 0x10)
-
-    @staticmethod
-    def on_update_detected(message):
-        logger.info(f"Detected Update: {message}")
-        TitleUpdate.update_detected.emit(message)  # Note: This assumes update_detected is a class Signal
-
-    @staticmethod
-    def on_error_occurred(message):
-        logger.error(f"Error: {message}")
-        TitleUpdate.error_occurred.emit(message)  # Note: This assumes error_occurred is a class Signal
-
-
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    worker = TitleUpdate.select_compressed_file()
-    if worker:
-        app.exec()
+    def _cleanup(self):
+        if not self.is_cleaned and os.path.exists(self.temp_path):
+            try:
+                self.app_data_mgr.manageTempFolder(clean=True, subfolder=os.path.basename(self.temp_path))
+                self.is_cleaned = True
+            except Exception as e:
+                if not self.is_canceled:
+                    self._handle_error(f"Cleanup failed: {str(e)}")
