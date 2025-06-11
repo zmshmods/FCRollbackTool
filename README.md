@@ -26,7 +26,7 @@ Explore the game profiles empowered by FC Rollback Tool:
 ---
 
 ## 📚 Wiki
-Check out our [Wiki](https://github.com/zmshmods/FCRollbackTool/wiki) for FAQs and guides.
+Check out our [Wiki](https://github.com/zmshmods/FCRollbackTool/wiki) for [FAQs](https://github.com/zmshmods/FCRollbackTool/wiki#-frequently-asked-questions-faqs) and [guides](https://github.com/zmshmods/FCRollbackTool/wiki/%F0%9F%93%98-Guides).
 
 ---
 
