@@ -494,7 +494,11 @@ class InstallCore(QThread):
                 self.emit_state(InstallState.INSTALLATION_COMPLETED, 100, "")
                 self.completed_signal.emit()
         except Exception as e:
-            ErrorHandler.handleError(f"Failed to install Title Update {self.update_name}: {str(e)}")
+            if isinstance(e, PermissionError):
+                ErrorHandler.handleError(f"Failed to install Title Update {self.update_name}: {str(e)}\n\nTo fix this, run the tool as administrator or move your game folder outside of the Program Files folder.")
+            else:
+                ErrorHandler.handleError(f"Failed to install Title Update {self.update_name}: {str(e)}")
+            
             self.error_signal.emit(str(e))
             if not self.is_canceled:
                 self.cancel()

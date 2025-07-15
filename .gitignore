@@ -164,3 +164,4 @@ Core/key.py
 Profiles/
 Logs/
 .MyTools/
+nuitka-crash-report.xml
