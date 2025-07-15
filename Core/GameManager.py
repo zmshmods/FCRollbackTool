@@ -1,526 +1,22 @@
-import os, re, json, winreg, hashlib, requests, pickle, zlib, shutil, copy, traceback
+import os
+import re
+import winreg
+import hashlib
+import requests
+import pickle
+import zlib
+import traceback
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List, Callable
-import win32api
-import win32con
 import xml.etree.ElementTree as ET
+
 from Core.Logger import logger
-from Core.Logger import logger
-try:
-    from Core.key import key  # type: ignore
-except ModuleNotFoundError:
-    key = None
-    logger.warning("Core.key module not available in the source code.")
-
-GITHUB_ACC = "zmshmods"
-GITHUB_ACC_TOOL = "FCRollbackTool"
-MAIN_REPO = "FCRollbackTool"
-UPDATES_REPO = "FCRollbackToolUpdates"
-
-class ToolUpdateManager:
-    def __init__(self):
-        self.TOOL_VERSION = "1.2.0 Beta"
-        self.BUILD_VERSION = "3.2025.06.11"
-        self.UPDATE_MANIFEST = f"https://raw.githubusercontent.com/{GITHUB_ACC}/{UPDATES_REPO}/main/toolupdate.json"
-        self.CHANGELOG_BASE_URL = f"https://raw.githubusercontent.com/{GITHUB_ACC}/{UPDATES_REPO}/main/Changelogs/"
-        self._manifest_cache = {}
-        self._changelog_cache = {}
-
-    def getToolVersion(self) -> str:
-        return self.TOOL_VERSION
-    def getToolBulidVersion(self) -> str:
-        return self.BUILD_VERSION
-# --
-    def FetchManifests(self) -> None:
-        try:
-            response = requests.get(self.UPDATE_MANIFEST, timeout=10)
-            response.raise_for_status()
-            self._manifest_cache = response.json()
-            logger.debug("Fetched toolupdate manifest data")
-        except Exception as e:
-            logger.error(f"Error fetching manifest for toolupdate: {e}")
-            self._manifest_cache = {}
-    def getManifestToolVersion(self) -> str:
-        if not self._manifest_cache:
-            self.FetchManifests()
-        return self._manifest_cache.get("ToolUpdate", {}).get("ToolVersion", "Unknown Version")
-    def getManifestBuildVersion(self) -> str:
-        if not self._manifest_cache:
-            self.FetchManifests()
-        return self._manifest_cache.get("ToolUpdate", {}).get("BulidVersion", "Unknown Build Version")
-    def getMatchingVersion(self) -> bool:
-        return self.getToolVersion() == self.getManifestToolVersion()
-    def getToolChangelog(self) -> list:
-        try:
-            if self.TOOL_VERSION not in self._changelog_cache:
-                response = requests.get(f"{self.CHANGELOG_BASE_URL}{self.TOOL_VERSION}.txt", timeout=10)
-                response.raise_for_status()
-                self._changelog_cache[self.TOOL_VERSION] = response.text.splitlines()
-            return self._changelog_cache[self.TOOL_VERSION]
-        except Exception as e:
-            logger.error(f"Error fetching app changelog: {e}")
-            return ["- Unable to fetch changelog"]
-    def getDownloadUrl(self) -> str:
-        if not self._manifest_cache:
-            self.FetchManifests()
-        return self._manifest_cache.get("ToolUpdate", {}).get("DownloadLink", None)
-#--
-    def getManifestChangelog(self) -> list:
-        try:
-            version = self.getManifestToolVersion()
-            if version not in self._changelog_cache:
-                response = requests.get(f"{self.CHANGELOG_BASE_URL}{version}.txt", timeout=10)
-                response.raise_for_status()
-                self._changelog_cache[version] = response.text.splitlines()
-            return self._changelog_cache[version]
-        except Exception as e:
-            logger.error(f"Error fetching manifest changelog: {e}")
-            return ["- Unable to fetch changelog"]
-
-class MainDataManager:
-    _instance = None
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super(MainDataManager, cls).__new__(cls)
-            cls._instance._initialized = False
-        return cls._instance
-    
-    def __init__(self):
-        if self._initialized:
-            return
-        self.basePath = os.path.join(os.getcwd(), "Data")
-        self.meta_cache: Dict[str, Dict] = {}
-        self._initialized = True
-
-    def getPath(self, subPath: str) -> Optional[str]:
-        path = os.path.join(self.basePath, subPath)
-        if not os.path.exists(path):
-            ErrorHandler.handleError(f"'{subPath}' not found at: {path}")
-            return None
-        logger.debug(f"Retrieved {subPath}: {path}")
-        return path
-
-    def getAria2c(self) -> str: return self.getPath("ThirdParty/aria2c.exe")
-    def getUnRAR(self) -> str: return self.getPath("ThirdParty/UnRAR.exe")
-    def getIcons(self) -> str: return self.getPath("Assets/Icons")
-    def getBaseCache(self) -> str: return self.getPath("BaseCache")
-    def getKey(self) -> str: return key
-    def getCompressedFileExtensions(self) -> List[str]: return [".rar", ".zip", ".7z"]
-    def getDbMeta(self, game_version: str, squad_type: str) -> Dict:
-        """Load and cache metadata from XML based on game version and squad type."""
-        cache_key = f"{game_version}_{squad_type}"
-        if cache_key in self.meta_cache:
-            #logger.debug(f"Returning cached metadata for {cache_key}, game: {game_version}, squad_type: {squad_type}")
-            return self.meta_cache[cache_key]
-
-        xml_file = f"fifa_ng_db-meta.xml" if squad_type == "Squads" else "cards_ng_db-meta.xml"
-        xml_path = self.getPath(os.path.join("DB", game_version.upper(), xml_file))
-        if not xml_path:
-            ErrorHandler.handleError(f"Metadata file not found: {xml_file} for {game_version}")
-            return {}
-
-        try:
-            tree = ET.parse(xml_path)
-            root = tree.getroot()
-            
-            meta_data = {}
-            for table in root.findall("table"):
-                table_name = table.get("name")
-                short_name = table.get("shortname")
-                fields = [
-                    {
-                        "name": field.get("name"),
-                        "shortname": field.get("shortname")
-                    }
-                    for field in table.find("fields").findall("field")
-                ]
-                meta_data[table_name] = {"shortname": short_name, "fields": fields}
-                meta_data[short_name] = {"name": table_name, "fields": fields}
-            
-            self.meta_cache[cache_key] = meta_data
-            logger.debug(f"Cached metadata for {cache_key}")
-            return meta_data
-        except Exception as e:
-            ErrorHandler.handleError(f"Error parsing metadata file {xml_file} for {game_version}: {e}")
-            return {}
-
-class ConfigManager:
-    _instance = None
-
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super(ConfigManager, cls).__new__(cls)
-            cls._instance._initialized = False
-        return cls._instance
-
-    def __init__(self):
-        if self._initialized:
-            return
-        self._config_updated_callbacks = []
-        self.CONFIG_FILE = "config.json"
-        self.ENCODING = "utf-8"
-        self.JSON_INDENT = 4
-        #self.path = self.CONFIG_FILE
-        self.app_data_manager = AppDataManager()
-        self.config_location = "APPDATA"  # can be "LOCAL" 
-        if self.config_location == "APPDATA":
-            self.path = os.path.join(self.app_data_manager.getDataFolder(), self.CONFIG_FILE)
-        else:
-            self.path = os.path.join(os.getcwd(), self.CONFIG_FILE)
-        self._cached_config = None
-        self.default_config = {
-            "GameConfig": {
-                "SelectedGame": None,
-                "SHA1": None
-            },
-            "Settings": {
-                "InstallationOptions": {
-                    "BackupGameSettingsFolder": True,
-                    "BackupTitleUpdate": False,
-                    "DeleteStoredTitleUpdate": False,
-                    "DeleteSquadsAfterInstall": False,
-                    "DeleteLiveTuningUpdate": True
-                },
-                "DownloadOptions": {
-                    "Segments": "8",
-                    "SpeedLimitEnabled": False,
-                    "SpeedLimit": None,
-                    "AutoUseIDM": False,
-                    "IDMPath": None,
-                    "EnableDownloadLogs": True,
-                    "LogDownloadProgress": False
-                },
-                "Visual": {
-                    "LastUsedTab": "TitleUpdates",
-                    "TableColumns": {
-                        "TitleUpdates": ["SemVer", "ReleasedDate", "RelativeDate", "Size"],
-                        "SquadsUpdates": ["ReleasedDate", "RelativeDate", "Size", "ReleasedOnTU"],
-                        "FutSquadsUpdates": ["ReleasedDate", "RelativeDate", "Size", "ReleasedOnTU"]
-                    },
-                    "ContentVersionDisplay": {
-                        "TitleUpdates": "VersionByNumber",
-                        "SquadsUpdates": "VersionByDate",
-                        "FutSquadsUpdates": "VersionByDate"
-                    }
-                },
-                "Appearance": {
-                    "WindowEffect": "Default"
-                },
-                "ShowMessageBoxes": {
-                    "DownloadDisclaimer": True
-                },
-                "SquadsTablesFetcher": {
-                    "ColumnOrder": "BitOffset",
-                    "GetRecordsAs": "WrittenRecords",
-                    "TableFormat": ".txt (UTF-8 BOM)",
-                    "TableSavePath": "",
-                    "FetchSquadsDB": False,
-                    "SaveTablesInFolderUsingSquadFileName": True,
-                    "SelectAllTables": True
-                },
-                "SquadsChangelogsFetcher": {
-                    "ChangelogFormat": ".xlsx",
-                    "ChangelogSavePath": "",
-                    "SaveChangelogsInFolderUsingSquadFileName": True,
-                    "SelectAllChangelogs": True
-                }
-            }
-        }
-        self.loadConfig()
-        self._initialized = True
-
-    def register_config_updated_callback(self, callback: Callable[[str], None]) -> None:
-        """Register a callback to be invoked when the config changes."""
-        if callback not in self._config_updated_callbacks:
-            self._config_updated_callbacks.append(callback)
-            logger.debug(f"Registered config updated callback: {callback}")
-
-    def unregister_config_updated_callback(self, callback: Callable[[str], None]) -> None:
-        """Unregister a callback."""
-        if callback in self._config_updated_callbacks:
-            self._config_updated_callbacks.remove(callback)
-            logger.debug(f"Unregistered config updated callback: {callback}")
-
-    def _notify_config_updated(self, table: str) -> None:
-        """Invoke all registered callbacks with the specified table."""
-        logger.debug(f"Notifying config updated for table: {table}, Number of callbacks: {len(self._config_updated_callbacks)}")
-        for callback in self._config_updated_callbacks:
-            try:
-                callback(table)
-                logger.debug(f"Called config updated callback for table: {table} on {callback}")
-            except Exception as e:
-                logger.error(f"Error in config updated callback for table {table}: {e}")
-
-    def loadConfig(self, updates: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        #AppDataManager.manageTempFolder()
-        os.makedirs(self.app_data_manager.getDataFolder(), exist_ok=True)
-        if not os.path.exists(self.path):
-            self.saveConfig(self.default_config)
-        if self._cached_config is None:
-            try:
-                with open(self.path, "r", encoding=self.ENCODING) as f:
-                    self._cached_config = json.load(f)
-                logger.info("Config loaded successfully")
-            except Exception as e:
-                ErrorHandler.handleError(f"Error loading config file: {e}")
-                self._cached_config = self.default_config.copy()
-        if updates:
-            config = self._cached_config
-            for section, values in updates.items():
-                if section in self.default_config and isinstance(values, dict):
-                    if section == "Settings":
-                        for sub_section, sub_values in values.items():
-                            if sub_section in self.default_config["Settings"] and isinstance(sub_values, dict):
-                                config.setdefault(section, {}).setdefault(sub_section, {}).update(
-                                    {k: v for k, v in sub_values.items() if k in self.default_config["Settings"][sub_section]})
-                    else:
-                        config.setdefault(section, {}).update(
-                            {k: v for k, v in values.items() if k in self.default_config[section]})
-            self.saveConfig(config)
-        return self._cached_config.copy()
-
-    def saveConfig(self, config: Dict[str, Any]) -> None:
-        try:
-            os.makedirs(self.app_data_manager.getDataFolder(), exist_ok=True)
-            with open(self.path, "w", encoding=self.ENCODING) as f:
-                json.dump(config, f, indent=self.JSON_INDENT)
-            logger.info(f"Config {'created' if not self._cached_config else 'updated'} successfully")
-            self._cached_config = config.copy()
-        except Exception as e:
-            ErrorHandler.handleError(f"Error saving config file: {e}")
-
-    def _set_config_value(self, section: str, key: str, value: Any, sub_section: str = None) -> None:
-        config = self._cached_config.copy()
-        if sub_section:
-            config.setdefault(section, {}).setdefault(sub_section, {})[key] = value
-        else:
-            config.setdefault(section, {})[key] = value
-        self.saveConfig(config)
-
-    def _get_config_value(self, section: str, key: str, default: Any = None, sub_section: str = None) -> Any:
-        config = self._cached_config or self.default_config
-        if sub_section:
-            return config.get(section, {}).get(sub_section, {}).get(key, default)
-        return config.get(section, {}).get(key, default)
-
-    def getConfigKeySelectedGame(self) -> str: return self._get_config_value("GameConfig", "SelectedGame", "")
-    def getConfigKeySHA1(self) -> Optional[str]: return self._get_config_value("GameConfig", "SHA1")
-    def getConfigKeyBackupGameSettingsFolder(self) -> bool: return self._get_config_value("Settings", "BackupGameSettingsFolder", True, "InstallationOptions")
-    def getConfigKeyBackupTitleUpdate(self) -> bool: return self._get_config_value("Settings", "BackupTitleUpdate", False, "InstallationOptions")
-    def getConfigKeyDeleteStoredTitleUpdate(self) -> bool: return self._get_config_value("Settings", "DeleteStoredTitleUpdate", False, "InstallationOptions")
-    def getConfigKeyDeleteSquadsAfterInstall(self) -> bool: return self._get_config_value("Settings", "DeleteSquadsAfterInstall", False, "InstallationOptions")
-    def getConfigKeyDeleteLiveTuningUpdate(self) -> bool: return self._get_config_value("Settings", "DeleteLiveTuningUpdate", True, "InstallationOptions")
-    def getConfigKeySegments(self) -> str: return self._get_config_value("Settings", "Segments", "8", "DownloadOptions")
-    def getConfigKeySpeedLimitEnabled(self) -> bool: return self._get_config_value("Settings", "SpeedLimitEnabled", False, "DownloadOptions")
-    def getConfigKeySpeedLimit(self) -> Optional[str]: return self._get_config_value("Settings", "SpeedLimit", None, "DownloadOptions")
-    def getConfigKeyEnableDownloadLogs(self) -> bool: return self._get_config_value("Settings", "EnableDownloadLogs", True, "DownloadOptions")
-    def getConfigKeyLogDownloadProgress(self) -> bool: return self._get_config_value("Settings", "LogDownloadProgress", False, "DownloadOptions")
-    def getConfigKeyAutoUseIDM(self) -> bool: return self._get_config_value("Settings", "AutoUseIDM", False, "DownloadOptions")
-    def getConfigKeyIDMPath(self) -> Optional[str]: return self._get_config_value("Settings", "IDMPath", None, "DownloadOptions")
-    def getConfigKeyLastUsedTab(self) -> str: return self._get_config_value("Settings", "LastUsedTab", "TitleUpdates", "Visual")
-    def getConfigKeyTableColumns(self, table: str, default_columns: List[str] = None) -> List[str]:
-        defaults = self.default_config["Settings"]["Visual"]["TableColumns"]
-        return self._get_config_value("Settings", "TableColumns", defaults, "Visual").get(table, default_columns or [])
-    def getConfigKeyContentVersionDisplay(self, table: str) -> str:
-        defaults = self.default_config["Settings"]["Visual"]["ContentVersionDisplay"]
-        return self._get_config_value("Settings", "ContentVersionDisplay", defaults, "Visual").get(table, defaults.get(table))
-    def getConfigKeyWindowEffect(self) -> str: return self._get_config_value("Settings", "WindowEffect", "Default", "Appearance")
-    def getConfigKeyDownloadDisclaimer(self) -> bool: return self._get_config_value("Settings", "DownloadDisclaimer", True, "ShowMessageBoxes")
-
-    def getConfigKeyColumnOrder(self) -> str: return self._get_config_value("Settings", "ColumnOrder", "BitOffset", "SquadsTablesFetcher")
-    def getConfigKeyGetRecordsAs(self) -> str: return self._get_config_value("Settings", "GetRecordsAs", "WrittenRecords", "SquadsTablesFetcher")
-    def getConfigKeyTableFormat(self) -> str: return self._get_config_value("Settings", "TableFormat", ".txt (UTF-8 BOM)", "SquadsTablesFetcher")
-    def getConfigKeyTableSavePath(self) -> str: return self._get_config_value("Settings", "TableSavePath", "", "SquadsTablesFetcher")
-    def getConfigKeyFetchSquadsDB(self) -> bool: return bool(self._get_config_value("Settings", "FetchSquadsDB", False, "SquadsTablesFetcher"))
-    def getConfigKeySaveTablesInFolderUsingSquadFileName(self) -> bool: return bool(self._get_config_value("Settings", "SaveTablesInFolderUsingSquadFileName", True, "SquadsTablesFetcher"))
-    def getConfigKeySelectAllTables(self) -> bool: return bool(self._get_config_value("Settings", "SelectAllTables", True, "SquadsTablesFetcher"))
-    def getDefaultTableSettings(self) -> Dict[str, Any]: return self.default_config["Settings"]["SquadsTablesFetcher"].copy()
-
-    def getConfigKeyChangelogFormat(self) -> str:return self._get_config_value("Settings", "ChangelogFormat", ".xlsx", "SquadsChangelogsFetcher")
-    def getConfigKeyChangelogSavePath(self) -> str: return self._get_config_value("Settings", "ChangelogSavePath", "", "SquadsChangelogsFetcher")
-    def getConfigKeySaveChangelogsInFolderUsingSquadFileName(self) -> bool: return bool(self._get_config_value("Settings", "SaveChangelogsInFolderUsingSquadFileName", True, "SquadsChangelogsFetcher"))
-    def getConfigKeySelectAllChangelogs(self) -> bool: return bool(self._get_config_value("Settings", "SelectAllChangelogs", True, "SquadsChangelogsFetcher"))
-    def getDefaultChangelogSettings(self) -> Dict[str, Any]: return self.default_config["Settings"]["SquadsChangelogsFetcher"].copy()
-
-    def getContentVersionKey(self, tab_key: str) -> str:
-        display_type = self.getConfigKeyContentVersionDisplay(tab_key)
-        return {"TitleUpdates": "ContentVersion" if display_type == "VersionByNumber" else "ContentVersionDate", "SquadsUpdates": "SquadsContentVersion" if display_type == "VersionByNumber" else "SquadsContentVersionDate", "FutSquadsUpdates": "FutSquadsContentVersion" if display_type == "VersionByNumber" else "FutSquadsContentVersionDate"}.get(tab_key, "ContentVersion")
-    
-    def setConfigKeySelectedGame(self, game_path: str) -> None: self._set_config_value("GameConfig", "SelectedGame", game_path)
-    def setConfigKeySHA1(self, sha1: str) -> None: self._set_config_value("GameConfig", "SHA1", sha1) 
-    def setConfigKeyBackupGameSettingsFolder(self, value: bool) -> None: self._set_config_value("Settings", "BackupGameSettingsFolder", value, "InstallationOptions")
-    def setConfigKeyBackupTitleUpdate(self, value: bool) -> None: self._set_config_value("Settings", "BackupTitleUpdate", value, "InstallationOptions")
-    def setConfigKeyDeleteStoredTitleUpdate(self, value: bool) -> None: self._set_config_value("Settings", "DeleteStoredTitleUpdate", value, "InstallationOptions")
-    def setConfigKeyDeleteSquadsAfterInstall(self, value: bool) -> None: self._set_config_value("Settings", "DeleteSquadsAfterInstall", value, "InstallationOptions")
-    def setConfigKeyDeleteLiveTuningUpdate(self, value: bool) -> None: self._set_config_value("Settings", "DeleteLiveTuningUpdate", value, "InstallationOptions")
-    def setConfigKeySegments(self, value: str) -> None: self._set_config_value("Settings", "Segments", value, "DownloadOptions")
-    def setConfigKeySpeedLimitEnabled(self, value: bool) -> None: self._set_config_value("Settings", "SpeedLimitEnabled", value, "DownloadOptions")
-    def setConfigKeySpeedLimit(self, value: Optional[str]) -> None: self._set_config_value("Settings", "SpeedLimit", value, "DownloadOptions")
-    def setConfigKeyEnableDownloadLogs(self, value: bool) -> None: self._set_config_value("Settings", "EnableDownloadLogs", value, "DownloadOptions")
-    def setConfigKeyLogDownloadProgress(self, value: bool) -> None: self._set_config_value("Settings", "LogDownloadProgress", value, "DownloadOptions")
-    def setConfigKeyAutoUseIDM(self, value: bool) -> None: self._set_config_value("Settings", "AutoUseIDM", value, "DownloadOptions")
-    def setConfigKeyIDMPath(self, value: Optional[str]) -> None: self._set_config_value("Settings", "IDMPath", value, "DownloadOptions")
-    def setConfigKeyLastUsedTab(self, tab: str) -> None: self._set_config_value("Settings", "LastUsedTab", tab, "Visual")
-    def setConfigKeyTableColumns(self, table: str, columns: List[str]) -> None:
-        if self._cached_config is None:
-            self._cached_config = self.loadConfig()
-        config = self._cached_config.copy()
-        visual_settings = config.get("Settings", {}).get("Visual", {})
-        table_columns = visual_settings.get("TableColumns", self.default_config["Settings"]["Visual"]["TableColumns"].copy())
-        table_columns[table] = columns
-        self._set_config_value("Settings", "TableColumns", table_columns, "Visual")
-        self._notify_config_updated(table)
-
-    def setConfigKeyContentVersionDisplay(self, table: str, display_type: str) -> None:
-        if display_type in ["VersionByNumber", "VersionByDate"]:
-            if self._cached_config is None:
-                self._cached_config = self.loadConfig()
-            config = self._cached_config.copy()
-            visual_settings = config.get("Settings", {}).get("Visual", {})
-            content_display = visual_settings.get("ContentVersionDisplay", self.default_config["Settings"]["Visual"]["ContentVersionDisplay"].copy())
-            content_display[table] = display_type
-            self._set_config_value("Settings", "ContentVersionDisplay", content_display, "Visual")
-            self._notify_config_updated(table)
-            
-    def setConfigKeyWindowEffect(self, effect: str) -> None: self._set_config_value("Settings", "WindowEffect", effect, "Appearance")
-    def setConfigKeyDownloadDisclaimer(self, value: bool) -> None: self._set_config_value("Settings", "DownloadDisclaimer", value, "ShowMessageBoxes")
-
-    def setConfigKeyColumnOrder(self, value: str) -> None: self._set_config_value("Settings", "ColumnOrder", value, "SquadsTablesFetcher")
-    def setConfigKeyGetRecordsAs(self, value: str) -> None: self._set_config_value("Settings", "GetRecordsAs", value, "SquadsTablesFetcher")
-    def setConfigKeyTableFormat(self, value: str) -> None: self._set_config_value("Settings", "TableFormat", value, "SquadsTablesFetcher")
-    def setConfigKeyTableSavePath(self, value: str) -> None: self._set_config_value("Settings", "TableSavePath", value, "SquadsTablesFetcher")
-    def setConfigKeyFetchSquadsDB(self, value: bool) -> None: self._set_config_value("Settings", "FetchSquadsDB", value, "SquadsTablesFetcher")
-    def setConfigKeySaveTablesInFolderUsingSquadFileName(self, value: bool) -> None: self._set_config_value("Settings", "SaveTablesInFolderUsingSquadFileName", value, "SquadsTablesFetcher")
-    def setConfigKeySelectAllTables(self, value: bool) -> None: self._set_config_value("Settings", "SelectAllTables", value, "SquadsTablesFetcher")
-
-    def setConfigKeyChangelogFormat(self, value: str) -> None: self._set_config_value("Settings", "ChangelogFormat", value, "SquadsChangelogsFetcher")
-    def setConfigKeyChangelogSavePath(self, value: str) -> None: self._set_config_value("Settings", "ChangelogSavePath", value, "SquadsChangelogsFetcher")
-    def setConfigKeySaveChangelogsInFolderUsingSquadFileName(self, value: bool) -> None: self._set_config_value("Settings", "SaveChangelogsInFolderUsingSquadFileName", value, "SquadsChangelogsFetcher")
-    def setConfigKeySelectAllChangelogs(self, value: bool) -> None: self._set_config_value("Settings", "SelectAllChangelogs", value, "SquadsChangelogsFetcher")  
-         
-    def resetSelectedGame(self) -> None:
-        try:
-            if self.getConfigKeySelectedGame():
-                self._set_config_value("GameConfig", "SelectedGame", None)
-                self._set_config_value("GameConfig", "SHA1", None)
-                logger.info("Selected game reset")
-        except Exception as e:
-            ErrorHandler.handleError(f"Error resetting selected game: {e}")
-        
-    def getIDMPathFromRegistry(self) -> Optional[str]:
-        try:
-            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\DownloadManager") as key:
-                idm_path, _ = winreg.QueryValueEx(key, "ExePath")
-            return idm_path if os.path.exists(idm_path) else None
-        except Exception:
-            logger.warning("IDM registry key not found")
-            return None
-
-    def resetAllSettingsToDefault(self) -> None:
-        """Reset the entire 'Settings' tree to its default values."""
-        try:
-            config = copy.deepcopy(self.default_config)
-            if self._cached_config:
-                for section in self._cached_config:
-                    if section != "Settings":
-                        config[section] = copy.deepcopy(self._cached_config[section])
-            self._cached_config = config
-            self.saveConfig(config)
-            # Notify all relevant tables after resetting all settings
-            tables = ["TitleUpdates", "SquadsUpdates", "FutSquadsUpdates"]
-            for table in tables:
-                self._notify_config_updated(table)
-            logger.info("All settings reset to default")
-        except Exception as e:
-            ErrorHandler.handleError(f"Error resetting all settings: {str(e)}")
-
-    def resetInstallationOptions(self) -> None:
-        """Reset InstallationOptions tree to its default values."""
-        try:
-            config = copy.deepcopy(self._cached_config if self._cached_config else self.default_config)
-            config["Settings"]["InstallationOptions"] = copy.deepcopy(self.default_config["Settings"]["InstallationOptions"])
-            self._cached_config = config
-            self.saveConfig(config)
-            logger.info("InstallationOptions settings reset to default")
-        except Exception as e:
-            ErrorHandler.handleError(f"Error resetting InstallationOptions: {str(e)}")
-
-    def resetDownloadOptions(self) -> None:
-        """Reset DownloadOptions tree to its default values."""
-        try:
-            config = copy.deepcopy(self._cached_config if self._cached_config else self.default_config)
-            config["Settings"]["DownloadOptions"] = copy.deepcopy(self.default_config["Settings"]["DownloadOptions"])
-            self._cached_config = config
-            self.saveConfig(config)
-            logger.info("DownloadOptions settings reset to default")
-        except Exception as e:
-            ErrorHandler.handleError(f"Error resetting DownloadOptions: {str(e)}")
-
-    def resetVisual(self, sub_section: Optional[str] = None) -> None:
-        """Reset Visual tree or a specific sub-section to its default values."""
-        try:
-            config = copy.deepcopy(self._cached_config if self._cached_config else self.default_config)
-            default_visual = copy.deepcopy(self.default_config["Settings"]["Visual"])
-            if sub_section in ["TableColumns", "ContentVersionDisplay", "LastUsedTab"]:
-                config["Settings"]["Visual"][sub_section] = default_visual[sub_section]
-            else:
-                config["Settings"]["Visual"] = default_visual
-            self._cached_config = config
-            self.saveConfig(config)
-            # Notify all relevant tables when resetting TableColumns or ContentVersionDisplay
-            if sub_section in ["TableColumns", "ContentVersionDisplay"]:
-                tables = ["TitleUpdates", "SquadsUpdates", "FutSquadsUpdates"]
-                for table in tables:
-                    self._notify_config_updated(table)
-            else:
-                self._notify_config_updated(f"Visual_{sub_section or 'all'}")
-            logger.info(f"Visual settings reset to default (sub_section: {sub_section or 'all'})")
-        except Exception as e:
-            ErrorHandler.handleError(f"Error resetting Visual settings: {str(e)}")
-
-    def resetAppearance(self) -> None:
-        """Reset Appearance tree to its default values."""
-        try:
-            config = copy.deepcopy(self._cached_config if self._cached_config else self.default_config)
-            config["Settings"]["Appearance"] = copy.deepcopy(self.default_config["Settings"]["Appearance"])
-            self._cached_config = config
-            self.saveConfig(config)
-            logger.info("Appearance settings reset to default")
-        except Exception as e:
-            ErrorHandler.handleError(f"Error resetting Appearance: {str(e)}")
-
-    def resetShowMessageBoxes(self) -> None:
-        """Reset ShowMessageBoxes tree to its default values."""
-        try:
-            config = copy.deepcopy(self._cached_config if self._cached_config else self.default_config)
-            config["Settings"]["ShowMessageBoxes"] = copy.deepcopy(self.default_config["Settings"]["ShowMessageBoxes"])
-            self._cached_config = config
-            self.saveConfig(config)
-            logger.info("ShowMessageBoxes settings reset to default")
-        except Exception as e:
-            ErrorHandler.handleError(f"Error resetting ShowMessageBoxes: {str(e)}")
-
-    def resetTableSettingsToDefault(self) -> None:
-        """Reset SquadsTablesFetcher tree to its default values."""
-        try:
-            config = copy.deepcopy(self._cached_config if self._cached_config else self.default_config)
-            config["Settings"]["SquadsTablesFetcher"] = copy.deepcopy(self.default_config["Settings"]["SquadsTablesFetcher"])
-            self._cached_config = config
-            self.saveConfig(config)
-            logger.info("SquadsTablesFetcher settings reset to default")
-        except Exception as e:
-            ErrorHandler.handleError(f"Error resetting SquadsTablesFetcher settings: {str(e)}")
-
-    def resetChangelogSettings(self) -> None:
-        """Reset SquadsChangelogsFetcher tree to its default values."""
-        try:
-            config = copy.deepcopy(self._cached_config if self._cached_config else self.default_config)
-            config["Settings"]["SquadsChangelogsFetcher"] = copy.deepcopy(self.default_config["Settings"]["SquadsChangelogsFetcher"])
-            self._cached_config = config
-            self.saveConfig(config)
-            logger.info("SquadsChangelogsFetcher settings reset to default")
-        except Exception as e:
-            ErrorHandler.handleError(f"Error resetting SquadsChangelogsFetcher settings: {str(e)}")
+from Core.ToolUpdateManager import GITHUB_ACC, GITHUB_ACC_TOOL, UPDATES_REPO
+from Core.MainDataManager import MainDataManager
+from Core.ConfigManager import ConfigManager
+from Core.AppDataManager import AppDataManager
+from Core.NotificationManager import NotificationHandler
+from Core.ErrorHandler import ErrorHandler
 
 class GameManager:
     def __init__(self):
@@ -540,7 +36,7 @@ class GameManager:
         self._profile_types = ["TitleUpdates", "SquadsUpdates"]
         self._content_keys = ["TitleUpdates", "Squads", "FutSquads"]
         self.profiles_base_url = f"https://raw.githubusercontent.com/{GITHUB_ACC}/{UPDATES_REPO}/main/Profiles/"
-        self.title_updates_keys = ["ContentVersion", "ContentVersionDate", "AppID", "MainDepotID", "eng_usDepotID", "Name", "SemVer", "ReleasedDate", "RelativeDate", "Size", "MainManifestID", "eng_usManifestID", "PatchNotes", "SHA1", "DownloadURL"]
+        self.title_updates_keys = ["ContentVersion", "ContentVersionDate", "AppID", "MainDepotID", "eng_usDepotID", "Name", "SemVer", "PatchID", "ReleasedDate", "RelativeDate", "Size", "MainManifestID", "eng_usManifestID", "PatchNotes", "SHA1", "DownloadURL"]
         self.squads_keys = ["SquadsContentVersion", "SquadsContentVersionDate", "Name", "ReleasedDate", "RelativeDate", "BuildDate", "ReleasedOnTU", "Size", "dbMajor", "DownloadURL"]
         self.fut_squads_keys = ["FutSquadsContentVersion", "FutSquadsContentVersionDate", "Name", "ReleasedDate", "RelativeDate", "BuildDate", "ReleasedOnTU", "Size", "dbFUTVer", "DownloadURL"]
         self.excluded_column_keys = ["SHA1", "MainDepotID", "eng_usDepotID", "AppID", "ContentVersionDate", "ContentVersion", "FutSquadsContentVersionDate", "FutSquadsContentVersion", "SquadsContentVersionDate", "SquadsContentVersion", "DownloadURL", "PatchNotes"]
@@ -933,7 +429,11 @@ class GameManager:
         if not os.path.exists(path):
             logger.warning(f"Game path does not exist: {path}")
             return ""
-        return os.path.basename(path.strip("\\/")).replace(f"{self.GAME_PUBLISHER_NAME}", "").replace(" ", "")
+        match = re.search(rf"{self.GAME_PREFIX}\s*(\d+)", path, re.IGNORECASE)
+        if match:
+            return f"{self.GAME_PREFIX}{match.group(1)}"
+        logger.warning(f"Could not extract game version from path: {path}")
+        return ""
     
     def getProfileDirectory(self, SHORT_GAME_NAME: str, subfolder: str) -> str:
         if not SHORT_GAME_NAME or not subfolder:
@@ -1146,9 +646,9 @@ class GameManager:
     def getGameSemVer(self, config_mgr: ConfigManager) -> Optional[str]:
         """Get game SemVer from installerdata.xml."""
         if not (game_path := config_mgr.getConfigKeySelectedGame()): return None
-        xml_path = os.path.join(game_path, "__Installer", "installerdata.xml")
+        installerdata_path = os.path.join(game_path, "__Installer", "installerdata.xml")
         try:
-            return ET.parse(xml_path).find(".//gameVersion").attrib["version"]
+            return ET.parse(installerdata_path).find(".//gameVersion").attrib["version"]
         except (FileNotFoundError, ET.ParseError, AttributeError) as e:
             ErrorHandler.handleError(f"Failed to get SemVer: {e}")
             return None
@@ -1171,69 +671,15 @@ class GameManager:
         except (WindowsError, FileNotFoundError, re.error) as e:
             ErrorHandler.handleError(f"Failed to get Live Editor version: {e}")
             return None
-    
-class AppDataManager:
-    TEMP_ROOT = os.getenv('LOCALAPPDATA')
-    TEMP_DIR = os.path.join(TEMP_ROOT, "FC_Rollback_Tool", "Temp")
-    DATA_DIR = os.path.join(TEMP_ROOT, "FC_Rollback_Tool", "Data")
-    BACKUPS_DIR = os.path.join(TEMP_ROOT, "FC_Rollback_Tool", "Data", "Backups")
-    os.makedirs(TEMP_DIR, exist_ok=True)
-    os.makedirs(DATA_DIR, exist_ok=True)
-    os.makedirs(BACKUPS_DIR, exist_ok=True)
-
-    @staticmethod
-    def getTempFolder() -> str: return AppDataManager.TEMP_DIR
-    @staticmethod
-    def getDataFolder() -> str: return AppDataManager.DATA_DIR
-    @staticmethod
-    def getBackupsFolder() -> str: return AppDataManager.BACKUPS_DIR
-
-    @staticmethod
-    def manageTempFolder(clean: bool = False, subfolder: str = None, clean_all: bool = False) -> Optional[str]:
+        
+    def getPatchVersion(self, game_path: str) -> Optional[tuple]:
+        """Get patch version from layout.toc"""
+        layout_toc_path = os.path.join(game_path, "Patch", "layout.toc")
         try:
-            if clean_all and os.path.exists(AppDataManager.TEMP_DIR):
-                shutil.rmtree(AppDataManager.TEMP_DIR, ignore_errors=True)
-                logger.info(f"Temp folder fully cleaned: {AppDataManager.TEMP_DIR}")
-            elif clean and subfolder:
-                subfolder_path = os.path.join(AppDataManager.TEMP_DIR, subfolder)
-                if os.path.exists(subfolder_path):
-                    shutil.rmtree(subfolder_path, ignore_errors=True)
-                    logger.info(f"Temp subfolder cleaned: {subfolder_path}")
-            if not os.path.exists(AppDataManager.TEMP_DIR):
-                os.makedirs(AppDataManager.TEMP_DIR, exist_ok=True)
-            return AppDataManager.TEMP_DIR
+            with open(layout_toc_path, "rb") as f:
+                data = f.read()
+                pos = data.find(b"head\x00") + 5
+                return (int.from_bytes(data[pos:pos+4], "little"), data[pos:pos+4].hex()) if pos + 4 <= len(data) else (None, None)
         except Exception as e:
-            ErrorHandler.handleError(f"Error handling temp folder: {e}")
+            ErrorHandler.handleError(f"Failed to get Patch Version: {e}")
             return None
-
-class NotificationHandler:
-    INFO_TITLE = "FC Rollback Tool - Information"
-    WARNING_TITLE = "FC Rollback Tool - Warning"
-    CONFIRM_TITLE = "FC Rollback Tool - Confirmation"
-
-    @staticmethod
-    def showInfo(message: str) -> None:
-        logger.info(message)
-        win32api.MessageBox(0, message, NotificationHandler.INFO_TITLE, win32con.MB_OK | win32con.MB_ICONINFORMATION)
-
-    @staticmethod
-    def showWarning(message: str) -> None:
-        logger.warning(message)
-        win32api.MessageBox(0, message, NotificationHandler.WARNING_TITLE, win32con.MB_OK | win32con.MB_ICONWARNING)
-
-    @staticmethod
-    def showConfirmation(message: str) -> str:
-        response = win32api.MessageBox(0, message, NotificationHandler.CONFIRM_TITLE, win32con.MB_YESNOCANCEL | win32con.MB_ICONQUESTION)
-        if response == win32con.IDYES:
-            return "Yes"
-        elif response == win32con.IDNO:
-            return "No"
-        return "Cancel"
-
-class ErrorHandler:
-    ERR_TITLE = "FC Rollback Tool - Error"
-
-    @staticmethod
-    def handleError(message: str) -> None:
-        logger.error(message)
-        win32api.MessageBox(0, message, ErrorHandler.ERR_TITLE, win32con.MB_OK | win32con.MB_ICONERROR)

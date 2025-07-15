@@ -7,12 +7,15 @@ from PySide6.QtGui import QIcon
 from PySide6.QtCore import Qt, QThread, Signal, QObject
 from qfluentwidgets import TableWidget, Theme, setTheme, setThemeColor
 from qframelesswindow import AcrylicWindow
-from Core.Initializer import GameManager, ConfigManager, ErrorHandler
-from Core.Logger import logger
+
 from UIComponents.Personalization import AcrylicEffect
 from UIComponents.MainStyles import MainStyles
 from UIComponents.TitleBar import TitleBar
 from UIComponents.Spinner import LoadingSpinner
+
+from Core.ConfigManager import ConfigManager
+from Core.GameManager import GameManager
+from Core.ErrorHandler import ErrorHandler
 
 TITLE = "Live Editor Compatibility Info"
 SIZE = (720, 480)
@@ -191,15 +194,15 @@ class LiveEditorCompatibilityInfo(AcrylicWindow):
     def _on_data_fetched(self, result: Dict):
         self.hide_loading()
         self._setup_tables()
-        game_ver = result["data"].get("game_ver", {})
+        game_ver_data = result["data"].get("game_ver", {})
         compat = result["data"].get("compatibility", {})
-        self.table.setRowCount(len(game_ver))
-        sorted_versions = sorted(game_ver.items(), key=lambda x: x[0], reverse=True)
+        self.table.setRowCount(len(game_ver_data))
+        sorted_versions = sorted(game_ver_data.items(), key=lambda x: x[0], reverse=True)
         for row_idx, (sem_ver, tu) in enumerate(sorted_versions):
             item = QTableWidgetItem(sem_ver)
             item.setTextAlignment(Qt.AlignCenter)
             self.table.setItem(row_idx, 0, item)
-            item = QTableWidgetItem(tu)
+            item = QTableWidgetItem(tu if tu else sem_ver)
             item.setTextAlignment(Qt.AlignCenter)
             self.table.setItem(row_idx, 1, item)
             le_range = compat.get(sem_ver, [])
@@ -209,33 +212,55 @@ class LiveEditorCompatibilityInfo(AcrylicWindow):
             self.table.setItem(row_idx, 2, item)
         self.table.resizeColumnsToContents()
 
-        item = QTableWidgetItem(game_ver.get(result["game_ver"], "Unknown"))
+        game_sem_ver = result["game_ver"]
+        le_ver = result["le_ver"] or "Unknown"
+        game_tu = game_ver_data.get(game_sem_ver, game_sem_ver if game_sem_ver else "Unknown")
+        item = QTableWidgetItem(game_tu)
         item.setTextAlignment(Qt.AlignCenter)
         self.table_status.setItem(0, 0, item)
-        item = QTableWidgetItem(result["le_ver"] or "Unknown")
+        item = QTableWidgetItem(le_ver)
         item.setTextAlignment(Qt.AlignCenter)
         self.table_status.setItem(0, 1, item)
-        is_compat = self._check_compatibility(result["game_ver"], result["le_ver"], compat)
-        compat_item = QTableWidgetItem("Yes" if is_compat else "No")
-        compat_item.setForeground(Qt.green if is_compat else Qt.red)
+        is_compat = self._check_compatibility(game_sem_ver, le_ver, compat)
+        compat_item = QTableWidgetItem("Yes" if is_compat == True else "No" if is_compat == False else "Unknown")
+        compat_item.setForeground(Qt.green if is_compat == True else Qt.red if is_compat == False else Qt.yellow)
         compat_item.setTextAlignment(Qt.AlignCenter)
         self.table_status.setItem(0, 2, compat_item)
         self.table_status.resizeColumnsToContents()
 
-    def _check_compatibility(self, sem_ver: Optional[str], le_ver: Optional[str], compat: Dict) -> bool:
-        if not (sem_ver and le_ver and sem_ver in compat):
-            return False
-        le_range = compat[sem_ver]
-        if len(le_range) != 2:
-            return False
-        try:
-            le_ver_num = [int(x) for x in le_ver.lstrip("v").split(".")]
-            min_ver = [int(x) for x in le_range[0].lstrip("v").split(".")]
-            max_ver = [int(x) for x in le_range[1].lstrip("v").split(".")]
-            return min_ver <= le_ver_num <= max_ver
-        except ValueError:
-            return False
+    def _check_compatibility(self, sem_ver: Optional[str], le_ver: Optional[str], compat: Dict) -> Optional[bool]:
+        if not sem_ver or not le_ver or le_ver == "Unknown" or not compat or sem_ver not in compat or len(compat[sem_ver]) != 2:
+            return None
 
+        try:
+            # split versions into parts
+            le_ver_parts = [int(x) for x in le_ver.replace("v", "").strip().split(".")]
+            min_ver_parts = [int(x) for x in compat[sem_ver][0].replace("v", "").strip().split(".")]
+            max_ver_parts = [int(x) for x in compat[sem_ver][1].replace("v", "").strip().split(".")]
+
+            # find length
+            max_length = max(len(le_ver_parts), len(min_ver_parts), len(max_ver_parts))
+
+            # pad with zeros for consistent comparison
+            le_ver_parts += [0] * (max_length - len(le_ver_parts))
+            min_ver_parts += [0] * (max_length - len(min_ver_parts))
+            max_ver_parts += [0] * (max_length - len(max_ver_parts))
+
+            # range check
+            if le_ver_parts[0] != min_ver_parts[0] or le_ver_parts[0] != max_ver_parts[0]:
+                return False
+            if le_ver_parts[1] < min_ver_parts[1] or le_ver_parts[1] > max_ver_parts[1]:
+                return False
+            if le_ver_parts[1] == min_ver_parts[1] and le_ver_parts[2] < min_ver_parts[2]:
+                return False
+            if le_ver_parts[1] == max_ver_parts[1] and le_ver_parts[2] > max_ver_parts[2]:
+                return False
+
+            return True
+
+        except ValueError:
+            return None
+        
     def closeEvent(self, event):
         self._cleanup_thread()
         super().closeEvent(event)

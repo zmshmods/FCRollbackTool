@@ -1,25 +1,27 @@
 import sys
 import json
-import csv
-import io
 import os
-from typing import List, Optional
+import csv
+import io 
+from typing import Optional, List
 
 from PySide6.QtWidgets import (
-    QApplication, QVBoxLayout, QHBoxLayout, QLabel, QWidget, QSizePolicy, QPushButton,
-    QSpacerItem, QFileDialog
+    QApplication, QVBoxLayout, QHBoxLayout, QLabel, QWidget, QSizePolicy, QPushButton, QFileDialog
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QGuiApplication, QIcon
 from qframelesswindow import AcrylicWindow
-from qfluentwidgets import CheckBox, ComboBox, LineEdit, Theme, setTheme, setThemeColor, CaptionLabel, SimpleCardWidget, FluentIcon
+from qfluentwidgets import CheckBox, ComboBox, LineEdit, Theme, setTheme, setThemeColor, SimpleCardWidget#, FluentIcon, CaptionLabel
 
-from Core.Initializer import ConfigManager, ErrorHandler, GameManager
-from Core.Logger import logger
 from UIComponents.Tooltips import apply_tooltip
 from UIComponents.Personalization import AcrylicEffect
 from UIComponents.TitleBar import TitleBar
 from UIComponents.MainStyles import MainStyles
+
+from Core.Logger import logger
+from Core.ConfigManager import ConfigManager
+from Core.GameManager import GameManager
+from Core.ErrorHandler import ErrorHandler
 
 # Constants
 WINDOW_TITLE = "Table Settings"

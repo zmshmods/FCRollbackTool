@@ -14,13 +14,17 @@ from qfluentwidgets import (
     Theme, setTheme, setThemeColor, TableWidget, CheckBox, SearchLineEdit,
     FluentIcon, InfoBar, InfoBarPosition
 )
-from Core.Initializer import GameManager, ErrorHandler, ConfigManager
-from Core.Logger import logger
+
 from UIComponents.Personalization import AcrylicEffect
 from UIComponents.MainStyles import MainStyles
 from UIComponents.TitleBar import TitleBar
 from UIComponents.Spinner import LoadingSpinner
 from UIWindows.SquadsChangelogsSettingsWindow import ChangelogsSettingsWindow, ChangelogsSettings
+
+from Core.Logger import logger
+from Core.ConfigManager import ConfigManager
+from Core.GameManager import GameManager
+from Core.ErrorHandler import ErrorHandler
 
 # Constants
 TITLE = "Squads Changelogs Fetcher"
@@ -64,6 +68,7 @@ class SquadsChangelogsFetcherWindow(AcrylicWindow):
         self.active_fetch_workers = 0
         self.current_changelog = ""
         self.is_fetching_canceled = False
+        self.is_exact_search = False
         self.start_time = None
         self.current_save_path = None
         self._initialize_window()
@@ -266,8 +271,12 @@ class SquadsChangelogsFetcherWindow(AcrylicWindow):
             changelog_name = changelog.get(self.game_manager.getChangelogFileNameKey(), "")
             changelog_names.append(changelog_name)
         self.table.resizeColumnsToContents()
+        for col in range(self.table.columnCount()):
+            current_width = self.table.columnWidth(col)
+            self.table.setColumnWidth(col, current_width + 10) # extra width for longer names
         self._setup_completer(changelog_names)
         self.button_manager.select_all_checkbox.setEnabled(True)
+        self.button_manager.exact_search_checkbox.setEnabled(True)
         self.button_manager.select_all_checkbox.stateChanged.connect(self.button_manager.toggle_select_all)
         self.button_manager.update_select_all_state(all(self.checkbox_states))
         self._cleanup_index_worker()
@@ -324,9 +333,15 @@ class SquadsChangelogsFetcherWindow(AcrylicWindow):
     def _setup_completer(self, changelog_names: List[str]):
         valid_names = [name for name in changelog_names if name]
         self.completer = QCompleter(valid_names, self.search_line_edit)
-        self.completer.setCaseSensitivity(Qt.CaseInsensitive)
+        self.completer.setCaseSensitivity(Qt.CaseSensitive if self.is_exact_search else Qt.CaseInsensitive)
         self.completer.setMaxVisibleItems(10)
         self.search_line_edit.setCompleter(self.completer)
+
+    def toggle_exact_search(self, checked: bool):
+        self.is_exact_search = checked
+        if self.completer:
+            self.completer.setCaseSensitivity(Qt.CaseSensitive if self.is_exact_search else Qt.CaseInsensitive)
+            self.filter_changelogs(self.search_line_edit.text())
 
     def on_checkbox_state_changed(self, row: int, state: int):
         self.checkbox_states[row] = state == Qt.CheckState.Checked.value
@@ -338,7 +353,7 @@ class SquadsChangelogsFetcherWindow(AcrylicWindow):
         text = text.lower()
         for row in range(self.table.rowCount()):
             changelog_name = self.table.item(row, 1).text().lower()
-            self.table.setRowHidden(row, text not in changelog_name)
+            self.table.setRowHidden(row, text not in changelog_name if not self.is_exact_search else text != changelog_name)
 
     def get_selected_changelogs(self) -> List[str]:
         if not self.table:
@@ -480,6 +495,7 @@ class ButtonManager:
         button_layout = QHBoxLayout()
         button_layout.addWidget(self.buttons["cancel"])
         button_layout.addStretch()
+        button_layout.addWidget(self.exact_search_checkbox)
         button_layout.addWidget(self.select_all_checkbox)
         fetch_layout = QHBoxLayout()
         fetch_layout.setSpacing(0)
@@ -509,8 +525,16 @@ class ButtonManager:
         self.buttons["settings"].setFixedSize(28, 28)
         self.select_all_checkbox = CheckBox("Select All")
         self.select_all_checkbox.setChecked(self.window.config_manager.getConfigKeySelectAllChangelogs())
-        self.select_all_checkbox.setStyleSheet("margin-left: 10px; background-color: transparent;")
+        self.select_all_checkbox.setStyleSheet("margin-left: 5px; background-color: transparent;")
         self.select_all_checkbox.setEnabled(False)
+        self.exact_search_checkbox = CheckBox("Exact Search")
+        self.exact_search_checkbox.setStyleSheet("margin-left: 5px; background-color: transparent;")
+        self.exact_search_checkbox.setEnabled(False)
+        self.exact_search_checkbox.stateChanged.connect(self.on_exact_search_toggled)
+
+    def on_exact_search_toggled(self, state: int):
+        checked = state == Qt.CheckState.Checked.value
+        self.window.toggle_exact_search(checked)
 
     def cancel(self):
         self.window._cleanup_index_worker()
@@ -548,12 +572,14 @@ class ButtonManager:
         for btn in self.buttons.values():
             btn.setEnabled(False)
         self.select_all_checkbox.setEnabled(False)
+        self.exact_search_checkbox.setEnabled(False)
 
     def enable_buttons(self):
         for btn in self.buttons.values():
             btn.setEnabled(True)
         self.select_all_checkbox.setEnabled(True)
-
+        self.exact_search_checkbox.setEnabled(True)
+        
 class NetworkWorker:
     def __init__(self):
         self.network_manager: Optional[QNetworkAccessManager] = None

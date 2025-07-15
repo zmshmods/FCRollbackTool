@@ -8,9 +8,15 @@ import logging
 import shutil
 from datetime import datetime
 from lxml import html
+import base64
 from PySide6.QtCore import QThread, Signal
-from Core.Initializer import AppDataManager, MainDataManager, ErrorHandler, GameManager, ConfigManager, NotificationHandler
 from Core.Logger import logger
+from Core.MainDataManager import MainDataManager
+from Core.ConfigManager import ConfigManager
+from Core.GameManager import GameManager
+from Core.AppDataManager import AppDataManager
+from Core.NotificationManager import NotificationHandler
+from Core.ErrorHandler import ErrorHandler
 
 LOG_DIR, DOWNLOAD_LOG_DIR = "Logs", os.path.join("Logs", "DownloadLogs")
 
@@ -67,9 +73,12 @@ class DownloadCore(QThread):
             for _ in range(2):
                 response = scraper.get(self.url, headers={"User-Agent": "Mozilla/5.0"}, verify=certifi.where())
                 if response.status_code == 200:
-                    direct_link = html.fromstring(response.text).xpath('//a[@id="downloadButton"]')
-                    if direct_link and (link := direct_link[0].get('href')) and not link.startswith('#') and not link.endswith('#'):
-                        return link
+                    tree = html.fromstring(response.text)
+                    direct_link = tree.xpath('//a[@id="downloadButton"]/@data-scrambled-url')
+                    if direct_link and direct_link[0]:
+                        decoded_url = base64.b64decode(direct_link[0]).decode('utf-8')
+                        if decoded_url and not decoded_url.startswith('#') and not decoded_url.endswith('#'):
+                            return decoded_url
                 time.sleep(1)
             raise ValueError("Failed to retrieve direct download URL from MediaFire")
         except Exception as e:

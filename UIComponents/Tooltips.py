@@ -2,7 +2,7 @@ import logging, os
 from PySide6.QtWidgets import QWidget
 from qfluentwidgets import ToolTipPosition, ToolTipFilter
 #from qfluentwidgets.components.material import AcrylicToolTipFilter
-from Core.Initializer import ConfigManager
+from Core.ConfigManager import ConfigManager
 
 # Color constants
 COLORS = {

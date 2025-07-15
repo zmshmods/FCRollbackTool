@@ -10,13 +10,17 @@ from PySide6.QtGui import QGuiApplication, QIcon
 from qframelesswindow import AcrylicWindow
 from qfluentwidgets import TableWidget, Theme, setTheme, setThemeColor
 
-from Core.Initializer import ConfigManager, GameManager, AppDataManager, ErrorHandler
-from Core.Logger import logger
 from UIComponents.Spinner import LoadingSpinner
 from UIComponents.Tooltips import apply_tooltip
 from UIComponents.Personalization import AcrylicEffect
 from UIComponents.MainStyles import MainStyles
 from UIComponents.TitleBar import TitleBar
+
+from Core.Logger import logger
+from Core.ConfigManager import ConfigManager
+from Core.GameManager import GameManager
+from Core.AppDataManager import AppDataManager
+from Core.ErrorHandler import ErrorHandler
 
 WINDOW_TITLE_SELECT_GAME = "FC Rollback Tool - Select Game"
 WINDOW_TITLE_ENTRY = "FC Rollback Tool - Entry Point"

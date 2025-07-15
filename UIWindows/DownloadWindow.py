@@ -1,18 +1,21 @@
 import sys
-import os
 import re
 from PySide6.QtWidgets import QApplication, QVBoxLayout, QHBoxLayout, QLabel, QWidget, QSizePolicy, QPushButton
 from PySide6.QtGui import QGuiApplication, QIcon, QColor
 from PySide6.QtCore import Qt, QTimer
 from qfluentwidgets import Theme, setTheme, setThemeColor, ProgressRing
 from qframelesswindow import AcrylicWindow
-from Core.Logger import logger
-from Core.DownloadCore import DownloadCore
-from Core.Initializer import AppDataManager, ErrorHandler, ConfigManager, GameManager
+
 from UIComponents.Personalization import AcrylicEffect
 from UIComponents.MainStyles import MainStyles
 from UIComponents.TitleBar import TitleBar
 from UIComponents.MiniSpinner import MiniSpinner
+
+from Core.Logger import logger
+from Core.ConfigManager import ConfigManager
+from Core.GameManager import GameManager
+from Core.ErrorHandler import ErrorHandler
+from Core.DownloadCore import DownloadCore
 
 # Window Constants
 WINDOW_TITLE = "Downloading: {}"

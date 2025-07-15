@@ -5,13 +5,16 @@ from PySide6.QtGui import QGuiApplication, QColor
 from PySide6.QtCore import Qt, QTimer
 from qframelesswindow import AcrylicWindow
 from qfluentwidgets import Theme, setTheme, setThemeColor, ProgressBar
-from Core.Initializer import ConfigManager, GameManager, ErrorHandler
 from Core.InstallCore import InstallCore, InstallState
 from UIComponents.Personalization import AcrylicEffect
 from UIComponents.MainStyles import MainStyles
 from UIComponents.TitleBar import TitleBar
 from collections import deque
+
 from Core.Logger import logger
+from Core.ConfigManager import ConfigManager
+from Core.GameManager import GameManager
+from Core.ErrorHandler import ErrorHandler
 
 WINDOW_TITLE = "Installing Update"
 WINDOW_SIZE = (420, 220)

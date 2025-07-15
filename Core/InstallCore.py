@@ -1,10 +1,16 @@
 import os, psutil, shutil, time, rarfile, zipfile, py7zr
 from datetime import datetime
 from PySide6.QtCore import QThread, Signal
-from Core.Initializer import MainDataManager, ConfigManager, GameManager, AppDataManager, NotificationHandler, ErrorHandler
-from Core.Logger import logger
 from pathlib import Path
 from enum import Enum
+
+from Core.Logger import logger
+from Core.MainDataManager import MainDataManager
+from Core.ConfigManager import ConfigManager
+from Core.GameManager import GameManager
+from Core.AppDataManager import AppDataManager
+from Core.NotificationManager import NotificationHandler
+from Core.ErrorHandler import ErrorHandler
 
 class InstallState(Enum):
     """Installation state definitions."""

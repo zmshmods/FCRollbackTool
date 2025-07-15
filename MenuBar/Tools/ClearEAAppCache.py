@@ -4,8 +4,9 @@ import psutil
 import shutil
 import winreg
 import time
+
 from Core.Logger import logger
-from Core.Initializer import ErrorHandler
+from Core.ErrorHandler import ErrorHandler
 
 EACachePaths = [
     os.path.join(os.getenv("USERPROFILE"), "AppData", "Roaming", "EA"),

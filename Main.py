@@ -10,16 +10,12 @@ from PySide6.QtWidgets import (
 )
 from qframelesswindow import AcrylicWindow
 from qfluentwidgets import CheckBox, FluentIcon, setTheme, setThemeColor, Theme, MessageBox
-from Core.Initializer import (
-    AppDataManager, ConfigManager, ErrorHandler, GameManager, MainDataManager, ToolUpdateManager, NotificationHandler
-)
-from Core.LaunchVanilla import launch_vanilla_threaded
-from Core.Logger import logger
+
 from UIComponents.BarStyles import BarStyles
 from UIComponents.MainStyles import MainStyles
 from UIComponents.MenuBar import MenuBar
 from UIComponents.Personalization import AcrylicEffect
-from UIComponents.TableManager import (
+from Core.TableManager import (
     TitleUpdateTable, SquadsUpdatesTable, FutSquadsUpdatesTable
 )
 from UIComponents.TitleBar import TitleBar
@@ -31,6 +27,16 @@ from UIWindows.SettingsWindow import SettingsWindow
 from UIWindows.SquadsTablesFetcherWindow import SquadsTablesFetcherWindow
 from UIWindows.SquadsChangelogsFetcherWindow import SquadsChangelogsFetcherWindow
 from UIWindows.ToolUpdaterWindow import ToolUpdaterWindow
+
+from Core.Logger import logger
+from Core.ToolUpdateManager import ToolUpdateManager
+from Core.MainDataManager import MainDataManager
+from Core.ConfigManager import ConfigManager
+from Core.GameManager import GameManager
+from Core.AppDataManager import AppDataManager
+from Core.NotificationManager import NotificationHandler
+from Core.ErrorHandler import ErrorHandler
+from Core.LaunchVanilla import launch_vanilla_threaded
 
 # Constants
 APP_NAME = "FC Rollback Tool"

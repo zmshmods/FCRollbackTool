@@ -4,11 +4,14 @@ from PySide6.QtGui import QGuiApplication, QIcon
 from PySide6.QtCore import Qt
 from qframelesswindow import AcrylicWindow
 from qfluentwidgets import Theme, setTheme, setThemeColor
+
 from UIComponents.Personalization import AcrylicEffect
 from UIComponents.MainStyles import MainStyles
-from Core.Logger import logger
 from UIComponents.TitleBar import TitleBar
-from Core.Initializer import ToolUpdateManager, ErrorHandler
+
+from Core.Logger import logger
+from Core.ToolUpdateManager import ToolUpdateManager
+from Core.ErrorHandler import ErrorHandler
 
 WINDOW_TITLE = "Changelog"
 WINDOW_SIZE = (720, 480)

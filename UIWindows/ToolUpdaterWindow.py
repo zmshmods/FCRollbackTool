@@ -2,22 +2,27 @@ import sys
 import os
 import webbrowser
 from datetime import datetime, timezone
+import configparser
+from datetime import timedelta
+
 from PySide6.QtWidgets import QApplication, QVBoxLayout, QHBoxLayout, QLabel, QWidget, QSizePolicy, QPushButton
 from PySide6.QtGui import QGuiApplication, QIcon
 from PySide6.QtCore import Qt
 from qframelesswindow import AcrylicWindow
 from qfluentwidgets import Theme, setTheme, setThemeColor
+
 from UIComponents.Personalization import AcrylicEffect
 from UIComponents.Tooltips import apply_tooltip
 from UIComponents.MainStyles import MainStyles
-from Core.Logger import logger
 from UIComponents.TitleBar import TitleBar
-from Core.Initializer import ToolUpdateManager, ErrorHandler, AppDataManager
-import configparser
-from datetime import timedelta
+
+from Core.Logger import logger
+from Core.ToolUpdateManager import ToolUpdateManager
+from Core.ConfigManager import AppDataManager
+from Core.ErrorHandler import ErrorHandler
 
 WINDOW_TITLE = "FC Rollback Tool - New Update Available!"
-WINDOW_SIZE = (720, 480)
+WINDOW_SIZE = (920, 620)
 THEME_COLOR = "#00FF00"
 ICON_PATH = "Data/Assets/Icons/FRICON.png"
 SEPARATOR_STYLE = "background-color: rgba(255, 255, 255, 0.1);"
@@ -25,7 +30,7 @@ SPACER_WIDTH = 75
 BAR_HEIGHT = 32
 SHOW_MAX_BUTTON = False
 SHOW_MIN_BUTTON = False
-SHOW_CLOSE_BUTTON = True
+SHOW_CLOSE_BUTTON = False
 REMINDER_INTERVAL_HOURS = 24
 
 class ToolUpdaterWindow(AcrylicWindow):

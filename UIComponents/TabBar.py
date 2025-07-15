@@ -3,9 +3,10 @@ from PySide6.QtGui import QIcon
 from PySide6.QtCore import Qt
 from qfluentwidgets import FluentIcon
 from UIComponents.BarStyles import BarStyles
-from UIComponents.TableManager import TitleUpdateTable, SquadsUpdatesTable, FutSquadsUpdatesTable
+from Core.TableManager import TitleUpdateTable, SquadsUpdatesTable, FutSquadsUpdatesTable
+
 from Core.Logger import logger
-from Core.Initializer import ErrorHandler
+from Core.ErrorHandler import ErrorHandler
 
 class TabBar:
     ICONS = {

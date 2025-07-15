@@ -14,10 +14,14 @@ from qfluentwidgets import (Theme, setTheme, setThemeColor, FluentIcon, CheckBox
 from UIComponents.Personalization import AcrylicEffect
 from UIComponents.Tooltips import apply_tooltip
 from UIComponents.MainStyles import MainStyles
-from Core.Logger import logger
-from Core.Initializer import ErrorHandler, GameManager, ConfigManager, NotificationHandler
 from UIComponents.TitleBar import TitleBar
 from UIComponents.MiniSpinner import MiniSpinnerForButton
+
+from Core.Logger import logger
+from Core.ConfigManager import ConfigManager
+from Core.GameManager import GameManager
+from Core.NotificationManager import NotificationHandler
+from Core.ErrorHandler import ErrorHandler
 
 # Constants for SettingsWindow
 WINDOW_TITLE = "Settings"

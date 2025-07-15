@@ -1,10 +1,8 @@
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QSpacerItem, QSizePolicy, QWidget
-from PySide6.QtCore import Qt, QSize, QPoint
+from PySide6.QtCore import Qt, QSize
 from PySide6.QtGui import QIcon, QPixmap
 from qframelesswindow import StandardTitleBar
-from qfluentwidgets import Theme
 from UIComponents.Tooltips import apply_tooltip
-from Core.LaunchVanilla import launch_vanilla_threaded
 
 class TitleBar:
     def __init__(

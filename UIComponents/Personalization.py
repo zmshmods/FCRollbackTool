@@ -9,8 +9,8 @@ def AcrylicEffect(window: QWidget):
     if windows_version.major == 10:
         if windows_version.build >= 22000:
             # If >= Windows 11 set AcrylicEffect
-            window.windowEffect.setAcrylicEffect(window.winId(), "10101050")
-            # window.windowEffect.setMicaEffect(window.winId(), True)
+            window.windowEffect.setAcrylicEffect(window.winId(), "10101070")
+            #window.windowEffect.setMicaEffect(window.winId(), True)
             # window.windowEffect.setAeroEffect(True)
         else:
             # If <= Windows 10 

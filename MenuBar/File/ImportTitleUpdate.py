@@ -5,10 +5,15 @@ import py7zr
 import rarfile
 import pickle
 import zlib
-from PySide6.QtCore import QThread, Signal
-from Core.Initializer import MainDataManager, GameManager, AppDataManager, ErrorHandler
-from Core.Logger import logger
 from enum import Enum
+
+from PySide6.QtCore import QThread, Signal
+
+from Core.Logger import logger
+from Core.MainDataManager import MainDataManager
+from Core.GameManager import GameManager
+from Core.AppDataManager import AppDataManager
+from Core.ErrorHandler import ErrorHandler
 
 class ImportState(Enum):
     SEARCHING_EXECUTABLE = "Searching for executable file..."

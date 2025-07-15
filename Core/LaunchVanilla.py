@@ -6,8 +6,13 @@ import psutil
 import winreg
 import shutil
 from PySide6.QtCore import QTimer
+
 from Core.Logger import logger
-from Core.Initializer import ConfigManager, GameManager, ErrorHandler, NotificationHandler, AppDataManager
+from Core.ConfigManager import ConfigManager
+from Core.GameManager import GameManager
+from Core.AppDataManager import AppDataManager
+from Core.NotificationManager import NotificationHandler
+from Core.ErrorHandler import ErrorHandler
 
 # Constants
 CHEAT_SERVICE_NAME = "EAAntiCheat.GameServiceLauncher.exe"

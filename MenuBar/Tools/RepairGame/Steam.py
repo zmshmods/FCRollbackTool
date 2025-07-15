@@ -5,11 +5,14 @@ from qfluentwidgets import setTheme, setThemeColor, Theme
 from qframelesswindow import AcrylicWindow, StandardTitleBar
 from PySide6.QtGui import QGuiApplication, QPixmap
 from PySide6.QtCore import Qt
+
 from UIComponents.Personalization import AcrylicEffect
-from UIComponents.Tooltips import apply_tooltip
-from Core.Logger import logger
 from UIComponents.MainStyles import MainStyles
-from Core.Initializer import ConfigManager, GameManager, ErrorHandler
+
+from Core.Logger import logger
+from Core.ConfigManager import ConfigManager
+from Core.GameManager import GameManager
+from Core.ErrorHandler import ErrorHandler
 
 class SteamWindow(AcrylicWindow):
     def __init__(self, parent=None):

@@ -1,6 +1,7 @@
 from PySide6.QtCore import QUrl
 from PySide6.QtGui import QDesktopServices
-from Core.Initializer import ErrorHandler
+
+from Core.ErrorHandler import ErrorHandler
 
 def open_discord_url():
     try:

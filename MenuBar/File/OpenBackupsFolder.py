@@ -1,6 +1,11 @@
 from PySide6.QtCore import QUrl
 from PySide6.QtGui import QDesktopServices
-from Core.Initializer import AppDataManager, ConfigManager, GameManager, ErrorHandler
+
+from Core.Logger import logger
+from Core.ConfigManager import ConfigManager
+from Core.GameManager import GameManager
+from Core.AppDataManager import AppDataManager
+from Core.ErrorHandler import ErrorHandler
 
 def open_backups_path():
     try:

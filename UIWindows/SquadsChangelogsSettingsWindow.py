@@ -3,25 +3,26 @@ import json
 import os
 import csv
 import openpyxl
-import io  # Add io import for BytesIO
-from typing import List, Optional, Dict
+import io 
+from typing import Optional
 
 from PySide6.QtWidgets import (
-    QApplication, QVBoxLayout, QHBoxLayout, QLabel, QWidget, QSizePolicy, QPushButton,
-    QSpacerItem, QFileDialog
+    QApplication, QVBoxLayout, QHBoxLayout, QLabel, QWidget, QSizePolicy, QPushButton, QFileDialog
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QGuiApplication, QIcon
 from qframelesswindow import AcrylicWindow
-from qfluentwidgets import CheckBox, ComboBox, LineEdit, Theme, setTheme, setThemeColor, CaptionLabel, SimpleCardWidget, FluentIcon
+from qfluentwidgets import CheckBox, ComboBox, LineEdit, Theme, setTheme, setThemeColor, SimpleCardWidget#, FluentIcon, CaptionLabel
 
-from Core.Initializer import ConfigManager, ErrorHandler, GameManager
-from Core.Logger import logger
 from UIComponents.Tooltips import apply_tooltip
 from UIComponents.Personalization import AcrylicEffect
 from UIComponents.TitleBar import TitleBar
 from UIComponents.MainStyles import MainStyles
-from pathlib import Path
+
+from Core.Logger import logger
+from Core.ConfigManager import ConfigManager
+from Core.GameManager import GameManager
+from Core.ErrorHandler import ErrorHandler
 
 # Constants
 WINDOW_TITLE = "Changelogs Settings"

@@ -6,13 +6,18 @@ from PySide6.QtGui import QGuiApplication, QColor
 from PySide6.QtCore import Qt
 from qframelesswindow import AcrylicWindow
 from qfluentwidgets import Theme, setTheme, setThemeColor, IndeterminateProgressBar
-from Core.Initializer import MainDataManager, GameManager, AppDataManager, ErrorHandler
+
 from MenuBar.File.ImportTitleUpdate import ImportTitleUpdate, ImportState
 from UIComponents.MainStyles import MainStyles
 from UIComponents.TitleBar import TitleBar
 from UIComponents.Personalization import AcrylicEffect
 from collections import deque
+
 from Core.Logger import logger
+from Core.MainDataManager import MainDataManager
+from Core.AppDataManager import AppDataManager
+from Core.GameManager import GameManager
+from Core.ErrorHandler import ErrorHandler
 
 WINDOW_TITLE = "Import Title Update"
 WINDOW_SIZE = (420, 220)

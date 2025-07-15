@@ -6,7 +6,7 @@ from PySide6.QtWidgets import (
     QApplication, QVBoxLayout, QHBoxLayout, QWidget, QSizePolicy, QPushButton,
     QTableWidgetItem, QLabel, QCompleter, QFileDialog, QHeaderView
 )
-from PySide6.QtGui import QGuiApplication, QIcon, QColor
+from PySide6.QtGui import QGuiApplication, QIcon
 from PySide6.QtCore import Qt, QUrl, QThread, Signal, QObject, QRunnable, QThreadPool, QEventLoop
 from PySide6.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkReply
 from qframelesswindow import AcrylicWindow
@@ -14,13 +14,17 @@ from qfluentwidgets import (
     Theme, setTheme, setThemeColor, TableWidget, CheckBox, SearchLineEdit,
     FluentIcon, InfoBar, InfoBarPosition
 )
-from Core.Initializer import GameManager, ErrorHandler, ConfigManager
-from Core.Logger import logger
+
 from UIComponents.Personalization import AcrylicEffect
 from UIComponents.MainStyles import MainStyles
 from UIComponents.TitleBar import TitleBar
 from UIComponents.Spinner import LoadingSpinner
 from UIWindows.SquadsTableSettingsWindow import TableSettingsWindow, TableSettings
+
+from Core.Logger import logger
+from Core.ConfigManager import ConfigManager
+from Core.GameManager import GameManager
+from Core.ErrorHandler import ErrorHandler
 
 # Constants
 TITLE = "Squads Tables Fetcher"
@@ -67,6 +71,7 @@ class SquadsTablesFetcherWindow(AcrylicWindow):
         self.start_time = None
         self.current_save_path = None
         self.db_fetched = False
+        self.is_exact_search = False
         self._initialize_window()
 
     def _initialize_window(self):
@@ -248,6 +253,7 @@ class SquadsTablesFetcherWindow(AcrylicWindow):
         self.table.resizeColumnsToContents()
         self._setup_completer(table_names)
         self.button_manager.select_all_checkbox.setEnabled(True)
+        self.button_manager.exact_search_checkbox.setEnabled(True)
         self.button_manager.select_all_checkbox.stateChanged.connect(self.button_manager.toggle_select_all)
         self.button_manager.update_select_all_state(all(self.checkbox_states))
         self._cleanup_index_worker()
@@ -281,21 +287,27 @@ class SquadsTablesFetcherWindow(AcrylicWindow):
     def _setup_completer(self, table_names: List[str]):
         valid_names = [name for name in table_names if name]
         self.completer = QCompleter(valid_names, self.search_line_edit)
-        self.completer.setCaseSensitivity(Qt.CaseInsensitive)
+        self.completer.setCaseSensitivity(Qt.CaseSensitive if self.is_exact_search else Qt.CaseInsensitive)
         self.completer.setMaxVisibleItems(10)
         self.search_line_edit.setCompleter(self.completer)
 
-    def on_checkbox_state_changed(self, row: int, state: int):
-        self.checkbox_states[row] = state == Qt.CheckState.Checked.value
-        self.button_manager.update_select_all_state()
+    def toggle_exact_search(self, checked: bool):
+        self.is_exact_search = checked
+        if self.completer:
+            self.completer.setCaseSensitivity(Qt.CaseSensitive if self.is_exact_search else Qt.CaseInsensitive)
+            self.filter_tables(self.search_line_edit.text())
 
     def filter_tables(self, text: str):
         if not self.table:
             return
-        text = text.lower()
+        text = text.lower()  
         for row in range(self.table.rowCount()):
-            table_name = self.table.item(row, 1).text().lower()
-            self.table.setRowHidden(row, text not in table_name)
+            table_name = self.table.item(row, 1).text().lower() 
+            self.table.setRowHidden(row, text not in table_name if not self.is_exact_search else text != table_name)
+
+    def on_checkbox_state_changed(self, row: int, state: int):
+        self.checkbox_states[row] = state == Qt.CheckState.Checked.value
+        self.button_manager.update_select_all_state()
 
     def get_selected_tables(self) -> List[str]:
         if not self.table:
@@ -459,6 +471,7 @@ class ButtonManager:
         button_layout = QHBoxLayout()
         button_layout.addWidget(self.buttons["cancel"])
         button_layout.addStretch()
+        button_layout.addWidget(self.exact_search_checkbox)
         button_layout.addWidget(self.select_all_checkbox)
         fetch_layout = QHBoxLayout()
         fetch_layout.setSpacing(0)
@@ -488,8 +501,16 @@ class ButtonManager:
         self.buttons["settings"].setFixedSize(28, 28)
         self.select_all_checkbox = CheckBox("Select All")
         self.select_all_checkbox.setChecked(self.window.config_manager.getConfigKeySelectAllTables())
-        self.select_all_checkbox.setStyleSheet("margin-left: 10px; background-color: transparent;")
+        self.select_all_checkbox.setStyleSheet("margin-left: 5px; background-color: transparent;")
         self.select_all_checkbox.setEnabled(False)
+        self.exact_search_checkbox = CheckBox("Exact Search")
+        self.exact_search_checkbox.setStyleSheet("margin-left: 5px; background-color: transparent;")
+        self.exact_search_checkbox.setEnabled(False)
+        self.exact_search_checkbox.stateChanged.connect(self.on_exact_search_toggled)
+
+    def on_exact_search_toggled(self, state: int):
+        checked = state == Qt.CheckState.Checked.value
+        self.window.toggle_exact_search(checked)
 
     def cancel(self):
         self.window._cleanup_index_worker()
@@ -515,7 +536,7 @@ class ButtonManager:
 
     def toggle_select_all(self, state: int):
         checked = state == Qt.CheckState.Checked.value
-        self.window._cleanup_index_workertoggle_select_all(checked)
+        self.window.toggle_select_all(checked)
 
     def update_select_all_state(self, checked: Optional[bool] = None):
         if checked is None:
@@ -528,11 +549,13 @@ class ButtonManager:
         for btn in self.buttons.values():
             btn.setEnabled(False)
         self.select_all_checkbox.setEnabled(False)
+        self.exact_search_checkbox.setEnabled(False)
 
     def enable_buttons(self):
         for btn in self.buttons.values():
             btn.setEnabled(True)
         self.select_all_checkbox.setEnabled(True)
+        self.exact_search_checkbox.setEnabled(True)
 
 class NetworkWorker:
     def __init__(self):

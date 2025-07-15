@@ -1,6 +1,8 @@
 from PySide6.QtCore import QUrl
 from PySide6.QtGui import QDesktopServices
-from Core.Initializer import ErrorHandler, GITHUB_ACC
+
+from Core.ErrorHandler import ErrorHandler
+from Core.ToolUpdateManager import GITHUB_ACC
 
 def open_faqs_url():
     try:

@@ -1,6 +1,9 @@
 from PySide6.QtWidgets import QHBoxLayout, QPushButton, QWidget, QApplication, QMenu, QFileDialog
 from PySide6.QtGui import QIcon, QAction
 from PySide6.QtCore import Qt, QPoint, QTimer
+
+from UIComponents.BarStyles import BarStyles
+from UIWindows.ImportTitleUpdateWindow import ImportTitleUpdateWindow
 from MenuBar.File.OpenSquadFilesPath import open_squad_files_path
 from MenuBar.File.OpenGameFolder import open_game_path
 from MenuBar.File.OpenBackupsFolder import open_backups_path
@@ -9,15 +12,16 @@ from MenuBar.Tools.RepairGame.Steam import SteamWindow
 from MenuBar.Tools.RepairGame.EAApp import EAAppWindow
 from MenuBar.Tools.RepairGame.EpicGames import EpicGamesWindow
 from MenuBar.Tools.LiveEditorCompatibilityInfo import LiveEditorCompatibilityInfo
-from UIWindows.ImportTitleUpdateWindow import ImportTitleUpdateWindow
 from MenuBar.Help.InformationWindow import InformationWindow
 from MenuBar.Help.ChangelogWindow import ChangelogWindow
 from MenuBar.Help.OpenFAQs import open_faqs_url
 from MenuBar.Help.OpenGuides import open_guides_url
 from MenuBar.Help.OpenDiscord import open_discord_url
 
-from Core.Initializer import MainDataManager, GameManager, AppDataManager, ErrorHandler
-from UIComponents.BarStyles import BarStyles
+from Core.MainDataManager import MainDataManager
+from Core.GameManager import GameManager
+from Core.AppDataManager import AppDataManager
+from Core.ErrorHandler import ErrorHandler
 
 class MenuBar:
     ICONS = {

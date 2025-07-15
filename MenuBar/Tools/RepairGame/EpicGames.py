@@ -1,14 +1,16 @@
-import sys, ctypes, winreg, psutil, os
+import sys, winreg, psutil, os
 from PySide6.QtWidgets import QApplication, QVBoxLayout, QLabel, QPushButton, QHBoxLayout, QWidget, QSizePolicy
 from qfluentwidgets import setTheme, setThemeColor, Theme
 from qframelesswindow import AcrylicWindow, StandardTitleBar
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtCore import Qt
+
 from UIComponents.Personalization import AcrylicEffect
 from UIComponents.Tooltips import apply_tooltip
-from Core.Logger import logger
 from UIComponents.MainStyles import MainStyles
-from Core.Initializer import ErrorHandler
+
+from Core.Logger import logger
+from Core.ErrorHandler import ErrorHandler
 
 class EpicGamesWindow(AcrylicWindow):
     def __init__(self, parent=None):

@@ -4,11 +4,14 @@ from PySide6.QtGui import QGuiApplication, QIcon, QPixmap
 from PySide6.QtCore import Qt
 from qframelesswindow import AcrylicWindow
 from qfluentwidgets import Theme, setTheme, setThemeColor
+
 from UIComponents.Personalization import AcrylicEffect
 from UIComponents.MainStyles import MainStyles
-from Core.Logger import logger
 from UIComponents.TitleBar import TitleBar
-from Core.Initializer import ErrorHandler, GITHUB_ACC, MAIN_REPO
+
+from Core.Logger import logger
+from Core.ToolUpdateManager import GITHUB_ACC, MAIN_REPO
+from Core.ErrorHandler import ErrorHandler
 
 WINDOW_TITLE = "Information"
 WINDOW_SIZE = (720, 480)
