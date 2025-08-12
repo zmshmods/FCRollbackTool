@@ -16,10 +16,8 @@ A tool designed to manage updates for EA Sports FC games and allows you to easil
 ---
 
 ## 🎮 Supported Games
-Explore the game profiles empowered by FC Rollback Tool:
-
-| Game            | Title Updates | Squads Files |
-|-----------------|---------------|--------------|
+| Game Name | Title Updates | Squads Files |
+|--------------|---------------|--------------|
 | <p align="center"><strong>EA Sports FC 25</strong></p> | <p align="center">✅</p> | <p align="center">✅</p> |
 | <p align="center"><strong>EA Sports FC 24</strong></p> | <p align="center">✅</p> | <p align="center">✅</p> |
 
