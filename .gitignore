@@ -165,5 +165,5 @@ Core/FIFAModMetaReader.py
 Compile.py
 Profiles/
 Logs/
-.MyTools/
+FC_Rollback_Tool
 nuitka-crash-report.xml
