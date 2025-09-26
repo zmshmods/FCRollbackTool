@@ -4,9 +4,8 @@ from PySide6.QtWidgets import QApplication, QVBoxLayout, QHBoxLayout, QLabel, QW
 from PySide6.QtGui import QGuiApplication, QIcon, QColor
 from PySide6.QtCore import Qt, QTimer
 from qfluentwidgets import Theme, setTheme, setThemeColor, ProgressRing
-from qframelesswindow import AcrylicWindow
 
-from UIComponents.Personalization import AcrylicEffect
+from UIComponents.Personalization import BaseWindow
 from UIComponents.MainStyles import MainStyles
 from UIComponents.TitleBar import TitleBar
 from UIComponents.MiniSpinner import MiniSpinner
@@ -32,7 +31,7 @@ SHOW_CLOSE_BUTTON = False
 BOLD_STYLE = "font-size: 16px; font-weight: bold; color: rgba(255, 255, 255, 0.9); background-color: transparent;"
 NORMAL_STYLE = "font-size: 14px; color: rgba(255, 255, 255, 0.7); background-color: transparent;"
 
-class DownloadWindow(AcrylicWindow):
+class DownloadWindow(BaseWindow):
     def __init__(self, update_name, download_url, short_game_name, tab_key, file_name=None, parent=None):
         super().__init__(parent=parent)
         self.update_name = update_name or "Unknown Update"
@@ -56,7 +55,6 @@ class DownloadWindow(AcrylicWindow):
         
         self.setWindowTitle(WINDOW_TITLE.format(self.update_name))
         self.resize(*WINDOW_SIZE)
-        AcrylicEffect(self)
         self.center_window()
         self.main_layout = QVBoxLayout(self)
         self.main_layout.setContentsMargins(0, 0, 0, 0)
@@ -95,41 +93,52 @@ class DownloadWindow(AcrylicWindow):
         self._setup_progress_ui()
 
     def _setup_progress_ui(self):
-        layout = QHBoxLayout(self.main_container)
-        spinner_info_layout = QVBoxLayout()
-        spinner_layout = QHBoxLayout()
+        self.container_layout = QVBoxLayout(self.main_container)
+        self.container_layout.setAlignment(Qt.AlignCenter)
+
+        self.view_stack = QWidget(self.main_container, styleSheet="background-color: transparent;")
+        self.stack_layout = QHBoxLayout(self.view_stack)
+        self.stack_layout.setContentsMargins(0, 0, 0, 0)
+        self.container_layout.addWidget(self.view_stack)
+
+        self.wait_view = QWidget(styleSheet="background-color: transparent;")
+        wait_layout = QVBoxLayout(self.wait_view)
+        wait_layout.setAlignment(Qt.AlignCenter)
+        wait_layout.setSpacing(5)
+        wait_layout.setContentsMargins(0,0,0,0)
+
+        spinner_and_title_layout = QHBoxLayout()
+        spinner_and_title_layout.setAlignment(Qt.AlignCenter)
+        spinner_and_title_layout.setSpacing(10)
         
-        self.spinner = MiniSpinner(self.main_container)
-        self.spinner_label = QLabel("Initializing Download, Please Wait...", self.main_container, 
-                                   styleSheet=BOLD_STYLE, alignment=Qt.AlignCenter)
+        self.spinner = MiniSpinner(self.wait_view)
+        self.spinner_label = QLabel("Initializing...", self.wait_view, styleSheet=BOLD_STYLE, alignment=Qt.AlignCenter)
         
-        spinner_layout.addWidget(self.spinner, alignment=Qt.AlignVCenter)
-        spinner_layout.addWidget(self.spinner_label, alignment=Qt.AlignVCenter)
-        spinner_layout.setSpacing(10)
-        spinner_layout.setContentsMargins(0, 0, 0, 0)
+        spinner_and_title_layout.addWidget(self.spinner)
+        spinner_and_title_layout.addWidget(self.spinner_label)
+
+        self.extra_info_label = QLabel("", self.wait_view, styleSheet=NORMAL_STYLE, alignment=Qt.AlignCenter)
         
-        self.info_label = QLabel(self.main_container, styleSheet="background-color: transparent;", 
-                                alignment=Qt.AlignLeft | Qt.AlignVCenter)
-        self.extra_info_label = QLabel(self.main_container, styleSheet=NORMAL_STYLE + " background-color: transparent;",
-                                      alignment=Qt.AlignLeft | Qt.AlignVCenter)
-        self.extra_info_label.hide()
+        wait_layout.addLayout(spinner_and_title_layout)
+        wait_layout.addWidget(self.extra_info_label, alignment=Qt.AlignCenter)
         
-        spinner_info_layout.addLayout(spinner_layout)
-        spinner_info_layout.addWidget(self.info_label)
-        spinner_info_layout.addWidget(self.extra_info_label)
-        spinner_info_layout.setSpacing(0)
-        spinner_info_layout.setContentsMargins(0, 0, 0, 0)
-        
-        self.progress_ring = ProgressRing(self.main_container)
+        self.progress_view = QWidget(styleSheet="background-color: transparent;")
+        progress_layout = QHBoxLayout(self.progress_view)
+        progress_layout.setSpacing(20)
+        progress_layout.setAlignment(Qt.AlignCenter)
+
+        self.info_label = QLabel(self.progress_view, styleSheet="background-color: transparent;", alignment=Qt.AlignLeft | Qt.AlignVCenter)
+        self.progress_ring = ProgressRing(self.progress_view)
         self.progress_ring.setValue(0)
         self.progress_ring.setTextVisible(True)
         self.progress_ring.setFixedSize(130, 130)
         self.progress_ring.setCustomBarColor(QColor(THEME_COLOR), QColor(THEME_COLOR))
+        
+        progress_layout.addWidget(self.info_label)
+        progress_layout.addWidget(self.progress_ring)
 
-        layout.addLayout(spinner_info_layout)
-        layout.addWidget(self.progress_ring)
-        layout.setSpacing(20)
-        layout.setAlignment(Qt.AlignCenter)
+        self.stack_layout.addWidget(self.wait_view)
+        self.stack_layout.addWidget(self.progress_view)
         
         self.update_info_label()
 
@@ -222,44 +231,41 @@ class DownloadWindow(AcrylicWindow):
 
     def update_info_label(self, cancelling=False):
         if cancelling and not self.use_idm:
-            self.spinner.hide()
-            self.spinner_label.hide()
-            self.info_label.setText(f"<span style='{BOLD_STYLE}'>Cancelling...</span>")
+            self.progress_view.hide()
+            self.spinner.show()
+            self.spinner_label.setText("Cancelling...")
             self.extra_info_label.hide()
-            self.progress_ring.hide()
+            self.wait_view.show()
+            return
+
+        if self.use_idm:
+            self.progress_view.hide()
+            self.spinner.show()
+            self.spinner_label.setText("Waiting for IDM to complete...")
+            self.extra_info_label.setText("It will be in the profile folder once completed.")
+            self.extra_info_label.show()
+            self.wait_view.show()
         else:
-            if self.use_idm:
-                self.spinner.show()
-                self.spinner_label.show()
-                self.spinner_label.setText("Waiting for IDM to complete...")
-                self.info_label.setText("")
-                self.extra_info_label.setText("It will be in the profile folder once completed.")
-                self.extra_info_label.show()
-                self.progress_ring.hide()
+            if self.total > 0:
+                self.wait_view.hide()
+                self.info_label.setText(
+                    f"<div>"
+                    f"<span style='{BOLD_STYLE}'>Current Task: {'Paused' if self.is_paused else 'Downloading' if self.progress_ring.value() < 100 else 'Completed'}</span><br>"
+                    f"<span style='{NORMAL_STYLE}'>"
+                    f"Downloaded: {self.downloaded:.2f} MB / {self.total:.2f} MB<br>"
+                    f"Transfer Rate: {self.rate}<br>"
+                    f"Time Left: {self.time_left}<br>"
+                    f"Splits: {self.splits}<br>"
+                    f"Connections: {self.connections}"
+                    f"</span></div>"
+                )
+                self.progress_view.show()
             else:
-                if self.total > 0:  # Show progress when total size is known
-                    self.spinner.hide()
-                    self.spinner_label.hide()
-                    self.info_label.setText(
-                        f"<div>"
-                        f"<span style='{BOLD_STYLE}'>Current Task: {'Paused' if self.is_paused else 'Downloading' if self.progress_ring.value() < 100 else 'Completed'}</span><br>"
-                        f"<span style='{NORMAL_STYLE}'>"
-                        f"Downloaded: {self.downloaded:.2f} MB / {self.total:.2f} MB<br>"
-                        f"Transfer Rate: {self.rate}<br>"
-                        f"Time Left: {self.time_left}<br>"
-                        f"Splits: {self.splits}<br>"
-                        f"Connections: {self.connections}"
-                        f"</span></div>"
-                    )
-                    self.extra_info_label.hide()
-                    self.progress_ring.show()
-                else:  
-                    self.spinner.show()
-                    self.spinner_label.show()
-                    self.spinner_label.setText("Initializing Download, Please Wait...")
-                    self.info_label.setText("")
-                    self.extra_info_label.hide()
-                    self.progress_ring.hide()
+                self.progress_view.hide()
+                self.spinner.show()
+                self.spinner_label.setText("Initializing Download, Please Wait...")
+                self.extra_info_label.hide()
+                self.wait_view.show()
 
 class ButtonManager:
     def __init__(self, window):
@@ -276,9 +282,9 @@ class ButtonManager:
 
     def close(self):
         if self.window.download_thread:
-            self.download_thread.cancel()
-            self.download_thread.quit()
-            self.download_thread.wait()
+            self.window.download_thread.cancel()
+            self.window.download_thread.quit()
+            self.window.download_thread.wait()
         self.window.close()
 
     def cancel(self):

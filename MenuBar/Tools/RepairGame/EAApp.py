@@ -1,25 +1,24 @@
 import sys, winreg, psutil, os
 from PySide6.QtWidgets import QApplication, QVBoxLayout, QLabel, QPushButton, QHBoxLayout, QWidget, QSizePolicy
 from qfluentwidgets import setTheme, setThemeColor, Theme
-from qframelesswindow import AcrylicWindow, StandardTitleBar
+from qframelesswindow import StandardTitleBar
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtCore import Qt
 
-from UIComponents.Personalization import AcrylicEffect
+from UIComponents.Personalization import BaseWindow
 from UIComponents.Tooltips import apply_tooltip
 from UIComponents.MainStyles import MainStyles
 
 from Core.Logger import logger
 from Core.ErrorHandler import ErrorHandler
 
-class EAAppWindow(AcrylicWindow):
+class EAAppWindow(BaseWindow):
     def __init__(self, parent=None):
         self.config_cache = None
         super().__init__(parent=parent)
         self.setWindowTitle("Repair Game - EA App")
         self.resize(370, 100)
         self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnTopHint)
-        AcrylicEffect(self)
         self.center_window()
         self.manage_eadesktop()
         self.setup_ui()

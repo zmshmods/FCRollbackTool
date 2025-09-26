@@ -7,24 +7,22 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, QSize, QThread, Signal, Slot, QTimer
 from PySide6.QtGui import QGuiApplication, QIcon
-from qframelesswindow import AcrylicWindow
-from qfluentwidgets import TableWidget, Theme, setTheme, setThemeColor
+from qfluentwidgets import TableWidget, Theme, setTheme, setThemeColor, FluentIcon
 
 from UIComponents.Spinner import LoadingSpinner
 from UIComponents.Tooltips import apply_tooltip
-from UIComponents.Personalization import AcrylicEffect
+from UIComponents.Personalization import BaseWindow
 from UIComponents.MainStyles import MainStyles
 from UIComponents.TitleBar import TitleBar
 
 from Core.Logger import logger
 from Core.ConfigManager import ConfigManager
 from Core.GameManager import GameManager
-from Core.AppDataManager import AppDataManager
 from Core.ErrorHandler import ErrorHandler
 
 WINDOW_TITLE_SELECT_GAME = "FC Rollback Tool - Select Game"
 WINDOW_TITLE_ENTRY = "FC Rollback Tool - Entry Point"
-WINDOW_SIZE = (500, 300)
+WINDOW_SIZE = (620, 400)
 THEME_COLOR = "#00FF00"
 APP_ICON_PATH = "Data/Assets/Icons/FRICON.png"
 SPACER_WIDTH = 150
@@ -41,12 +39,12 @@ class GameProcessingThread(QThread):
     def __init__(self, path: str, config_mgr: ConfigManager, game_mgr: GameManager):
         super().__init__()
         self.path, self.config_mgr, self.game_mgr = path, config_mgr, game_mgr
-        self.app_data_manager = AppDataManager()
 
     def run(self):
         try:
             content = self.game_mgr.loadGameContent(self.path, emit_status=self.status_update.emit)
             if not content:
+                self.error.emit("Failed to load essential game content. The tool cannot continue.")
                 return
             if not self.game_mgr.validateAndUpdateGameExeSHA1(self.path, self.config_mgr):
                 self.error.emit("Failed to validate the game executable.")
@@ -56,7 +54,7 @@ class GameProcessingThread(QThread):
         except Exception as e:
             self.error.emit(f"Error processing game:\n{e}")
 
-class SelectGameWindow(AcrylicWindow):
+class SelectGameWindow(BaseWindow):
     def __init__(self, parent: Optional[QWidget] = None, ignore_selected_game: bool = False):
         super().__init__(parent)
         self.config_manager = ConfigManager()
@@ -66,12 +64,27 @@ class SelectGameWindow(AcrylicWindow):
         self.has_valid_selected_game = False
         self.selected_game_path = None
 
-        self.setWindowTitle(WINDOW_TITLE_SELECT_GAME)
         self.resize(*WINDOW_SIZE)
-        AcrylicEffect(self)
         self.center_window()
+        
+        self._clear_layout()
+        self.main_layout = QVBoxLayout(self)
+        self.main_layout.setContentsMargins(0, 0, 0, 0)
+        self.main_layout.setSpacing(0)
 
-        # Setup spinner container for loading states
+        if not self.ignore_selected_game:
+            self.selected_game_path = self.config_manager.getConfigKeySelectedGame()
+            self.has_valid_selected_game = self.selected_game_path and os.path.exists(self.selected_game_path)
+
+        self._setup_title_bar()
+        self._initialize_content()
+
+        if self.has_valid_selected_game:
+            self._show_spinner()
+            self.button_manager.hide_buttons()
+            self._handle_entry_point()
+
+    def _initialize_content(self):
         self.spinner_container = QWidget(self, styleSheet="background-color: transparent;")
         layout = QVBoxLayout(self.spinner_container)
         layout.setAlignment(Qt.AlignCenter)
@@ -82,47 +95,23 @@ class SelectGameWindow(AcrylicWindow):
         layout.addWidget(self.spinner, alignment=Qt.AlignCenter)
         layout.addWidget(self.status_label, alignment=Qt.AlignCenter)
 
-        if not self.ignore_selected_game:
-            self.selected_game_path = self.config_manager.getConfigKeySelectedGame()
-            self.has_valid_selected_game = self.selected_game_path and os.path.exists(self.selected_game_path)
-
-        if self.has_valid_selected_game:
-            self.setWindowTitle(WINDOW_TITLE_ENTRY)
-            self._setup_entry_point_ui()
-            self._handle_entry_point()
-        else:
-            self._initialize_ui()
-
-    def _initialize_ui(self) -> None:
-        self._clear_layout()
-        self.main_layout = QVBoxLayout(self)
-        self.main_layout.setContentsMargins(0, 5, 0, 0)
-        self.main_layout.setSpacing(0)
         self.interface_container = QWidget(self)
         self.interface_layout = QVBoxLayout(self.interface_container)
         self.interface_layout.setContentsMargins(0, 0, 0, 0)
         self.interface_layout.setSpacing(0)
-        self.setup_ui()
-
-    def _setup_entry_point_ui(self) -> None:
-        self._clear_layout()
-        self.main_layout = QVBoxLayout(self)
-        self.main_layout.setContentsMargins(0, 5, 0, 0)
-        self.main_layout.setSpacing(0)
-        self.interface_container = QWidget(self)
-        self.interface_layout = QVBoxLayout(self.interface_container)
-        self.interface_layout.setContentsMargins(0, 0, 0, 0)
-        self.interface_layout.setSpacing(0)
-        self._setup_title_bar()
-        self.interface_layout.addWidget(self.spinner_container)
-        self.main_layout.addWidget(self.interface_container)
+        
+        try:
+            self._setup_content()
+            self.main_layout.addWidget(self.interface_container)
+        except Exception as e:
+            ErrorHandler.handleError(f"Error setting up UI: {e}")
 
     def _handle_entry_point(self) -> None:
         """Start processing the selected game in a separate thread."""
         self.thread = GameProcessingThread(self.selected_game_path, self.config_manager, self.game_manager)
         self.thread.status_update.connect(self._update_status)
-        self.thread.finished.connect(self._on_entry_point_finished)
-        self.thread.error.connect(self._on_entry_point_error)
+        self.thread.finished.connect(self._on_processing_finished)
+        self.thread.error.connect(self._on_processing_error)
         self.thread.start()
 
     @Slot(list)
@@ -131,24 +120,28 @@ class SelectGameWindow(AcrylicWindow):
         self.status_label.setText(html_text)
 
     @Slot(dict)
-    def _on_entry_point_finished(self, content: dict) -> None:
+    def _on_processing_finished(self, content: dict) -> None:
+        """Unified handler for successful game processing."""
         if not content:
-            ErrorHandler.handleError("Failed to load game content. Please try again.")
-            self.has_valid_selected_game = False
-            self.config_manager.resetSelectedGame()
-            self._reset_ui()
+            self._on_processing_error("Failed to load game content. Please select the game again.")
             return
+        
         from Main import MainWindow
         self.main_window = MainWindow(self.config_manager, self.game_manager, content)
         self.main_window.show()
         self.close()
 
     @Slot(str)
-    def _on_entry_point_error(self, msg: str) -> None:
+    def _on_processing_error(self, msg: str) -> None:
+        """Unified handler for all game processing errors."""
         ErrorHandler.handleError(msg)
         self.has_valid_selected_game = False
         self.config_manager.resetSelectedGame()
-        self._reset_ui()
+        
+        self.setWindowTitle(WINDOW_TITLE_SELECT_GAME)
+        self._update_status([])
+        self._show_table()
+        self.button_manager.show_buttons()
 
     def _clear_layout(self) -> None:
         if self.layout() is not None:
@@ -159,19 +152,6 @@ class SelectGameWindow(AcrylicWindow):
                     child.widget().deleteLater()
             old_layout.deleteLater()
             self.setLayout(None)
-
-    def _reset_ui(self) -> None:
-        self._clear_layout()
-        self.setWindowTitle(WINDOW_TITLE_SELECT_GAME)
-        self._initialize_ui()
-
-    def setup_ui(self) -> None:
-        try:
-            self._setup_title_bar()
-            self._setup_content()
-            self.main_layout.addWidget(self.interface_container)
-        except Exception as e:
-            ErrorHandler.handleError(f"Error setting up UI: {e}")
 
     def center_window(self) -> None:
         screen = QGuiApplication.primaryScreen().geometry()
@@ -212,17 +192,14 @@ class SelectGameWindow(AcrylicWindow):
         self.table.setSelectionMode(QAbstractItemView.SingleSelection)
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
         header = self.table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(0, QHeaderView.Interactive)
         header.setSectionResizeMode(1, QHeaderView.Stretch)
-        header.setStyleSheet("QHeaderView::section { font-weight: Bold; }") #color: #FFFFFF;
+        header.setStyleSheet("QHeaderView::section { font-weight: Bold; }")
         self.table.setAlternatingRowColors(False)
         self.table.verticalHeader().hide()
-        #self.table.setShowGrid(False)
-        #self.table.setMouseTracking(False)
         
-        # UIComponents\CustomQfluentwidgets\table_view.py
         self.table.itemDelegate().setSelectedRowColor(color=None, alpha=22)
-        self.table.itemDelegate().setHoverRowColor(color=None, alpha=4)    
+        self.table.itemDelegate().setHoverRowColor(color=None, alpha=4)
         self.table.itemDelegate().setAlternateRowColor(color=None, alpha=2)
         self.table.itemDelegate().setPressedRowColor(color=None, alpha=8)
         self.table.itemDelegate().setPriorityOrder(["pressed", "selected", "hover", "alternate"])
@@ -242,18 +219,26 @@ class SelectGameWindow(AcrylicWindow):
         self.table.setRowCount(len(games))
         model = QFileSystemModel()
         model.setRootPath("")
-        for row, (exe_name, exe_path) in enumerate(games.items()):
-            folder_name = os.path.basename(os.path.dirname(exe_path))
-            folder_path = os.path.dirname(exe_path)
-            name_item = QTableWidgetItem(folder_name)
+        for row, (exe_name, install_path) in enumerate(games.items()):
+            profile = self.game_manager.profile_manager.get_profile_by_exe(exe_name)
+            if not profile: continue
+            
+            display_name = profile.display_name
+            exe_full_path = os.path.join(install_path, exe_name)
+            
+            name_item = QTableWidgetItem(display_name)
             name_item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
             name_item.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-            name_item.setIcon(model.fileIcon(model.index(exe_path)))
-            path_item = QTableWidgetItem(folder_path)
+            name_item.setIcon(model.fileIcon(model.index(exe_full_path)))
+            
+            path_item = QTableWidgetItem(install_path)
             path_item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
             path_item.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+            
             self.table.setItem(row, 0, name_item)
             self.table.setItem(row, 1, path_item)
+
+            self.table.resizeColumnsToContents()
 
     def _show_spinner(self) -> None:
         self.stacked_layout.setCurrentWidget(self.spinner_container)
@@ -276,17 +261,26 @@ class ButtonManager:
 
     def _init_buttons(self) -> None:
         self.buttons["select"] = QPushButton("Select")
-        self.buttons["select"].setFixedSize(80, 30)
         self.buttons["select"].clicked.connect(self.select_game)
-        apply_tooltip(self.buttons["select"], "select_button")
+        self.buttons["select"].setFixedSize(80, 30)
 
         self.buttons["rescan"] = QPushButton("Rescan")
-        self.buttons["rescan"].setFixedSize(80, 30)
         self.buttons["rescan"].clicked.connect(self.rescan_games)
         apply_tooltip(self.buttons["rescan"], "rescan_button")
+        self.buttons["rescan"].setFixedSize(80, 30)
 
-        self.buttons["game_not_found"] = QLabel("Game Not Found?", self.window, styleSheet="color: rgba(255, 255, 255, 0.7); font-size: 12px; background-color: transparent;", cursor=Qt.PointingHandCursor)
-        self.buttons["game_not_found"].setStyleSheet("QLabel:hover { color: white; }")
+        self.buttons["game_not_found"] = QLabel("Game Not Found?", self.window, cursor=Qt.PointingHandCursor)
+        style = """
+            QLabel {
+                color: rgba(255, 255, 255, 0.7);
+                font-size: 12px;
+                background-color: transparent;
+            }
+            QLabel:hover {
+                color: white;
+            }
+        """
+        self.buttons["game_not_found"].setStyleSheet(style)
         apply_tooltip(self.buttons["game_not_found"], "game_not_found")
 
     def _setup_layout(self) -> None:
@@ -298,45 +292,26 @@ class ButtonManager:
         self.button_layout.addWidget(self.buttons["rescan"])
         self.button_layout.addWidget(self.buttons["select"])
 
+    def show_buttons(self):
+        for btn in self.buttons.values():
+            btn.show()
+
+    def hide_buttons(self):
+        for btn in self.buttons.values():
+            btn.hide()
+
     def select_game(self) -> None:
         """Initiate game selection and processing."""
         row = self.window.table.currentRow()
         if row >= 0:
             path = self.window.table.item(row, 1).text()
             self.window._show_spinner()
-            for btn in self.buttons.values():
-                btn.hide()
+            self.hide_buttons()
             self.thread = GameProcessingThread(path, self.window.config_manager, self.window.game_manager)
             self.thread.status_update.connect(self.window._update_status)
-            self.thread.finished.connect(self._on_finished)
-            self.thread.error.connect(self._on_error)
+            self.thread.finished.connect(self.window._on_processing_finished)
+            self.thread.error.connect(self.window._on_processing_error)
             self.thread.start()
-
-    @Slot(dict)
-    def _on_finished(self, content: dict) -> None:
-        if not content:
-            ErrorHandler.handleError("Failed to load game content. Please try again.")
-            self.window.has_valid_selected_game = False
-            self.window.config_manager.resetSelectedGame()
-            self.window._show_table()
-            self.window._update_status("")
-            for btn in self.buttons.values():
-                btn.show()
-            return
-        from Main import MainWindow
-        self.window.main_window = MainWindow(self.window.config_manager, self.window.game_manager, content)
-        self.window.main_window.show()
-        self.window.close()
-
-    @Slot(str)
-    def _on_error(self, msg: str) -> None:
-        ErrorHandler.handleError(msg)
-        self.window.has_valid_selected_game = False
-        self.window.config_manager.resetSelectedGame()
-        self.window._show_table()
-        self.window._update_status("")
-        for btn in self.buttons.values():
-            btn.show()
 
     def rescan_games(self) -> None:
         self.window._show_spinner()
@@ -345,7 +320,7 @@ class ButtonManager:
     def _do_rescan(self) -> None:
         try:
             self.window._populate_table(is_rescan=True)
-            QTimer.singleShot(100, self._finalize_rescan)
+            QTimer.singleShot(50, self._finalize_rescan)
         except Exception as e:
             ErrorHandler.handleError(f"Error during rescan: {e}")
             self._finalize_rescan()

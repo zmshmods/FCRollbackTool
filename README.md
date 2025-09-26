@@ -1,6 +1,6 @@
 <p align="center">
   <img width="120px" src="https://raw.githubusercontent.com/zmshmods/FCRollbackTool/refs/heads/main/Data/Assets/Icons/FRICON.png" alt="FC Rollback Tool Icon" />
-  <h1 align="center" style="color: #029144; font-size: 2.5em;">FC Rollback Tool</h1>
+  <h1 align="center" style="font-size: 2.5em;">FC Rollback Tool</h1>
 </p>
 
 <p align="center" style="font-size: 1.2em;">
@@ -18,6 +18,7 @@ A tool designed to manage updates for EA Sports FC games and allows you to easil
 ## 🎮 Supported Games
 | Game Name | Title Updates | Squads Files |
 |--------------|---------------|--------------|
+| <p align="center"><strong>EA Sports FC 26</strong></p> | <p align="center">✅</p> | <p align="center">✅</p> |
 | <p align="center"><strong>EA Sports FC 25</strong></p> | <p align="center">✅</p> | <p align="center">✅</p> |
 | <p align="center"><strong>EA Sports FC 24</strong></p> | <p align="center">✅</p> | <p align="center">✅</p> |
 

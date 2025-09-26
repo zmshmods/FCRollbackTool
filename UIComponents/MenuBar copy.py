@@ -13,13 +13,15 @@ from MenuBar.Tools.RepairGame.EAApp import EAAppWindow
 from MenuBar.Tools.RepairGame.EpicGames import EpicGamesWindow
 from MenuBar.Tools.LiveEditorCompatibilityInfo import LiveEditorCompatibilityInfo
 from MenuBar.Tools.ModsCompatibilityInfo import ModsCompatibilityInfo
-from MenuBar.Tools.FETTUChangelogFoldersRenamer import FETTUChangelogFoldersRenamer
 from MenuBar.Help.InformationWindow import InformationWindow
 from MenuBar.Help.ChangelogWindow import ChangelogWindow
 from MenuBar.Help.OpenFAQs import open_faqs_url
 from MenuBar.Help.OpenGuides import open_guides_url
 from MenuBar.Help.OpenDiscord import open_discord_url
 
+from Core.MainDataManager import MainDataManager
+from Core.GameManager import GameManager
+from Core.AppDataManager import AppDataManager
 from Core.ErrorHandler import ErrorHandler
 
 class MenuBar:
@@ -34,12 +36,11 @@ class MenuBar:
         "arrow_import": "Data/Assets/Icons/ic_fluent_arrow_import_24_filled.png",
         "folder_zip": "Data/Assets/Icons/ic_fluent_folder_zip_24_filled.png",
         "from_folder": "Data/Assets/Icons/ic_fluent_folder_24_filled.png",
-        "open_folder": "Data/Assets/Icons/ic_fluent_open_folder_24_filled.png",
+        "open_folder": "Data/Assets/Icons/ic_fluent_open_folder_24_regular.png",
         "restart_app": "Data/Assets/Icons/ic_fluent_arrow_counterclockwise_dashes_24_filled.png",
         "code": "Data/Assets/Icons/ic_fluent_code_24_filled.png",
         "live_editor_compatibility": "Data/Assets/Icons/ic_fluent_comp_24_filled.png",
         "mods_compatibility": "Data/Assets/Icons/ic_fluent_shape_intersect_24_filled.png",
-        "fet_tu_changes_renamer": "Data/Assets/Icons/ic_fluent_rename_24_filled.png",
         "faqs": "Data/Assets/Icons/ic_fluent_chat_bubbles_question_24_filled.png",
         "guides":"Data/Assets/Icons/ic_fluent_book_search_24_filled.png",
         "discord":"Data/Assets/Icons/ic_discord_24_filled.png",
@@ -48,8 +49,11 @@ class MenuBar:
 
     def __init__(self, parent=None):
         self.parent = parent
-        self.menu_bar_container = None
+        self.MenuBarContainer = None
         self.FromBarStyles = BarStyles()
+        self.game_mgr = GameManager()
+        self.data_mgr = MainDataManager()
+        self.app_data_mgr = AppDataManager()
         self.windows_list = []
 
     def create_button(self, text, menu_callback):
@@ -89,12 +93,12 @@ class MenuBar:
             self.parent.addAction(action)
         return action
 
-    def create_menu_bar(self):
+    def create_MenuBar(self):
         try:
-            self.menu_bar_container = QWidget(self.parent)
-            self.menu_bar_container.setStyleSheet("background-color: rgba(10, 10, 10, 0.03);")
-            self.menu_bar_container.setFixedHeight(26)
-            self.MenuBar = QHBoxLayout(self.menu_bar_container)
+            self.MenuBarContainer = QWidget(self.parent)
+            self.MenuBarContainer.setStyleSheet("background-color: rgba(10, 10, 10, 0.03);")
+            self.MenuBarContainer.setFixedHeight(26)
+            self.MenuBar = QHBoxLayout(self.MenuBarContainer)
             self.MenuBar.setContentsMargins(0, 0, 0, 0)
             self.MenuBar.setAlignment(Qt.AlignLeft)
             menus = [
@@ -104,7 +108,7 @@ class MenuBar:
             ]
             for text, menu_callback in menus:
                 self.MenuBar.addWidget(self.create_button(text, menu_callback))
-            self.parent.main_layout.addWidget(self.menu_bar_container)
+            self.parent.main_layout.addWidget(self.MenuBarContainer)
         except Exception as e:
             ErrorHandler.handleError(f"Error creating MenuBar: {e}")
 
@@ -164,7 +168,6 @@ class MenuBar:
         menu.addAction(self._create_action("Clear EA App Cache", "clear_cache", delete_cache_files))
         menu.addAction(self._create_action("Live Editor Compatibility Info", "live_editor_compatibility", lambda: self.show_window(LiveEditorCompatibilityInfo)))
         menu.addAction(self._create_action("Mods Compatibility Info", "mods_compatibility", lambda: self.show_window(ModsCompatibilityInfo)))
-        menu.addAction(self._create_action("FET TU Changes Folder Renamer", "fet_tu_changes_renamer", lambda: self.show_window(FETTUChangelogFoldersRenamer)))
         menu.exec(button.mapToGlobal(QPoint(button.rect().bottomLeft().x(), button.rect().bottomLeft().y())))
 
     def HelpMenu(self, button):

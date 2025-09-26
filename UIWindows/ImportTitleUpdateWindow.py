@@ -4,13 +4,12 @@ import uuid
 from PySide6.QtWidgets import QApplication, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QWidget, QSizePolicy
 from PySide6.QtGui import QGuiApplication, QColor
 from PySide6.QtCore import Qt
-from qframelesswindow import AcrylicWindow
 from qfluentwidgets import Theme, setTheme, setThemeColor, IndeterminateProgressBar
 
 from MenuBar.File.ImportTitleUpdate import ImportTitleUpdate, ImportState
 from UIComponents.MainStyles import MainStyles
 from UIComponents.TitleBar import TitleBar
-from UIComponents.Personalization import AcrylicEffect
+from UIComponents.Personalization import BaseWindow
 from collections import deque
 
 from Core.Logger import logger
@@ -74,7 +73,7 @@ class StateManager:
             ErrorHandler.handleError(f"Failed to update UI for state {state.value}: {str(e)}")
             raise
 
-class ImportTitleUpdateWindow(AcrylicWindow):
+class ImportTitleUpdateWindow(BaseWindow):
     def __init__(self, input_path: str, parent=None):
         super().__init__(parent=parent)
         self.input_path = input_path
@@ -88,7 +87,6 @@ class ImportTitleUpdateWindow(AcrylicWindow):
         self.button_manager = ButtonManager(self)
         self.setWindowTitle(WINDOW_TITLE)  
         self.resize(*WINDOW_SIZE)
-        AcrylicEffect(self)
         self.center_window()
         self.main_layout = QVBoxLayout(self)
         self.main_layout.setContentsMargins(0, 0, 0, 0)

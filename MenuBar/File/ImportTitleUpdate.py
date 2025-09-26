@@ -77,11 +77,13 @@ class ImportTitleUpdate(QThread):
             ext = os.path.splitext(self.input_path)[1].lower()
             is_compressed = os.path.isfile(self.input_path) and ext in self.data_mgr.getCompressedFileExtensions()
             is_folder = os.path.isdir(self.input_path)
+            
+            expected_exes = [p.exe_name for p in self.game_mgr.profile_manager.get_all_profiles()]
+
             if not (is_compressed or is_folder):
-                self._handle_error(f"Failed to import title update: No expected executable found in {self.input_path}.\nExpected: {', '.join(self.game_mgr.GAME_VERSION)}.exe")
+                self._handle_error(f"Failed to import title update: No expected executable found in {self.input_path}.\nExpected: {', '.join(expected_exes)}")
                 return
 
-            expected_exes = [f"{self.game_mgr.GAME_PREFIX}{version}.exe" for version in self.game_mgr.GAME_VERSION]
             exe_name = temp_exe_path = root_dir = None
             self.emit_state(ImportState.SEARCHING_EXECUTABLE, 10, "Searching for executable...")
 
@@ -173,9 +175,16 @@ class ImportTitleUpdate(QThread):
                 self._handle_error(f"Failed to calculate SHA1 for executable")
                 return
 
-            short_game_name = os.path.splitext(exe_name)[0].lower()
-            cache_file = os.path.join(self.app_data_mgr.getDataFolder(), f"{short_game_name}.cache") \
-                        or os.path.join(self.data_mgr.getBaseCache(), f"{short_game_name}.cache")
+            profile = self.game_mgr.profile_manager.get_profile_by_exe(exe_name)
+            if not profile:
+                 self._handle_error(f"Could not find a game profile for executable: {exe_name}")
+                 return
+            
+            short_game_name = profile.id
+            cache_file = os.path.join(self.app_data_mgr.getDataFolder(), f"{short_game_name}.cache")
+            if not os.path.exists(cache_file):
+                cache_file = os.path.join(self.data_mgr.getBaseCache(), f"{short_game_name}.cache")
+
             try:
                 with open(cache_file, "rb") as file:
                     content = pickle.loads(zlib.decompress(file.read()))
@@ -220,6 +229,9 @@ class ImportTitleUpdate(QThread):
             if not self.is_canceled:
                 self.error_signal.emit(f"Import failed: {str(e)}")
         finally:
+            if zf: zf.close()
+            if rf: rf.close()
+            if szf: szf.close()
             self._cleanup()
             self.quit()
 

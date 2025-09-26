@@ -26,7 +26,7 @@ class ConfigManager:
         self.JSON_INDENT = 4
         #self.path = self.CONFIG_FILE
         self.app_data_manager = AppDataManager()
-        self.config_location = "APPDATA"  # can be "LOCAL" 
+        self.config_location = "APPDATA"
         if self.config_location == "APPDATA":
             self.path = os.path.join(self.app_data_manager.getDataFolder(), self.CONFIG_FILE)
         else:

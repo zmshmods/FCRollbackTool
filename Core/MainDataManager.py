@@ -1,4 +1,4 @@
-import os
+import os, sys
 from typing import Optional, Dict, List
 import xml.etree.ElementTree as ET
 
@@ -21,7 +21,12 @@ class MainDataManager:
     def __init__(self):
         if self._initialized:
             return
-        self.basePath = os.path.join(os.getcwd(), "Data")
+        if getattr(sys, 'frozen', False):
+            self.application_path = os.path.dirname(sys.executable)
+        else:
+            self.application_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            
+        self.basePath = os.path.join(self.application_path, "Data")
         self.meta_cache: Dict[str, Dict] = {}
         self._initialized = True
 

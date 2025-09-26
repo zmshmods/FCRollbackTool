@@ -2,19 +2,18 @@ import os
 import sys
 import webbrowser
 from typing import Dict, List, Tuple, Optional
-from PySide6.QtCore import QPoint, QSize, Qt, QSharedMemory, QUrl
-from PySide6.QtGui import QDesktopServices, QGuiApplication, QIcon
+from PySide6.QtCore import QPoint, QSize, Qt, QSharedMemory, QUrl, QTimer
+from PySide6.QtGui import QDesktopServices, QGuiApplication, QIcon, QFont
 from PySide6.QtWidgets import (
     QApplication, QHBoxLayout, QMenu, QPushButton,
     QTabWidget, QVBoxLayout, QWidget, QWidgetAction, QFileDialog
 )
-from qframelesswindow import AcrylicWindow
 from qfluentwidgets import CheckBox, FluentIcon, setTheme, setThemeColor, Theme, MessageBox
 
 from UIComponents.BarStyles import BarStyles
 from UIComponents.MainStyles import MainStyles
 from UIComponents.MenuBar import MenuBar
-from UIComponents.Personalization import AcrylicEffect
+from UIComponents.Personalization import BaseWindow
 from Core.TableManager import (
     TitleUpdateTable, SquadsUpdatesTable, FutSquadsUpdatesTable
 )
@@ -27,6 +26,7 @@ from UIWindows.SettingsWindow import SettingsWindow
 from UIWindows.SquadsTablesFetcherWindow import SquadsTablesFetcherWindow
 from UIWindows.SquadsChangelogsFetcherWindow import SquadsChangelogsFetcherWindow
 from UIWindows.ToolUpdaterWindow import ToolUpdaterWindow
+from UIWindows.PatchNotesWindow import PatchNotesWindow
 
 from Core.Logger import logger
 from Core.ToolUpdateManager import ToolUpdateManager
@@ -36,7 +36,7 @@ from Core.GameManager import GameManager
 from Core.AppDataManager import AppDataManager
 from Core.NotificationManager import NotificationHandler
 from Core.ErrorHandler import ErrorHandler
-from Core.LaunchVanilla import launch_vanilla_threaded
+from Core.GameLauncher import launch_game_threaded
 
 # Constants
 APP_NAME = "FC Rollback Tool"
@@ -45,7 +45,7 @@ BUILD_VERSION = ToolUpdateManager().getToolBulidVersion()
 WINDOW_TITLE = f"{APP_NAME} - v{VERSION} ({{}}) {{}}"
 APP_ICON_PATH = "Data/Assets/Icons/FRICON.png"
 THEME_COLOR = "#00FF00"
-WINDOW_SIZE = (920, 620)
+WINDOW_SIZE = (990, 640)
 SHARED_MEMORY_KEY = "FCRollbackToolSharedMemory"
 SEPARATOR_STYLE = "background-color: rgba(255, 255, 255, 0.1);"
 SPACER_WIDTH = 130
@@ -54,7 +54,7 @@ SHOW_MAX_BUTTON = True
 SHOW_MIN_BUTTON = True
 SHOW_CLOSE_BUTTON = True
 
-class MainWindow(AcrylicWindow):
+class MainWindow(BaseWindow):
     def __init__(self, config_manager: ConfigManager, game_manager: GameManager, game_content: Dict = None):
         super().__init__()
         self.config_manager = config_manager
@@ -64,7 +64,6 @@ class MainWindow(AcrylicWindow):
         self.button_manager = None
         self.menu_bar = None
         self.resize(*WINDOW_SIZE)
-        AcrylicEffect(self)
         self.center_window()
         self.config_manager.register_config_updated_callback(self._on_config_updated)
         self.setup_ui()
@@ -81,7 +80,8 @@ class MainWindow(AcrylicWindow):
                     self.button_manager.tables_windows,
                     self.button_manager.changelogs_windows,
                     self.button_manager.download_windows,
-                    self.button_manager.install_windows
+                    self.button_manager.install_windows,
+                    self.button_manager.patch_notes_windows
                 ]:
                     for window in window_list:
                         if window and not window.isHidden():
@@ -120,10 +120,10 @@ class MainWindow(AcrylicWindow):
                 window=self, title=WINDOW_TITLE.format("N/A", ""),
                 icon_path=APP_ICON_PATH, spacer_width=SPACER_WIDTH,
                 buttons={
-                    "launch_vanilla": (
-                        " Launch Vanilla", "Data/Assets/Icons/ic_fluent_play_24_regular.png",
-                        lambda: launch_vanilla_threaded(self.config_manager, self.game_manager),
-                        "launch_vanilla_button"
+                    "launch_game": (
+                        " Launch Game", "Data/Assets/Icons/ic_fluent_play_24_regular.png",
+                        lambda: launch_game_threaded(self.config_manager, self.game_manager),
+                        ""
                     )
                 },
                 show_max_button=SHOW_MAX_BUTTON, show_min_button=SHOW_MIN_BUTTON,
@@ -131,18 +131,28 @@ class MainWindow(AcrylicWindow):
             )
             self.title_bar.create_title_bar()
             self.menu_bar = MenuBar(self)
-            self.menu_bar.create_MenuBar()
+            self.menu_bar.create_menu_bar()
             self.main_container = MainContainer(self.config_manager, self.game_manager)
             self.main_container.create_content_container()
             self.button_manager = ButtonManager(self.config_manager, self.game_manager, self.main_container, self)
             buttons_widget = self.button_manager.create_buttons()
-            self.main_layout.addWidget(self.menu_bar.MenuBarContainer)
+            self.main_layout.addWidget(self.menu_bar.menu_bar_container)
             self.main_layout.addWidget(QWidget(self, styleSheet=SEPARATOR_STYLE, fixedHeight=1))
             self.interface_layout.addWidget(self.main_container.content_container)
             if buttons_widget:
                 self.interface_layout.addWidget(buttons_widget)
             self.main_layout.addWidget(self.interface_container)
+            
             self.main_container.tab_container.currentChanged.connect(self.on_tab_changed)
+            for component in self.main_container.table_components.values():
+                if hasattr(component, 'table'):
+                    component.table.selectionModel().currentRowChanged.connect(self.button_manager.button_states)
+                    component.table_updated_signal.connect(
+                        lambda comp=component: self.button_manager.button_states(
+                            comp.table.selectionModel().currentIndex(), None
+                        )
+                    )
+
             self._load_content_for_selected_game()
         except Exception as e:
             ErrorHandler.handleError(f"Failed to set up UI: {str(e)}")
@@ -204,15 +214,10 @@ class MainWindow(AcrylicWindow):
             if table_component:
                 table_component.game_content = {content_key: tab_content}
                 table_component.update_table()
-                if hasattr(table_component, 'table') and table_component.table.rowCount() > 0:
-                    current_index = table_component.table.selectionModel().currentIndex()
-                    self.button_manager.button_states(current_index, None)
-                    table_component.table.selectionModel().currentRowChanged.connect(self.button_manager.button_states)
-                    table_component.table_updated_signal.connect(
-                        lambda: self.button_manager.button_states(
-                            table_component.table.selectionModel().currentIndex(), None
-                        )
-                    )
+                
+                if hasattr(table_component, 'table'):
+                    self.button_manager.button_states(table_component.table.selectionModel().currentIndex(), None)
+
             self.button_manager.update_button_visibility(tab_key)
         except Exception as e:
             ErrorHandler.handleError(f"Failed to load content for tab {tab_key}: {str(e)}")
@@ -262,8 +267,7 @@ class MainContainer:
 
     def update_game_content(self, game_content: Dict):
         for tab_key, component in self.table_components.items():
-            profile_type = self.game_manager.getProfileTypeTitleUpdate() if tab_key == self.game_manager.getTabKeyTitleUpdates() else self.game_manager.getProfileTypeSquad()
-            content_key = self.game_manager.getContentKeyTitleUpdate() if tab_key == self.game_manager.getTabKeyTitleUpdates() else self.game_manager.getContentKeySquad() if tab_key == self.game_manager.getTabKeySquadsUpdates() else self.game_manager.getContentKeyFutSquad()
+            profile_type, content_key = self.main_window.get_tab_info(tab_key)
             tab_content = game_content.get(profile_type, {}).get(content_key, [])
             component.game_content = {content_key: tab_content}
             component.update_table()
@@ -281,6 +285,7 @@ class ButtonManager:
         self.changelogs_windows: List[QWidget] = []
         self.download_windows: List[QWidget] = []
         self.install_windows: List[QWidget] = []
+        self.patch_notes_windows: List[QWidget] = []
 
     def create_buttons(self):
         try:
@@ -288,6 +293,7 @@ class ButtonManager:
                 "settings": ("", FluentIcon.SETTING, self.open_settings, "settings_button"),
                 "change_game": ("", FluentIcon.GAME, self.change_game, "change_game"),
                 "open_profile": ("", FluentIcon.FOLDER, self.open_profile_folder, "open_profile_folder"),
+                "unistall": (" Unistall", FluentIcon.DELETE, self.unistall_installed_file, "unistall_squad_button"),
                 "install": (
                     " Install", FluentIcon.FOLDER_ADD, self.start_install, "install_button",
                     "border-top-right-radius: 0px; border-bottom-right-radius: 0px;"
@@ -309,7 +315,15 @@ class ButtonManager:
                     (28, 28), (12, 12)
                 ),
                 "open_url": (" Open URL", FluentIcon.LINK, self.open_in_browser, "open_url_button"),
-                "patch_notes": (" Patch Notes", FluentIcon.CALORIES, self.patch_notes, "patch_notes_button")
+                "patch_notes": (
+                    " Patch Notes", FluentIcon.CALORIES, self.patch_notes, "patch_notes_button",
+                    "border-top-right-radius: 0px; border-bottom-right-radius: 0px;"
+                ),
+                "patch_notes_options": (
+                    "", FluentIcon.LINK, self.open_patch_notes_url, "open_patch_notes_url_button",
+                    "QPushButton { border-top-left-radius: 0px; border-bottom-left-radius: 0px; border-left: 1px solid rgba(255, 255, 255, 0.1); }",
+                    (28, 28), (14, 14)
+                )
             }
             for name, config in button_configs.items():
                 btn = QPushButton(config[0])
@@ -322,7 +336,7 @@ class ButtonManager:
                         btn.setFixedSize(*config[5])
                         btn.setIconSize(QSize(*config[6]))
                 self.buttons[name] = btn
-                if name in ["download", "install", "install_options", "download_options"]:
+                if name in ["download", "install", "install_options", "download_options", "patch_notes", "patch_notes_options", "unistall"]:
                     btn.setEnabled(False)
             self._setup_button_layout()
             return self.btn_container
@@ -342,6 +356,12 @@ class ButtonManager:
         download_layout.setSpacing(0)
         download_layout.addWidget(self.buttons["download"])
         download_layout.addWidget(self.buttons["download_options"])
+        
+        patch_notes_layout = QHBoxLayout()
+        patch_notes_layout.setContentsMargins(0, 0, 0, 0)
+        patch_notes_layout.setSpacing(0)
+        patch_notes_layout.addWidget(self.buttons["patch_notes"])
+        patch_notes_layout.addWidget(self.buttons["patch_notes_options"])
 
         btn_layout = QHBoxLayout()
         btn_layout.setContentsMargins(10, 0, 10, 0)
@@ -349,115 +369,87 @@ class ButtonManager:
         for btn_name in ["settings", "change_game", "open_profile"]:
             btn_layout.addWidget(self.buttons[btn_name])
         btn_layout.addStretch()
+        btn_layout.addWidget(self.buttons["unistall"])
         btn_layout.addLayout(install_layout)
         btn_layout.addLayout(download_layout)
-        for btn_name in ["fetch_tables", "fetch_changelogs", "open_url", "patch_notes"]:
+        for btn_name in ["fetch_tables", "fetch_changelogs", "open_url"]:
             btn_layout.addWidget(self.buttons[btn_name])
+        btn_layout.addLayout(patch_notes_layout)
         self.btn_container = QWidget(objectName="ButtonContainer", fixedHeight=45)
         self.btn_container.setLayout(btn_layout)
 
-    def button_states(self, current, previous):
-        try:
-            tab_key = self.game_manager.getTabKeys()[self.main_container.tab_container.currentIndex()]
-            table_component = self.main_container.get_table_component(tab_key)
-            if not table_component or not hasattr(table_component, 'table'):
-                raise ValueError("Invalid table component")
-            table = table_component.table
-            status_mapping = getattr(table_component, 'STATUS_MAPPING', {})
-            is_row_selected = current.row() >= 0
+    def button_states(self, current, previous, deferred_call=False):
+        if not deferred_call:
+            QTimer.singleShot(0, lambda: self.button_states(current, previous, deferred_call=True))
+            return
 
-            # Reset button texts to default
+        try:
+            action_buttons = ["download", "download_options", "install", "install_options", "unistall",
+                              "fetch_tables", "fetch_changelogs", "open_url", "patch_notes", "patch_notes_options"]
+            for btn_name in action_buttons:
+                if btn_name in self.buttons:
+                    self.buttons[btn_name].setEnabled(False)
+            
             self.buttons["download"].setText(" Download")
             self.buttons["install"].setText(" Install")
 
-            # If no row is selected disable all buttons
-            if not is_row_selected:
-                for btn_name in ["download", "download_options", "install", "install_options", 
-                            "fetch_tables", "fetch_changelogs", "open_url", "patch_notes"]:
-                    self.buttons[btn_name].setEnabled(False)
+            tab_key = self.game_manager.getTabKeys()[self.main_container.tab_container.currentIndex()]
+            table_component = self.main_container.get_table_component(tab_key)
+            
+            if not table_component or not hasattr(table_component, 'table') or not current.isValid() or current.row() < 0:
+                self.update_button_visibility(tab_key)
                 return
 
-            # Get status text
-            status_text = table.item(current.row(), table.columnCount() - 1).text() if table.item(current.row(), table.columnCount() - 1) else ""
+            table = table_component.table
+            status_item = table.item(current.row(), table.columnCount() - 1)
+            status_text = status_item.text() if status_item else ""
+            status_mapping = getattr(table_component, 'STATUS_MAPPING', {})
 
-            # Determine button states based on status
+            is_squads = tab_key in [self.game_manager.getTabKeySquadsUpdates(), self.game_manager.getTabKeyFutSquadsUpdates()]
+            is_tu = tab_key == self.game_manager.getTabKeyTitleUpdates()
+            
+            self.buttons["fetch_tables"].setEnabled(is_squads)
+            self.buttons["fetch_changelogs"].setEnabled(is_squads)
+            self.buttons["open_url"].setEnabled(is_tu)
+            self.buttons["patch_notes"].setEnabled(is_tu)
+            self.buttons["patch_notes_options"].setEnabled(is_tu)
+
             if status_text == status_mapping.get("AvailableForDownload", {}).get("text", ""):
-                button_states = {
-                    "download": True,
-                    "download_options": True,
-                    "install": False,
-                    "install_options": False,
-                    "fetch_tables": tab_key in [self.game_manager.getTabKeySquadsUpdates(), self.game_manager.getTabKeyFutSquadsUpdates()],
-                    "fetch_changelogs": tab_key in [self.game_manager.getTabKeySquadsUpdates(), self.game_manager.getTabKeyFutSquadsUpdates()],
-                    "open_url": tab_key == self.game_manager.getTabKeyTitleUpdates(),
-                    "patch_notes": tab_key == self.game_manager.getTabKeyTitleUpdates()
-                }
-                self.buttons["download"].setText(" Download")
+                self.buttons["download"].setEnabled(True)
+                self.buttons["download_options"].setEnabled(True)
 
             elif status_text == status_mapping.get("Installed", {}).get("text", ""):
-                button_states = {
-                    "download": True,
-                    "download_options": True,
-                    "install": False,  # Will be enabled if update is available in profile
-                    "install_options": False,  # Will be enabled if update is available in profile
-                    "fetch_tables": tab_key in [self.game_manager.getTabKeySquadsUpdates(), self.game_manager.getTabKeyFutSquadsUpdates()],
-                    "fetch_changelogs": tab_key in [self.game_manager.getTabKeySquadsUpdates(), self.game_manager.getTabKeyFutSquadsUpdates()],
-                    "open_url": tab_key == self.game_manager.getTabKeyTitleUpdates(),
-                    "patch_notes": tab_key == self.game_manager.getTabKeyTitleUpdates()
-                }
+                self.buttons["download"].setEnabled(True)
+                self.buttons["download_options"].setEnabled(True)
                 self.buttons["download"].setText(" Re-Download")
-                # Check if update is available in profile folder
-                update_name = self.game_manager.getSelectedUpdate(tab_key, table)
+                self.buttons["unistall"].setEnabled(True)
+
+                update_name = self.game_manager.getSelectedUpdate(tab_key, table_component)
                 if update_name:
                     profile_files = table_component._get_profile_directories()
-                    short_name = self.game_manager.getShortGameName(self.config_manager.getConfigKeySelectedGame()) or ""
+                    short_name = self.game_manager.getSelectedGameId(self.config_manager.getConfigKeySelectedGame()) or ""
                     normalized_files = {file.strip().lower() for file in profile_files.get(short_name, set())}
                     if table_component._is_update_available(update_name.strip().lower(), normalized_files):
                         self.buttons["install"].setText(" Re-Install")
-                        button_states["install"] = True
-                        button_states["install_options"] = True
+                        self.buttons["install"].setEnabled(True)
+                        self.buttons["install_options"].setEnabled(True)
+                    else:
+                        self.buttons["install"].setText(" Install")
+                        self.buttons["install"].setEnabled(False)
+                        self.buttons["install_options"].setEnabled(False)
 
             elif status_text == status_mapping.get("ReadyToInstall", {}).get("text", ""):
-                button_states = {
-                    "download": True, 
-                    "download_options": True,
-                    "install": True,
-                    "install_options": True,
-                    "fetch_tables": tab_key in [self.game_manager.getTabKeySquadsUpdates(), self.game_manager.getTabKeyFutSquadsUpdates()],
-                    "fetch_changelogs": tab_key in [self.game_manager.getTabKeySquadsUpdates(), self.game_manager.getTabKeyFutSquadsUpdates()],
-                    "open_url": tab_key == self.game_manager.getTabKeyTitleUpdates(),
-                    "patch_notes": tab_key == self.game_manager.getTabKeyTitleUpdates()
-                }
+                self.buttons["download"].setEnabled(True)
+                self.buttons["download_options"].setEnabled(True)
                 self.buttons["download"].setText(" Re-Download")
-
+                self.buttons["install"].setEnabled(True)
+                self.buttons["install_options"].setEnabled(True)
+            
             elif status_text in [status_mapping.get("ComingInConfirmed", {}).get("text", ""),
-                            status_mapping.get("NotAddedToList", {}).get("text", "")]:
-                button_states = {
-                    "download": False,
-                    "download_options": False,
-                    "install": False,
-                    "install_options": False,
-                    "fetch_tables": False,
-                    "fetch_changelogs": False,
-                    "open_url": False,
-                    "patch_notes": tab_key == self.game_manager.getTabKeyTitleUpdates()
-                }
-
-            else:
-                button_states = {
-                    "download": False,
-                    "download_options": False,
-                    "install": False,
-                    "install_options": False,
-                    "fetch_tables": tab_key in [self.game_manager.getTabKeySquadsUpdates(), self.game_manager.getTabKeyFutSquadsUpdates()],
-                    "fetch_changelogs": tab_key in [self.game_manager.getTabKeySquadsUpdates(), self.game_manager.getTabKeyFutSquadsUpdates()],
-                    "open_url": tab_key == self.game_manager.getTabKeyTitleUpdates(),
-                    "patch_notes": tab_key == self.game_manager.getTabKeyTitleUpdates()
-                }
-
-            # Apply
-            for btn_name, enabled in button_states.items():
-                self.buttons[btn_name].setEnabled(enabled)
+                                 status_mapping.get("NotAddedToList", {}).get("text", "")]:
+                self.buttons["fetch_tables"].setEnabled(False)
+                self.buttons["fetch_changelogs"].setEnabled(False)
+                self.buttons["open_url"].setEnabled(False)
 
             self.update_button_visibility(tab_key)
 
@@ -467,7 +459,9 @@ class ButtonManager:
     def update_button_visibility(self, tab_key: str):
         try:
             visibility = {
+                "unistall": tab_key in [self.game_manager.getTabKeySquadsUpdates(), self.game_manager.getTabKeyFutSquadsUpdates()],
                 "patch_notes": tab_key == self.game_manager.getTabKeyTitleUpdates(),
+                "patch_notes_options": tab_key == self.game_manager.getTabKeyTitleUpdates(),
                 "open_url": tab_key == self.game_manager.getTabKeyTitleUpdates(),
                 "fetch_tables": tab_key in [self.game_manager.getTabKeySquadsUpdates(), self.game_manager.getTabKeyFutSquadsUpdates()],
                 "fetch_changelogs": tab_key in [self.game_manager.getTabKeySquadsUpdates(), self.game_manager.getTabKeyFutSquadsUpdates()]
@@ -489,7 +483,6 @@ class ButtonManager:
             content_key = self.game_manager.getContentKeySquad() if tab_key == self.game_manager.getTabKeySquadsUpdates() else self.game_manager.getContentKeyFutSquad()
             updates = self.game_manager.getUpdatesList(
                 table.game_content,
-                self.game_manager.getShortGameName(self.config_manager.getConfigKeySelectedGame()),
                 profile_type=self.game_manager.getProfileTypeSquad()
             )
             row = table.table.currentRow()
@@ -516,21 +509,61 @@ class ButtonManager:
     def patch_notes(self):
         try:
             tab_key = self.game_manager.getTabKeys()[self.main_container.tab_container.currentIndex()]
-            table = self.main_container.get_table_component(tab_key)
+            table_component = self.main_container.get_table_component(tab_key)
+            if not table_component:
+                raise ValueError("No table component found for the current tab.")
+
+            selected_row = table_component.table.currentRow()
+            if selected_row < 0:
+                return
+
             updates = self.game_manager.getUpdatesList(
-                table.game_content,
-                self.game_manager.getShortGameName(self.config_manager.getConfigKeySelectedGame()),
+                table_component.game_content,
                 profile_type=self.game_manager.getProfileTypeTitleUpdate()
             )
-            row = table.table.currentRow()
-            if row < 0 or row >= len(updates[self.game_manager.getContentKeyTitleUpdate()]):
-                raise ValueError("Invalid row selected")
-            url = updates[self.game_manager.getContentKeyTitleUpdate()][row].get(self.game_manager.getTitleUpdatePatchNotesKey())
-            if not url:
-                raise ValueError("No patch notes URL available")
-            webbrowser.open(url)
+            
+            update_item = updates[self.game_manager.getContentKeyTitleUpdate()][selected_row]
+            patch_notes_url = update_item.get(self.game_manager.getTitleUpdatePatchNotesKey())
+            
+            if not patch_notes_url:
+                ErrorHandler.handleError("No Patch Notes URL found for this update.")
+                return
+            
+            patch_notes_window = PatchNotesWindow(self.game_manager, patch_notes_url)
+            self.patch_notes_windows.append(patch_notes_window)
+            patch_notes_window.show()
+            MainWindow.center_child_window(self.main_window, patch_notes_window)
+
         except Exception as e:
-            ErrorHandler.handleError(f"Failed to open patch notes: {str(e)}")
+            ErrorHandler.handleError(f"Failed to open patch notes window: {str(e)}")
+
+    def open_patch_notes_url(self):
+        try:
+            tab_key = self.game_manager.getTabKeys()[self.main_container.tab_container.currentIndex()]
+            table = self.main_container.get_table_component(tab_key)
+            
+            row = table.table.currentRow()
+            if row < 0:
+                raise ValueError("Invalid row selected")
+
+            updates = self.game_manager.getUpdatesList(
+                table.game_content,
+                profile_type=self.game_manager.getProfileTypeTitleUpdate()
+            )
+            
+            json_url = updates[self.game_manager.getContentKeyTitleUpdate()][row].get(self.game_manager.getTitleUpdatePatchNotesKey())
+            if not json_url:
+                raise ValueError("No patch notes JSON URL available")
+            
+            patch_data = self.game_manager.fetchPatchNotesData(json_url)
+            if patch_data and (trello_url := patch_data.get("shortUrl")):
+                webbrowser.open(trello_url)
+            else:
+                NotificationHandler.showWarning("Could not find the direct Trello link, opening the data URL instead.")
+                webbrowser.open(json_url)
+
+        except Exception as e:
+            ErrorHandler.handleError(f"Failed to open patch notes URL: {str(e)}")
 
     def open_in_browser(self):
         try:
@@ -538,7 +571,6 @@ class ButtonManager:
             table = self.main_container.get_table_component(tab_key)
             updates = self.game_manager.getUpdatesList(
                 table.game_content,
-                self.game_manager.getShortGameName(self.config_manager.getConfigKeySelectedGame()),
                 profile_type=self.game_manager.getProfileTypeTitleUpdate()
             )
             row = table.table.currentRow()
@@ -568,9 +600,9 @@ class ButtonManager:
                 self.game_manager.getTabKeyFutSquadsUpdates(): self.game_manager.getContentKeyFutSquad()
             }[tab_key]
 
+            game_id = self.game_manager.getSelectedGameId(self.config_manager.getConfigKeySelectedGame())
             updates = self.game_manager.getUpdatesList(
                 table.game_content,
-                game_name := self.game_manager.getShortGameName(self.config_manager.getConfigKeySelectedGame()),
                 profile_type=self.game_manager.getProfileTypeTitleUpdate() if tab_key == self.game_manager.getTabKeyTitleUpdates() else self.game_manager.getProfileTypeSquad()
             )
 
@@ -581,17 +613,26 @@ class ButtonManager:
             index_url = updates[content_key][row].get(self.game_manager.getDownloadURLKeyForTab(tab_key))
             if not index_url:
                 raise ValueError("No download URL")
-
+            
             if tab_key == self.game_manager.getTabKeyTitleUpdates() and self.config_manager.getConfigKeyDownloadDisclaimer():
-                msg_box = MessageBox("Download Disclaimer", "Downloading a large number of files in a short period of time may result in your IP address being temporarily or permanently banned from MediaFire servers. You can also use the (Open URL) button to manually download the files if you prefer.\n\nDo you want to proceed?", self.main_container.content_container)
-                msg_box.setClosableOnMaskClicked(True)
-                if msg_box.exec():
-                    self.config_manager.setConfigKeyDownloadDisclaimer(False)
+                message = (
+                    "Downloading a large number of files in a short period of time may result in your IP address "
+                    "being temporarily or permanently banned from MediaFire servers. You can also use the (Open URL) "
+                    "button to manually download the files if you prefer.\n\nDo you want to proceed?"
+                )
+                msg_box = MessageBox("Download Disclaimer", message, self.main_window)
+                msg_box.yesButton.setText("Proceed")
+                msg_box.cancelButton.setText("Cancel")
 
-            download_window = DownloadWindow(update_name, index_url, game_name, tab_key)
+                if not msg_box.exec():
+                    return
+                self.config_manager.setConfigKeyDownloadDisclaimer(False)
+
+            download_window = DownloadWindow(update_name, index_url, game_id, tab_key)
             self.download_windows.append(download_window)
             download_window.show()
             MainWindow.center_child_window(self.main_window, download_window)
+
         except Exception as e:
             ErrorHandler.handleError(f"Failed to start download: {str(e)}")
 
@@ -616,7 +657,7 @@ class ButtonManager:
                 self.game_manager.getTabKeyFutSquadsUpdates(): os.path.join(self.game_manager.getProfileTypeSquad(), self.game_manager.getContentKeyFutSquad())
             }.get(tab_key, "")
 
-            profile_folder = self.game_manager.getProfileDirectory(self.game_manager.getShortGameName(game_path), profile_subfolder)
+            profile_folder = self.game_manager.getProfileDirectory(self.game_manager.getSelectedGameId(game_path), profile_subfolder)
             file_path = os.path.join(profile_folder, update_name)
 
             for ext in MainDataManager().getCompressedFileExtensions() + [""]:
@@ -633,6 +674,25 @@ class ButtonManager:
             MainWindow.center_child_window(self.main_window, install_window)
         except Exception as e:
             ErrorHandler.handleError(f"Failed to start installation of {update_name}: {str(e)}")
+
+    def unistall_installed_file(self):
+        try:
+            tab_key = self.game_manager.getTabKeys()[self.main_container.tab_container.currentIndex()]
+            table_component = self.main_container.get_table_component(tab_key)
+
+            update_name = self.game_manager.getSelectedUpdate(tab_key, table_component)
+            if not update_name:
+                return
+
+            settings_path = self.game_manager.getGameSettingsFolderPath(self.config_manager.getConfigKeySelectedGame())
+            file_to_unistall = os.path.join(settings_path, update_name)
+
+            if os.path.exists(file_to_unistall):
+                os.remove(file_to_unistall)
+                logger.info(f"Successfully unistall squads file: {file_to_unistall}")
+        
+        except Exception as e:
+            ErrorHandler.handleError(f"Failed to unistall file: {str(e)}")
 
     def show_install_options(self):
         try:
@@ -722,17 +782,22 @@ class ButtonManager:
 
     def open_profile_folder(self):
         try:
-            path = self.config_manager.getConfigKeySelectedGame()
             tab = self.game_manager.getTabKeys()[self.main_container.tab_container.currentIndex()]
             subfolder = {
                 self.game_manager.getTabKeyTitleUpdates(): self.game_manager.getProfileTypeTitleUpdate(),
                 self.game_manager.getTabKeySquadsUpdates(): os.path.join(self.game_manager.getProfileTypeSquad(), self.game_manager.getContentKeySquad()),
                 self.game_manager.getTabKeyFutSquadsUpdates(): os.path.join(self.game_manager.getProfileTypeSquad(), self.game_manager.getContentKeyFutSquad())
             }.get(tab, self.game_manager.getProfileTypeSquad())
-            dir_path = self.game_manager.getProfileDirectory(self.game_manager.getShortGameName(path), subfolder)
+
+            game_id = self.game_manager.getSelectedGameId(self.config_manager.getConfigKeySelectedGame())
+            if not game_id:
+                ErrorHandler.handleError("Could not identify the selected game.")
+                return
+
+            dir_path = self.game_manager.getProfileDirectory(game_id, subfolder)
             QDesktopServices.openUrl(QUrl.fromLocalFile(dir_path))
         except Exception as e:
-            ErrorHandler.handleError(f"Failed to open profile folder: {e}")
+            ErrorHandler.handleError(f"Failed to open profile folder: {str(e)}")
 
     def change_game(self):
         try:
@@ -750,14 +815,13 @@ class ButtonManager:
             ErrorHandler.handleError(f"Failed to open settings window: {str(e)}")
 
 def main():
-    working_dir = os.getcwd()
-    logger.info(f"Starting {APP_NAME} v{VERSION} Build v{BUILD_VERSION} Launched From: {working_dir}")
-
-    #if os.path.join(os.environ.get('APPDATA'), 'Temp').lower() in working_dir.lower():
-        #NotificationHandler.showWarning("The tool cannot be run from inside a compressed file.\nPlease extract the tool first")
-        #sys.exit(1)
+    main_data_manager = MainDataManager()
+    logger.info(f"Starting {APP_NAME} v{VERSION} Build v{BUILD_VERSION} Launched From: {main_data_manager.application_path}")
 
     app = QApplication(sys.argv)
+    # font = QFont("")
+    # font.setPointSize(10)
+    # app.setFont(font)
     app.setWindowIcon(QIcon(APP_ICON_PATH))
     if not QSharedMemory(SHARED_MEMORY_KEY).create(1):
         NotificationHandler.showWarning(f"{APP_NAME} is already running.")
@@ -775,10 +839,7 @@ def main():
         app.exec()
         if update_window.isVisible():
             return
-    #config_manager = ConfigManager()
-    #game_manager = GameManager()
-    #main_window = MainWindow(config_manager, game_manager)
-    #main_window.show()
+
     main_window = SelectGameWindow()
     main_window.show()
     

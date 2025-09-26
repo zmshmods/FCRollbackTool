@@ -9,13 +9,12 @@ from PySide6.QtWidgets import (
 from PySide6.QtGui import QGuiApplication, QIcon
 from PySide6.QtCore import Qt, QUrl, QThread, Signal, QObject, QRunnable, QThreadPool, QEventLoop
 from PySide6.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkReply
-from qframelesswindow import AcrylicWindow
 from qfluentwidgets import (
     Theme, setTheme, setThemeColor, TableWidget, CheckBox, SearchLineEdit,
     FluentIcon, InfoBar, InfoBarPosition
 )
 
-from UIComponents.Personalization import AcrylicEffect
+from UIComponents.Personalization import BaseWindow
 from UIComponents.MainStyles import MainStyles
 from UIComponents.TitleBar import TitleBar
 from UIComponents.Spinner import LoadingSpinner
@@ -28,7 +27,7 @@ from Core.ErrorHandler import ErrorHandler
 
 # Constants
 TITLE = "Squads Tables Fetcher"
-SIZE = (720, 480)
+WINDOW_SIZE = (720, 480)
 THEME_COLOR = "#00FF00"
 ICON_PATH = "Data/Assets/Icons/FRICON.png"
 SPACER_WIDTH = 75
@@ -41,7 +40,7 @@ class NetworkConfig:
     RETRY_WAIT = 2
     TIMEOUT = 7000
 
-class SquadsTablesFetcherWindow(AcrylicWindow):
+class SquadsTablesFetcherWindow(BaseWindow):
     def __init__(self, index_url: Optional[str] = None, update_name: Optional[str] = None,
                  released_date: Optional[str] = None, parent: Optional[QWidget] = None):
         super().__init__(parent=parent)
@@ -77,8 +76,7 @@ class SquadsTablesFetcherWindow(AcrylicWindow):
     def _initialize_window(self):
         title = self._get_window_title()
         self.setWindowTitle(title)
-        self.resize(*SIZE)
-        AcrylicEffect(self)
+        self.resize(*WINDOW_SIZE)
         self.center_window()
         self.main_layout = QVBoxLayout(self)
         self.main_layout.setContentsMargins(50, 30, 50, 30)
@@ -501,10 +499,10 @@ class ButtonManager:
         self.buttons["settings"].setFixedSize(28, 28)
         self.select_all_checkbox = CheckBox("Select All")
         self.select_all_checkbox.setChecked(self.window.config_manager.getConfigKeySelectAllTables())
-        self.select_all_checkbox.setStyleSheet("margin-left: 5px; background-color: transparent;")
+        self.select_all_checkbox.setStyleSheet("margin-left: 5px; background-color: transparent; color: white;")
         self.select_all_checkbox.setEnabled(False)
         self.exact_search_checkbox = CheckBox("Exact Search")
-        self.exact_search_checkbox.setStyleSheet("margin-left: 5px; background-color: transparent;")
+        self.exact_search_checkbox.setStyleSheet("margin-left: 5px; background-color: transparent; color: white;")
         self.exact_search_checkbox.setEnabled(False)
         self.exact_search_checkbox.stateChanged.connect(self.on_exact_search_toggled)
 
@@ -727,7 +725,7 @@ class TableFetchWorker(QRunnable, NetworkWorker):
     def cancel(self):
         self.is_canceled = True
         self._cleanup_network()
-
+        
 def main():
     app = QApplication(sys.argv)
     app.setStyleSheet(MainStyles())

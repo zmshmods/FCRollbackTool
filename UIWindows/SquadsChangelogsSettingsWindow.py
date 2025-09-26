@@ -11,11 +11,10 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QGuiApplication, QIcon
-from qframelesswindow import AcrylicWindow
 from qfluentwidgets import CheckBox, ComboBox, LineEdit, Theme, setTheme, setThemeColor, SimpleCardWidget#, FluentIcon, CaptionLabel
 
 from UIComponents.Tooltips import apply_tooltip
-from UIComponents.Personalization import AcrylicEffect
+from UIComponents.Personalization import BaseWindow
 from UIComponents.TitleBar import TitleBar
 from UIComponents.MainStyles import MainStyles
 
@@ -115,7 +114,7 @@ class ChangelogsSettings:
         except Exception as e:
             raise Exception(f"Failed to convert to JSON: {str(e)}")
 
-class ChangelogsSettingsWindow(AcrylicWindow):
+class ChangelogsSettingsWindow(BaseWindow):
     def __init__(self, parent: Optional['QWidget'] = None):
         super().__init__(parent=parent)
         self.config_manager = ConfigManager()
@@ -123,7 +122,6 @@ class ChangelogsSettingsWindow(AcrylicWindow):
         self.save_type_combo = None 
         self.setWindowTitle(WINDOW_TITLE)
         self.resize(*WINDOW_SIZE)
-        AcrylicEffect(self)
         self.setWindowModality(Qt.ApplicationModal)
         self.center_window()
         self.main_layout = QVBoxLayout(self)

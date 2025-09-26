@@ -9,5 +9,16 @@ class LoadingSpinner(QWidget):
         self.spinner.setFixedSize(60, 60)
         self.spinner.setStrokeWidth(5)
         self.spinner.setCustomBarColor(Qt.white, Qt.white)
+        
         self.layout = QVBoxLayout(self)
-        self.layout.addWidget(self.spinner)
+        self.layout.addWidget(self.spinner, 0, Qt.AlignCenter)
+        self.layout.setContentsMargins(0, 0, 0, 0)
+        self.setFocusPolicy(Qt.NoFocus)
+
+    def start(self):
+        """Starts the spinner animation."""
+        self.spinner.start()
+
+    def stop(self):
+        """Stops the spinner animation."""
+        self.spinner.stop()

@@ -2,10 +2,9 @@ import sys
 from PySide6.QtWidgets import QApplication, QVBoxLayout, QLabel, QWidget, QSizePolicy
 from PySide6.QtGui import QGuiApplication, QIcon
 from PySide6.QtCore import Qt
-from qframelesswindow import AcrylicWindow
 from qfluentwidgets import Theme, setTheme, setThemeColor
 
-from UIComponents.Personalization import AcrylicEffect
+from UIComponents.Personalization import BaseWindow
 from UIComponents.MainStyles import MainStyles
 from UIComponents.TitleBar import TitleBar
 
@@ -24,13 +23,12 @@ SHOW_MAX_BUTTON = False
 SHOW_MIN_BUTTON = False
 SHOW_CLOSE_BUTTON = True
 
-class ChangelogWindow(AcrylicWindow):
+class ChangelogWindow(BaseWindow):
     def __init__(self, parent=None):
         super().__init__(parent=parent)
         self.tool_update_manager = ToolUpdateManager()
         self.setWindowTitle(WINDOW_TITLE)
         self.resize(*WINDOW_SIZE)
-        AcrylicEffect(self)
         self.center_window()
         self.main_layout = QVBoxLayout(self)
         self.main_layout.setContentsMargins(0, 0, 0, 0)

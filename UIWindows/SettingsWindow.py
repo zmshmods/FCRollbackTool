@@ -6,12 +6,11 @@ from PySide6.QtWidgets import (QApplication, QVBoxLayout, QHBoxLayout, QLabel, Q
                                QFileDialog, QMessageBox)
 from PySide6.QtGui import QGuiApplication, QIcon, QColor, QDesktopServices
 from PySide6.QtCore import Qt, QSize, Signal, QEvent, QTimer, QUrl
-from qframelesswindow import AcrylicWindow
 from qfluentwidgets import (Theme, setTheme, setThemeColor, FluentIcon, CheckBox, 
                             RadioButton, SimpleCardWidget, ComboBox, EditableComboBox, 
                             LineEdit, MessageBoxBase, SubtitleLabel, CaptionLabel, InfoBar, InfoBarPosition)
 
-from UIComponents.Personalization import AcrylicEffect
+from UIComponents.Personalization import BaseWindow
 from UIComponents.Tooltips import apply_tooltip
 from UIComponents.MainStyles import MainStyles
 from UIComponents.TitleBar import TitleBar
@@ -25,7 +24,7 @@ from Core.ErrorHandler import ErrorHandler
 
 # Constants for SettingsWindow
 WINDOW_TITLE = "Settings"
-WINDOW_SIZE = (720, 480)
+WINDOW_SIZE = (990, 640)
 THEME_COLOR = "#00FF00"
 ICON_PATH = "Data/Assets/Icons/FRICON.png"
 SPACER_WIDTH = 75
@@ -124,13 +123,12 @@ class SpeedConverterDialog(MessageBoxBase):
         clipboard = QApplication.clipboard()
         clipboard.setText(self.outputEdit.text())
 
-class SettingsWindow(AcrylicWindow):
+class SettingsWindow(BaseWindow):
     def __init__(self, parent=None):
         super().__init__(parent=parent)
         self.button_manager = ButtonManager(self)
         self.setWindowTitle(WINDOW_TITLE)
         self.resize(*WINDOW_SIZE)
-        AcrylicEffect(self)
         self.center_window()
         self.main_layout = QVBoxLayout(self)
         self.main_layout.setContentsMargins(0, 0, 0, 0)
@@ -437,15 +435,14 @@ class SettingsWindow(AcrylicWindow):
                     NotificationHandler.showWarning("No game selected. Please select a game first.")
                     return
 
-                game_version = self.game_manager.getShortGameName(game_path).replace(self.game_manager.GAME_PREFIX, "")
-                game_name = f"EA SPORTS FC {game_version}"
-                live_tuning_base = self.game_manager.GAME_PATHS.get(f"{self.game_manager.GAME_PREFIX}{game_version}", {}).get("LiveTuningBase")
-                if not live_tuning_base:
+                live_tuning_file = self.game_manager.getLiveTuningUpdateFilePath(game_path)
+                game_id = self.game_manager.getSelectedGameId(game_path)
+                profile = self.game_manager.profile_manager.get_profile(game_id)
+                game_name = profile.display_name if profile else game_id
+
+                if not live_tuning_file:
                     NotificationHandler.showWarning(f"Live Tuning Update path not configured for {game_name}.")
                     return
-
-                live_tuning_path = os.path.expandvars(live_tuning_base)
-                live_tuning_file = os.path.join(live_tuning_path, "onlinecache0", "atribbdb.bin")
                 
                 if not os.path.exists(live_tuning_file):
                     NotificationHandler.showInfo(
@@ -456,11 +453,11 @@ class SettingsWindow(AcrylicWindow):
 
                 try:
                     file_mtime = os.path.getmtime(live_tuning_file)
-                    file_date = datetime.datetime.fromtimestamp(file_mtime).strftime("%Y-%m-%d %H:%M:%S")
+                    file_date = datetime.fromtimestamp(file_mtime).strftime("%Y-%m-%d %H:%M:%S")
                     os.remove(live_tuning_file)
                     message = (
                         f"The Live Tuning Update for {game_name} has been successfully removed.\n"
-                        f"File: atribbdb.bin\n"
+                        f"File: {os.path.basename(live_tuning_file)}\n"
                         f"Last modified: {file_date}\n\n"
                         "Note: Connecting to EA servers will automatically re-download the live update."
                     )
@@ -479,13 +476,16 @@ class SettingsWindow(AcrylicWindow):
                     NotificationHandler.showWarning("No game selected. Please select a game first.")
                     return
 
-                game_version = self.game_manager.getShortGameName(game_path).replace(self.game_manager.GAME_PREFIX, "")
-                live_tuning_base = self.game_manager.GAME_PATHS.get(f"{self.game_manager.GAME_PREFIX}{game_version}", {}).get("LiveTuningBase")
-                if not live_tuning_base:
-                    NotificationHandler.showWarning(f"Live Tuning Update path not configured for EA SPORTS FC {game_version}.")
+                live_tuning_file = self.game_manager.getLiveTuningUpdateFilePath(game_path)
+                game_id = self.game_manager.getSelectedGameId(game_path)
+                profile = self.game_manager.profile_manager.get_profile(game_id)
+                game_name = profile.display_name if profile else game_id
+
+                if not live_tuning_file:
+                    NotificationHandler.showWarning(f"Live Tuning Update path not configured for {game_name}.")
                     return
 
-                live_tuning_path = os.path.expandvars(os.path.join(live_tuning_base, "onlinecache0"))
+                live_tuning_path = os.path.dirname(live_tuning_file)
                 if not os.path.exists(live_tuning_path):
                     os.makedirs(live_tuning_path, exist_ok=True)
                 QDesktopServices.openUrl(QUrl.fromLocalFile(live_tuning_path))
@@ -624,6 +624,7 @@ class SettingsWindow(AcrylicWindow):
 
         redetect_btn = QPushButton()
         redetect_btn.setIcon(FluentIcon.SYNC.icon(Theme.DARK))
+        redetect_btn.setIconSize(QSize(13, 13))
         redetect_btn.setStyleSheet("""
             QPushButton {
                 border-top-left-radius: 0px;
@@ -674,7 +675,6 @@ class SettingsWindow(AcrylicWindow):
         redetect_btn.clicked.connect(redetect_idm_path)
 
         def change_idm_path() -> None:
-            from PySide6.QtWidgets import QFileDialog
             file_path, _ = QFileDialog.getOpenFileName(
                 parent=self,
                 caption="Select IDM Executable",

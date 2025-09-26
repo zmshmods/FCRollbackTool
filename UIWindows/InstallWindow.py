@@ -3,10 +3,9 @@ import os
 from PySide6.QtWidgets import QApplication, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QWidget, QSizePolicy
 from PySide6.QtGui import QGuiApplication, QColor
 from PySide6.QtCore import Qt, QTimer
-from qframelesswindow import AcrylicWindow
 from qfluentwidgets import Theme, setTheme, setThemeColor, ProgressBar
 from Core.InstallCore import InstallCore, InstallState
-from UIComponents.Personalization import AcrylicEffect
+from UIComponents.Personalization import BaseWindow
 from UIComponents.MainStyles import MainStyles
 from UIComponents.TitleBar import TitleBar
 from collections import deque
@@ -88,7 +87,7 @@ class StateManager:
             ErrorHandler.handleError(f"Failed to update UI for state {state.value}: {str(e)}")
             raise
 
-class InstallWindow(AcrylicWindow):
+class InstallWindow(BaseWindow):
     def __init__(self, update_name: str, tab_key: str, game_path: str, file_path: str, table_component=None, parent=None):
         super().__init__(parent=parent)
         self.update_name = update_name
@@ -104,7 +103,6 @@ class InstallWindow(AcrylicWindow):
         self.is_canceled = False
         self.setWindowTitle(f"{WINDOW_TITLE}: {self.update_name}")
         self.resize(*WINDOW_SIZE)
-        AcrylicEffect(self)
         self.center_window()
         self.main_layout = QVBoxLayout(self)
         self.main_layout.setContentsMargins(0, 0, 0, 0)

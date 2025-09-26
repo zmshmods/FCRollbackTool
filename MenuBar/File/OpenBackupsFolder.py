@@ -9,7 +9,7 @@ from Core.ErrorHandler import ErrorHandler
 
 def open_backups_path():
     try:
-        path = AppDataManager.getBackupsFolder() + "/" + GameManager().getShortGameName(ConfigManager().getConfigKeySelectedGame())
+        path = AppDataManager.getBackupsFolder() + "/" + GameManager().getSelectedGameId(ConfigManager().getConfigKeySelectedGame())
         QDesktopServices.openUrl(QUrl.fromLocalFile(path))
     except Exception as e:
         ErrorHandler.handleError(f"Error opening Backups folder: {e}")

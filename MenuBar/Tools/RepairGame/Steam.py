@@ -2,11 +2,11 @@ import sys
 import os
 from PySide6.QtWidgets import QApplication, QVBoxLayout, QLabel, QHBoxLayout, QWidget, QSizePolicy
 from qfluentwidgets import setTheme, setThemeColor, Theme
-from qframelesswindow import AcrylicWindow, StandardTitleBar
+from qframelesswindow import StandardTitleBar
 from PySide6.QtGui import QGuiApplication, QPixmap
 from PySide6.QtCore import Qt
 
-from UIComponents.Personalization import AcrylicEffect
+from UIComponents.Personalization import BaseWindow
 from UIComponents.MainStyles import MainStyles
 
 from Core.Logger import logger
@@ -14,7 +14,7 @@ from Core.ConfigManager import ConfigManager
 from Core.GameManager import GameManager
 from Core.ErrorHandler import ErrorHandler
 
-class SteamWindow(AcrylicWindow):
+class SteamWindow(BaseWindow):
     def __init__(self, parent=None):
         super().__init__(parent=parent)
         self.config_mgr = ConfigManager()
@@ -22,13 +22,11 @@ class SteamWindow(AcrylicWindow):
         self.setWindowTitle("Repair Game - Steam")
         self.resize(370, 100)
         self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnTopHint)
-        AcrylicEffect(self)
         self.center_window()
         
-        # Initialize selected game
-        self.selected_game = None
+        self.selected_game_profile = None
         self.validate_game_selection()
-        if not self.selected_game:
+        if not self.selected_game_profile:
             self.close()
             return
         
@@ -86,34 +84,30 @@ class SteamWindow(AcrylicWindow):
                 ErrorHandler.handleError("No selected game path found in config.")
                 return
 
-            short_game_name = self.game_mgr.getShortGameName(selected_game_path)
-            if not short_game_name:
-                ErrorHandler.handleError(f"Could not determine game name from path: {selected_game_path}")
+            game_id = self.game_mgr.getSelectedGameId(selected_game_path)
+            if not game_id:
+                ErrorHandler.handleError(f"Could not determine game from path: {selected_game_path}")
                 return
 
-            # Define Steam AppIDs
-            SteamAppID = {
-                "FC24": 2195250,
-                "FC25": 2669320
-            }
-
-            if short_game_name not in SteamAppID:
-                ErrorHandler.handleError(f"Game '{short_game_name}' is not recognized.")
+            profile = self.game_mgr.profile_manager.get_profile(game_id)
+            if not profile or not hasattr(profile, 'steam_app_id'):
+                ErrorHandler.handleError(f"Game '{game_id}' is not a recognized Steam game or has no AppID configured.")
                 return
 
-            self.selected_game = short_game_name
-            self.app_id = SteamAppID[short_game_name]
+            self.selected_game_profile = profile
         except Exception as e:
             ErrorHandler.handleError(f"Error validating game selection: {e}")
 
     def launch_steam_repair(self):
         try:
-            if not hasattr(self, 'app_id'):
-                ErrorHandler.handleError("No valid AppID found for repair.")
+            if not self.selected_game_profile:
+                ErrorHandler.handleError("No valid game profile found for repair.")
                 return
-            command = f"steam://validate/{self.app_id}"
-            os.system(f"start {command}")
-            logger.info(f"Steam launched with repair command for game: {self.selected_game} (AppID: {self.app_id})")
+            
+            app_id = self.selected_game_profile.steam_app_id
+            command = f"steam://validate/{app_id}"
+            os.startfile(command)
+            logger.info(f"Steam launched with repair command for game: {self.selected_game_profile.id} (AppID: {app_id})")
         except Exception as e:
             ErrorHandler.handleError(f"Error launching Steam repair: {e}")
             self.close()
@@ -136,7 +130,7 @@ class SteamWindow(AcrylicWindow):
             icon_label.setStyleSheet("background-color: transparent;")
             icon_label.setFixedSize(20, 20)
             icon_label.setScaledContents(True)
-            text_label = QLabel(f"Steam launched with repair command for ({self.selected_game})", self)
+            text_label = QLabel(f"Steam launched with repair command for ({self.selected_game_profile.display_name})", self)
             text_label.setStyleSheet("color: white; font-size: 14px; font-weight: bold; background-color: transparent;")
             text_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
             first_row_layout.addWidget(icon_label)

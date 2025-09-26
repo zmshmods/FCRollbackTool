@@ -1,7 +1,7 @@
 import os
 from typing import List
 from PySide6.QtWidgets import QVBoxLayout, QHeaderView, QFrame, QTableWidgetItem, QAbstractItemView
-from PySide6.QtCore import Qt, QFileSystemWatcher, Signal
+from PySide6.QtCore import Qt, QFileSystemWatcher, Signal, QDateTime
 from PySide6.QtGui import QColor
 from qfluentwidgets import TableWidget
 
@@ -123,25 +123,30 @@ class BaseTable(QFrame):
     def _initialize_profile_directories(self):
         selected_game_config = self.config_manager.getConfigKeySelectedGame()
         if selected_game_config:
-            short_name = self.game_manager.getShortGameName(selected_game_config)
-            base_dir = self.game_manager.getProfileDirectory(short_name, self.profile_type)
-            self.profile_directories[short_name] = base_dir
+            game_id = self.game_manager.getSelectedGameId(selected_game_config)
+            base_dir = self.game_manager.getProfileDirectory(game_id, self.profile_type)
+            self.profile_directories[game_id] = base_dir
+            
             if self.tab_key == self.game_manager.getTabKeyTitleUpdates():
                 self.specific_monitor_dir = base_dir
             elif self.tab_key == self.game_manager.getTabKeySquadsUpdates():
                 self.specific_monitor_dir = os.path.join(base_dir, self.game_manager.getContentKeySquad())
             elif self.tab_key == self.game_manager.getTabKeyFutSquadsUpdates():
                 self.specific_monitor_dir = os.path.join(base_dir, self.game_manager.getContentKeyFutSquad())
+
+            if self.specific_monitor_dir:
+                os.makedirs(self.specific_monitor_dir, exist_ok=True)
+                
         else:
             logger.warning(f"No selected game found during initialization for {self.tab_key}")
             self._initialize_default_profiles()
 
     def _initialize_default_profiles(self):
-        for version in self.game_manager.GAME_VERSION:
-            short_name = self.game_manager.getGameProfile(version, self.profile_type)["SHORT_GAME_NAME"]
+        for profile in self.game_manager.profile_manager.get_all_profiles():
+            game_id = profile.id
             try:
-                base_dir = self.game_manager.getProfileDirectory(short_name, self.profile_type)
-                self.profile_directories[short_name] = base_dir
+                base_dir = self.game_manager.getProfileDirectory(game_id, self.profile_type)
+                self.profile_directories[game_id] = base_dir
                 if self.tab_key == self.game_manager.getTabKeyTitleUpdates():
                     self.specific_monitor_dir = base_dir
                 elif self.tab_key == self.game_manager.getTabKeySquadsUpdates():
@@ -149,7 +154,7 @@ class BaseTable(QFrame):
                 elif self.tab_key == self.game_manager.getTabKeyFutSquadsUpdates():
                     self.specific_monitor_dir = os.path.join(base_dir, self.game_manager.getContentKeyFutSquad())
             except ValueError as e:
-                ErrorHandler.handleError(f"Failed to initialize profile for {short_name}: {e}")
+                ErrorHandler.handleError(f"Failed to initialize profile for {game_id}: {e}")
 
     def _get_profile_directories(self):
         if self.specific_monitor_dir and os.path.exists(self.specific_monitor_dir):
@@ -157,7 +162,7 @@ class BaseTable(QFrame):
             if not selected_game:
                 logger.warning(f"No selected game found for {self.tab_key}, returning empty profile files")
                 return {}
-            short_name = self.game_manager.getShortGameName(selected_game) or ""
+            short_name = self.game_manager.getSelectedGameId(selected_game) or ""
             files_and_dirs = set(os.listdir(self.specific_monitor_dir))
             logger.debug(f"Retrieved profile files for {short_name} in {self.specific_monitor_dir}")
             return {short_name: files_and_dirs}
@@ -252,6 +257,7 @@ class BaseTable(QFrame):
         raise ValueError(f"Invalid tab_key: {self.tab_key}")
 
     def _fill_table_row(self, row, update, current_sha_config, profile_files):
+
         name_key = self._get_name_key()
         released_date_key = self._get_released_date_key()
         relative_date_key = self._get_relative_date_key()
@@ -262,7 +268,16 @@ class BaseTable(QFrame):
                 self.table.setItem(row, col, item)
             elif header == released_date_key:
                 value = update.get(header, "N/A")
-                item = self._create_non_editable_item(value, align_left=False)
+                display_value = value
+                if value != "N/A":
+                    # Check if date is ISO format and reformat it for display
+                    if 'T' in value and value.endswith('Z'):
+                        dt = QDateTime.fromString(value, Qt.ISODate)
+                        if dt.isValid():
+                            # Format to "Mon Day, Year"
+                            display_value = dt.toString("MMM d, yyyy")
+
+                item = self._create_non_editable_item(display_value, align_left=False)
                 self.table.setItem(row, col, item)
             elif header == relative_date_key:
                 value = update.get(released_date_key, "N/A")
@@ -287,14 +302,12 @@ class BaseTable(QFrame):
             item.setText("No Game Selected")
             item.setForeground(Qt.red)
             return
-        short_name = self.game_manager.getShortGameName(selected_game) or ""
+        short_name = self.game_manager.getSelectedGameId(selected_game) or ""
         normalized_files = {file.strip().lower() for file in profile_files.get(short_name, set())}
         
-        # Get keys dynamically
         download_url_key = self.game_manager.getDownloadURLKeyForTab(self.tab_key)
         released_date_key = self._get_released_date_key()
         
-        # Calculate relative date and download URL
         released_date = update.get(released_date_key, "N/A")
         relative_date = self.game_manager.getRelativeDate(released_date, self.tab_key == self.game_manager.getTabKeyTitleUpdates()) if released_date != "N/A" else ""
         download_url = update.get(download_url_key, "")
@@ -306,12 +319,14 @@ class BaseTable(QFrame):
                 args = (self, update, current_sha_config, normalized_files, self.sha1_key, download_url, relative_date) if self.uses_sha1 else (self, update, normalized_files, download_url, relative_date)
             else:
                 args = (self, update, current_sha_config, normalized_files, self.sha1_key) if self.uses_sha1 else (self, update, normalized_files)
+            
             if condition(*args):
-                if status_key == "ComingInConfirmed":
+                if status_key == "ComingInConfirmed" and relative_date:
                     item.setText(f"Coming In {relative_date.replace('In ', '')}... (Confirmed)")
                 else:
                     item.setText(status["text"])
                 item.setForeground(status["color"])
+                item.setData(Qt.UserRole, status_key)
                 break
 
     def _is_update_available(self, update_name, normalized_files):
@@ -443,7 +458,7 @@ class FutSquadsUpdatesTable(BaseTable):
             parent=parent,
             game_content=game_content,
             config_manager=config_manager,
-            game_manager=game_manager.getGameManager() if game_manager is None else game_manager,
+            game_manager=game_manager,
             profile_type=profile_type or game_manager.getProfileTypeSquad(),
             tab_key=tab_key or game_manager.getTabKeyFutSquadsUpdates()
         )

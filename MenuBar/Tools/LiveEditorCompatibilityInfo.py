@@ -1,14 +1,13 @@
 import sys
 from typing import Optional, Dict
 from PySide6.QtWidgets import (
-    QApplication, QVBoxLayout, QWidget, QTableWidgetItem, QSizePolicy, QHeaderView, QLabel
+    QApplication, QVBoxLayout, QWidget, QTableWidgetItem, QSizePolicy, QLabel
 )
 from PySide6.QtGui import QIcon
 from PySide6.QtCore import Qt, QThread, Signal, QObject
 from qfluentwidgets import TableWidget, Theme, setTheme, setThemeColor
-from qframelesswindow import AcrylicWindow
 
-from UIComponents.Personalization import AcrylicEffect
+from UIComponents.Personalization import BaseWindow
 from UIComponents.MainStyles import MainStyles
 from UIComponents.TitleBar import TitleBar
 from UIComponents.Spinner import LoadingSpinner
@@ -18,7 +17,7 @@ from Core.GameManager import GameManager
 from Core.ErrorHandler import ErrorHandler
 
 TITLE = "Live Editor Compatibility Info"
-SIZE = (720, 480)
+WINDOW_SIZE = (720, 480)
 THEME_COLOR = "#00FF00"
 ICON_PATH = "Data/Assets/Icons/ic_fluent_comp_24_filled.png"
 SPACER_WIDTH = 75
@@ -49,7 +48,7 @@ class DataFetchWorker(QObject):
         except Exception as e:
             ErrorHandler.handleError(f"Error fetching data: {e}")
 
-class LiveEditorCompatibilityInfo(AcrylicWindow):
+class LiveEditorCompatibilityInfo(BaseWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.game_manager = GameManager()
@@ -64,8 +63,7 @@ class LiveEditorCompatibilityInfo(AcrylicWindow):
 
     def _initialize_window(self):
         self.setWindowTitle(TITLE)
-        self.resize(*SIZE)
-        AcrylicEffect(self)
+        self.resize(*WINDOW_SIZE)
         self.main_layout = QVBoxLayout(self)
         self.main_layout.setContentsMargins(50, 30, 50, 30)
         self.main_layout.setSpacing(0)

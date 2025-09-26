@@ -74,13 +74,21 @@ class DownloadCore(QThread):
                 response = scraper.get(self.url, headers={"User-Agent": "Mozilla/5.0"}, verify=certifi.where())
                 if response.status_code == 200:
                     tree = html.fromstring(response.text)
-                    direct_link = tree.xpath('//a[@id="downloadButton"]/@data-scrambled-url')
-                    if direct_link and direct_link[0]:
-                        decoded_url = base64.b64decode(direct_link[0]).decode('utf-8')
+                    
+                    scrambled_link = tree.xpath('//a[@id="downloadButton"]/@data-scrambled-url')
+                    if scrambled_link and scrambled_link[0]:
+                        decoded_url = base64.b64decode(scrambled_link[0]).decode('utf-8')
                         if decoded_url and not decoded_url.startswith('#') and not decoded_url.endswith('#'):
                             return decoded_url
+                    
+                    direct_link = tree.xpath('//a[@id="downloadButton"]/@href')
+                    if direct_link and direct_link[0]:
+                        url = direct_link[0]
+                        if url.startswith("https://"):
+                            return url
+
                 time.sleep(1)
-            raise ValueError("Failed to retrieve direct download URL from MediaFire")
+            raise ValueError("Failed to retrieve direct download URL from MediaFire.")
         except Exception as e:
             ErrorHandler.handleError(str(e))
             self.error_signal.emit()
@@ -88,16 +96,24 @@ class DownloadCore(QThread):
 
     def _get_download_config(self, source: str) -> tuple:
         try:
-            profile_subfolder = {
-                self.game_manager.getTabKeyTitleUpdates(): self.game_manager.getProfileTypeTitleUpdate(),
-                self.game_manager.getTabKeySquadsUpdates(): os.path.join(self.game_manager.getProfileTypeSquad(), self.game_manager.getContentKeySquad()),
-                self.game_manager.getTabKeyFutSquadsUpdates(): os.path.join(self.game_manager.getProfileTypeSquad(), self.game_manager.getContentKeyFutSquad())
-            }.get(self.tab_key, "")
+            if self.tab_key == self.game_manager.getTabKeyTitleUpdates():
+                profile_subfolder = self.game_manager.getProfileTypeTitleUpdate()
+            else:
+                profile_subfolder = self.game_manager.getProfileTypeSquad()
+
             if not profile_subfolder:
                 ErrorHandler.handleError("Invalid tab key for download configuration")
                 self.error_signal.emit()
                 return ([], "", "")
+
             profile_folder = self.game_manager.getProfileDirectory(self.game_profile, profile_subfolder)
+            
+            # Create specific sub-folders for Squads/FutSquads inside the main profile folder
+            if self.tab_key == self.game_manager.getTabKeySquadsUpdates():
+                profile_folder = os.path.join(profile_folder, self.game_manager.getContentKeySquad())
+            elif self.tab_key == self.game_manager.getTabKeyFutSquadsUpdates():
+                profile_folder = os.path.join(profile_folder, self.game_manager.getContentKeyFutSquad())
+
             os.makedirs(profile_folder, exist_ok=True)
             filename = f"{self.update_name}.rar" if self.tab_key == self.game_manager.getTabKeyTitleUpdates() else self.update_name
             final_path = os.path.join(profile_folder, filename)
@@ -173,7 +189,6 @@ class DownloadCore(QThread):
                     while os.path.exists(target_path):
                         target_path = os.path.join(os.path.dirname(final_path), f"{base} ({counter}){ext}")
                         counter += 1
-                #os.rename(temp_path, target_path) #[WinError 17]
                 shutil.move(temp_path, target_path)
                 return target_path
             ErrorHandler.handleError("No files found to move from temp folder")
@@ -282,16 +297,24 @@ class DownloadCore(QThread):
                 return True
             else:  # IDM
                 logger.info(f"IDM download started for: {self.update_name}")
-                profile_folder = os.path.dirname(final_path)
-                if not os.path.exists(profile_folder):
-                    ErrorHandler.handleError(f"Profile folder does not exist: {profile_folder}")
-                    self.error_signal.emit()
-                    return False
+                
+                initial_mod_time = -1
+                if os.path.exists(final_path):
+                    initial_mod_time = os.path.getmtime(final_path)
+                    logger.debug(f"Existing file found. Initial mod time: {initial_mod_time}")
+
                 while not self.stop_flag:
                     if os.path.exists(final_path):
-                        logger.info(f"File detected in profile: {self.update_name}")
-                        self.download_completed_signal.emit()
-                        return True
+                        if initial_mod_time == -1:
+                            logger.info(f"New file detected in profile: {self.update_name}")
+                            self.download_completed_signal.emit()
+                            return True
+                        
+                        current_mod_time = os.path.getmtime(final_path)
+                        if current_mod_time > initial_mod_time:
+                            logger.info(f"File modification detected. Assuming download complete for: {self.update_name}")
+                            self.download_completed_signal.emit()
+                            return True
                     time.sleep(1)
                 logger.info("IDM download waiting stopped.")
                 return False
@@ -321,7 +344,6 @@ class DownloadCore(QThread):
         source = "idm" if self.use_idm else "aria2"
         logger.info(f"Starting download: {self.update_name} with {source.upper()}")
         
-        # if is SquadsUpdates or FutSquadsUpdates get SquadFilePath from Index
         if self.tab_key in [self.game_manager.getTabKeySquadsUpdates(), self.game_manager.getTabKeyFutSquadsUpdates()]:
             squad_url = self.game_manager.getSquadFilePathKey(self.url, self.config_manager)
             if not squad_url:
@@ -331,12 +353,10 @@ class DownloadCore(QThread):
             self.url = squad_url
             logger.info(f"Using SquadFilePath URL: {self.url}")
         
-        # Get direct URL (for MediaFire)
         self.url = self._get_direct_url()
         if not self.url:
             return
         
-        # Continue 
         command, check_path, final_path = self._get_download_config(source)
         if not command:
             return

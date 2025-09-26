@@ -10,11 +10,10 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QGuiApplication, QIcon
-from qframelesswindow import AcrylicWindow
 from qfluentwidgets import CheckBox, ComboBox, LineEdit, Theme, setTheme, setThemeColor, SimpleCardWidget#, FluentIcon, CaptionLabel
 
 from UIComponents.Tooltips import apply_tooltip
-from UIComponents.Personalization import AcrylicEffect
+from UIComponents.Personalization import BaseWindow
 from UIComponents.TitleBar import TitleBar
 from UIComponents.MainStyles import MainStyles
 
@@ -157,7 +156,7 @@ class TableSettings:
             for row in rows[1:]:
                 f.write('\t'.join(row) + '\n')
 
-class TableSettingsWindow(AcrylicWindow):
+class TableSettingsWindow(BaseWindow):
     def __init__(self, parent: Optional[QWidget] = None):
         super().__init__(parent=parent)
         self.config_mgr = ConfigManager()
@@ -169,7 +168,6 @@ class TableSettingsWindow(AcrylicWindow):
         self.squad_folder_cb = None
         self.setWindowTitle(WINDOW_TITLE)
         self.resize(*WINDOW_SIZE)
-        AcrylicEffect(self)
         self.setWindowModality(Qt.ApplicationModal)
         self.center_window()
         self.main_layout = QVBoxLayout(self)

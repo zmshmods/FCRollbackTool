@@ -3,6 +3,7 @@ from PySide6.QtWidgets import QWidget
 from qfluentwidgets import ToolTipPosition, ToolTipFilter
 #from qfluentwidgets.components.material import AcrylicToolTipFilter
 from Core.ConfigManager import ConfigManager
+from Core.GameManager import GameManager
 
 # Color constants
 COLORS = {
@@ -74,7 +75,6 @@ def apply_tooltip(widget: QWidget, identifier: str):
         tooltip_data.get("position", ToolTipPosition.TOP)
     ))
 
-# Initialize ConfigManager
 config_mgr = ConfigManager()
 
 TOOLTIPS = {
@@ -86,19 +86,22 @@ TOOLTIPS = {
     # Main & Select Game Window
     "game_not_found": {"text": "Make sure to run your game at least once so the tool can detect it.", "position": ToolTipPosition.TOP, "delay": 200},
     "settings_button": {"text": "Settings", "position": ToolTipPosition.TOP, "delay": 880},
-    "change_game": {"text": lambda: f"Current Game: {os.path.basename(config_mgr.getConfigKeySelectedGame()) if config_mgr.getConfigKeySelectedGame() else 'None'}\nClick to change your game.", 
-                    "formats": lambda: {os.path.basename(config_mgr.getConfigKeySelectedGame()): ["highlight"]} if config_mgr.getConfigKeySelectedGame() else {"None": ["highlight"]}, 
+
+    "change_game": {"text": lambda: (gm := GameManager(), path := config_mgr.getConfigKeySelectedGame(), profile := gm._get_profile(path) if path else None, name := profile.display_name if profile else (os.path.basename(path) if path else 'None'), f"Current Game: {name}\nClick to change your game.")[-1], 
+                    "formats": lambda: (gm := GameManager(), path := config_mgr.getConfigKeySelectedGame(), profile := gm._get_profile(path) if path else None, name := profile.display_name if profile else (os.path.basename(path) if path else 'None'), {name: ["highlight"]})[-1], 
                     "position": ToolTipPosition.TOP, "delay": 880},
-    "select_button": {"text": "Load game configuration", "position": ToolTipPosition.TOP, "delay": 880},
+
     "rescan_button": {"text": "Rescan to detect games again", "position": ToolTipPosition.TOP, "delay": 880},
     "download_button": {"text": "Download the selected update", "position": ToolTipPosition.TOP, "delay": 880},
     "download_options_button": {"text": "Download Options", "position": ToolTipPosition.BOTTOM_LEFT, "delay": 880},
     "open_url_button": {"text": "Open download URL in browser", "position": ToolTipPosition.TOP, "delay": 880},
     "open_profile_folder": {"text": "Open game profile folder", "position": ToolTipPosition.TOP, "delay": 880},
+    "unistall_squad_button": {"text": "Unistall squads file", "position": ToolTipPosition.TOP, "delay": 880},
     "install_button": {"text": "Auto Install the selected update", "position": ToolTipPosition.TOP, "delay": 880},
     "install_options_button": {"text": "Installation Options", "position": ToolTipPosition.BOTTOM_LEFT, "delay": 880},
-    "launch_vanilla_button": {"text": "Launch the game with zero mods/tools to ensure its activation/stability before rollback.", "position": ToolTipPosition.BOTTOM_LEFT, "delay": 880},
+    "launch_game_button": {"text": "Launch the game", "position": ToolTipPosition.BOTTOM_LEFT, "delay": 880},
     "patch_notes_button": {"text": "Read the patch notes of the selected title update.", "position": ToolTipPosition.TOP, "delay": 880},
+    "open_patch_notes_url_button": {"text": "Open the patch notes URL in browser.", "position": ToolTipPosition.TOP, "delay": 880},
     "fetch_tables_button": {"text": "Fetch the DB tables for the selected squad update.", "position": ToolTipPosition.TOP, "delay": 880},
     "fetch_changelogs_button": {"text": "Fetch the changelogs for the selected squad update.", "position": ToolTipPosition.TOP, "delay": 880},
 
@@ -153,4 +156,72 @@ TOOLTIPS = {
     "cacheUpToDate": {"text": "Cache is up to date.", "position": ToolTipPosition.TOP, "delay": 880},
     "cacheOutOfDate": {"text": "Cache is out of date.", "position": ToolTipPosition.TOP, "delay": 880},
     "": {"text": "", "position": ToolTipPosition.TOP, "delay": 880},
+
+    "mod_enabled_dot": {
+        "text": "This mod is enabled in the selected profile.",
+        "formats": {"enabled": {"color": "green"}},
+        "position": ToolTipPosition.TOP,
+        "delay": 600
+    },
+    "mod_disabled_dot": {
+        "text": "This mod is disabled in the selected profile.",
+        "formats": {"disabled": {"color": "red"}},
+        "position": ToolTipPosition.TOP,
+        "delay": 600
+    },
+    "stats_total_mods": {
+        "text": "The total number of mods found for the current game.",
+        "position": ToolTipPosition.TOP,
+        "delay": 600
+    },
+    "stats_enabled_mods": {
+        "text": "The number of mods currently enabled in the selected profile.",
+        "position": ToolTipPosition.TOP,
+        "delay": 600
+    },
+    "stats_disabled_mods": {
+        "text": "The number of mods currently disabled in the selected profile.",
+        "position": ToolTipPosition.TOP,
+        "delay": 600
+    },
+    "stats_compatible_mods": {
+        "text": "Mods that are fully compatible with your game's current Title Update.",
+        "position": ToolTipPosition.TOP,
+        "delay": 600
+    },
+    "stats_uncertain_mods": {
+        "text": "Mods for a different TU that don't contain any legacy assets, they are most likely compatible but this is uncertain.",
+        "position": ToolTipPosition.TOP,
+        "delay": 600
+    },
+    "stats_incompatible_mods": {
+        "text": "Mods for a different TU that contain legacy assets, whose legacy assets inside will not work probably.",
+        "position": ToolTipPosition.TOP,
+        "delay": 600
+    },
+
+    "locate_mod_button": {
+        "text": "Locate the selected mod file.",
+        "position": ToolTipPosition.TOP,
+        "delay": 600
+    },
+
+    "search_mod_button": {
+        "text": "Search the selected mod on Google.",
+        "position": ToolTipPosition.TOP,
+        "delay": 600
+    },
+
+    "open_fet_data_folder_tooltip": {
+        "text": "Open the FIFA Editor Tool data folder.",
+        "position": ToolTipPosition.TOP,
+        "delay": 600
+    },
+
+    "refresh_folder_list_tooltip": {
+        "text": "Refresh",
+        "position": ToolTipPosition.TOP,
+        "delay": 600
+    },
+
 }

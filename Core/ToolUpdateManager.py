@@ -8,8 +8,8 @@ UPDATES_REPO = "FCRollbackToolUpdates"
 
 class ToolUpdateManager:
     def __init__(self):
-        self.TOOL_VERSION = "1.2.1 Beta"
-        self.BUILD_VERSION = "4.2025.07.15"
+        self.TOOL_VERSION = "1.2.2 Beta"
+        self.BUILD_VERSION = "5.26.09.2025"
         self.UPDATE_MANIFEST = f"https://raw.githubusercontent.com/{GITHUB_ACC}/{UPDATES_REPO}/main/toolupdate.json"
         self.CHANGELOG_BASE_URL = f"https://raw.githubusercontent.com/{GITHUB_ACC}/{UPDATES_REPO}/main/Changelogs/"
         self._manifest_cache = {}

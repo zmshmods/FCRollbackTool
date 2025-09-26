@@ -8,10 +8,9 @@ from datetime import timedelta
 from PySide6.QtWidgets import QApplication, QVBoxLayout, QHBoxLayout, QLabel, QWidget, QSizePolicy, QPushButton
 from PySide6.QtGui import QGuiApplication, QIcon
 from PySide6.QtCore import Qt
-from qframelesswindow import AcrylicWindow
 from qfluentwidgets import Theme, setTheme, setThemeColor
 
-from UIComponents.Personalization import AcrylicEffect
+from UIComponents.Personalization import BaseWindow
 from UIComponents.Tooltips import apply_tooltip
 from UIComponents.MainStyles import MainStyles
 from UIComponents.TitleBar import TitleBar
@@ -22,7 +21,7 @@ from Core.ConfigManager import AppDataManager
 from Core.ErrorHandler import ErrorHandler
 
 WINDOW_TITLE = "FC Rollback Tool - New Update Available!"
-WINDOW_SIZE = (920, 620)
+WINDOW_SIZE = (720, 480)
 THEME_COLOR = "#00FF00"
 ICON_PATH = "Data/Assets/Icons/FRICON.png"
 SEPARATOR_STYLE = "background-color: rgba(255, 255, 255, 0.1);"
@@ -33,7 +32,7 @@ SHOW_MIN_BUTTON = False
 SHOW_CLOSE_BUTTON = False
 REMINDER_INTERVAL_HOURS = 24
 
-class ToolUpdaterWindow(AcrylicWindow):
+class ToolUpdaterWindow(BaseWindow):
     def __init__(self, parent=None):
         super().__init__(parent=parent)
         self.tool_update_manager = ToolUpdateManager()
@@ -42,7 +41,6 @@ class ToolUpdaterWindow(AcrylicWindow):
         self.setWindowTitle(WINDOW_TITLE)
         self.resize(*WINDOW_SIZE)
         self.setWindowModality(Qt.ApplicationModal)
-        AcrylicEffect(self)
         self.center_window()
         self.main_layout = QVBoxLayout(self)
         self.main_layout.setContentsMargins(0, 0, 0, 0)
