@@ -167,3 +167,5 @@ Profiles/
 Logs/
 nuitka-crash-report.xml
 *.lnk
+/.FRTEXE
+cd
