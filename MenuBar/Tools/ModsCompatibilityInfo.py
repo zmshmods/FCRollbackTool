@@ -98,7 +98,7 @@ class ResourceItemDelegate(ListItemDelegate):
         font.setPixelSize(13)
         painter.setFont(font)
 
-        painter.setPen(option.palette.color(QPalette.ColorRole.Text))
+        # painter.setPen(option.palette.color(QPalette.ColorRole.Text))
 
         fm = QFontMetrics(font)
         badge_padding_v = 3

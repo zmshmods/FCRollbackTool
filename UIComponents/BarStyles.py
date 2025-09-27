@@ -34,7 +34,7 @@ def BarStyles():
     }
 
     QMenu {
-        background-color: #1f1f1f;
+        background-color: #2c2c2c;
         border-radius: 0px;
         border: 1px solid rgba(255, 255, 255, 0.1);
         margin: 0px;
@@ -53,16 +53,11 @@ def BarStyles():
     }
 
     QMenu::item:selected {
-        background-color: #242424;
+        background-color: #353535;
         border-radius: 0px;
     }
 
     QMenu::item:pressed {
-        background-color: #282828;
-        border-radius: 0px;
-    }
-
-    QMenu::item:hover {
         background-color: #303030;
         border-radius: 0px;
     }

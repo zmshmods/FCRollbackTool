@@ -8,7 +8,7 @@ class BaseWindow(WinBase):
     def __init__(self, parent=None):
         super().__init__(parent)
         if isWin11:
-            self.windowEffect.setAcrylicEffect(self.winId(), "10101070")
+            self.windowEffect.setAcrylicEffect(self.winId(), "10101050")
             # window.windowEffect.setMicaEffect(window.winId(), True)
             # window.windowEffect.setAeroEffect(True)
             # window.windowEffect.removeBackgroundEffect(window.winId())
@@ -16,5 +16,5 @@ class BaseWindow(WinBase):
 
             self.setAutoFillBackground(True)
             palette = self.palette()
-            palette.setColor(QPalette.Window, QColor("#1f1f1f"))
+            palette.setColor(QPalette.Window, QColor("#2c2c2c"))
             self.setPalette(palette)
