@@ -2,12 +2,12 @@ import os
 import sys
 from typing import Optional
 from PySide6.QtWidgets import (
-    QApplication, QVBoxLayout, QHBoxLayout, QLabel, QWidget, QFileSystemModel, QStackedLayout,
-    QHeaderView, QAbstractItemView, QPushButton, QSizePolicy, QTableWidgetItem
+    QApplication, QVBoxLayout, QHBoxLayout, QLabel, QWidget, QStackedLayout,
+    QHeaderView, QAbstractItemView, QPushButton, QSizePolicy, QTableWidgetItem, QFileIconProvider
 )
-from PySide6.QtCore import Qt, QSize, QThread, Signal, Slot, QTimer
+from PySide6.QtCore import Qt, QSize, QThread, Signal, Slot, QTimer, QFileInfo
 from PySide6.QtGui import QGuiApplication, QIcon
-from qfluentwidgets import TableWidget, Theme, setTheme, setThemeColor, FluentIcon
+from qfluentwidgets import TableWidget, Theme, setTheme, setThemeColor
 
 from UIComponents.Spinner import LoadingSpinner
 from UIComponents.Tooltips import apply_tooltip
@@ -85,16 +85,6 @@ class SelectGameWindow(BaseWindow):
             self._handle_entry_point()
 
     def _initialize_content(self):
-        self.spinner_container = QWidget(self, styleSheet="background-color: transparent;")
-        layout = QVBoxLayout(self.spinner_container)
-        layout.setAlignment(Qt.AlignCenter)
-        layout.setContentsMargins(0, 0, 0, 0)
-        self.spinner = LoadingSpinner(self)
-        self.spinner.setStyleSheet("background-color: transparent;")
-        self.status_label = QLabel("", self, styleSheet="font-size: 14px; background-color: transparent;", alignment=Qt.AlignCenter)
-        layout.addWidget(self.spinner, alignment=Qt.AlignCenter)
-        layout.addWidget(self.status_label, alignment=Qt.AlignCenter)
-
         self.interface_container = QWidget(self)
         self.interface_layout = QVBoxLayout(self.interface_container)
         self.interface_layout.setContentsMargins(0, 0, 0, 0)
@@ -186,7 +176,6 @@ class SelectGameWindow(BaseWindow):
         self.table.setBorderVisible(True)
         self.table.setBorderRadius(2)
         self.table.setWordWrap(False)
-        self.table.setIconSize(QSize(32, 32))
         self.table.setColumnCount(2)
         self.table.setHorizontalHeaderLabels(["Name", "Path"])
         self.table.setSelectionMode(QAbstractItemView.SingleSelection)
@@ -211,14 +200,44 @@ class SelectGameWindow(BaseWindow):
         self._populate_table()
 
     def _init_spinner(self) -> None:
+        self.spinner_container = QWidget(self, styleSheet="background-color: transparent;")
+        layout = QVBoxLayout(self.spinner_container)
+        layout.setContentsMargins(0, 0, 0, 0)
+        
+        self.spinner = LoadingSpinner(self)
+        self.spinner.setStyleSheet("background-color: transparent;")
+        
+        self.status_label = QLabel("", self, styleSheet="font-size: 14px; background-color: transparent;", alignment=Qt.AlignCenter)
+        
+        layout.addStretch()
+        layout.addWidget(self.spinner, alignment=Qt.AlignCenter)
+        layout.addWidget(self.status_label, alignment=Qt.AlignCenter)
+        layout.addStretch()
+
         self.stacked_layout.addWidget(self.spinner_container)
+
+    def _get_exe_icon(self, exe_path: str) -> QIcon:
+        try:
+            if not os.path.exists(exe_path):
+                return QIcon()
+            
+            icon_provider = QFileIconProvider()
+            file_info = QFileInfo(exe_path)
+            icon = icon_provider.icon(file_info)
+            
+            if not icon.isNull():
+                return icon
+        except Exception:
+            pass
+        
+        return QIcon()
 
     def _populate_table(self, is_rescan: bool = False) -> None:
         """Populate the table with available games from the registry."""
         games = self.game_manager.getGamesFromRegistry(emit_status=self._update_status, is_rescan=is_rescan)
         self.table.setRowCount(len(games))
-        model = QFileSystemModel()
-        model.setRootPath("")
+        self.table.setIconSize(QSize(32, 32))
+        self.table.verticalHeader().setDefaultSectionSize(40)
         for row, (exe_name, install_path) in enumerate(games.items()):
             profile = self.game_manager.profile_manager.get_profile_by_exe(exe_name)
             if not profile: continue
@@ -229,7 +248,10 @@ class SelectGameWindow(BaseWindow):
             name_item = QTableWidgetItem(display_name)
             name_item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
             name_item.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-            name_item.setIcon(model.fileIcon(model.index(exe_full_path)))
+            
+            exe_icon = self._get_exe_icon(exe_full_path)
+            if not exe_icon.isNull():
+                name_item.setIcon(exe_icon)
             
             path_item = QTableWidgetItem(install_path)
             path_item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
