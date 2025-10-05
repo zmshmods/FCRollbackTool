@@ -3,7 +3,8 @@ import sys
 from typing import Optional
 from PySide6.QtWidgets import (
     QApplication, QVBoxLayout, QHBoxLayout, QLabel, QWidget, QStackedLayout,
-    QHeaderView, QAbstractItemView, QPushButton, QSizePolicy, QTableWidgetItem, QFileIconProvider
+    QHeaderView, QAbstractItemView, QPushButton, QSizePolicy, QTableWidgetItem, 
+    QFileIconProvider, QFileDialog
 )
 from PySide6.QtCore import Qt, QSize, QThread, Signal, Slot, QTimer, QFileInfo
 from PySide6.QtGui import QGuiApplication, QIcon
@@ -286,6 +287,10 @@ class ButtonManager:
         self.buttons["select"].clicked.connect(self.select_game)
         self.buttons["select"].setFixedSize(80, 30)
 
+        self.buttons["add"] = QPushButton("Add")
+        self.buttons["add"].clicked.connect(self.add_game_manually)
+        self.buttons["add"].setFixedSize(80, 30)
+
         self.buttons["rescan"] = QPushButton("Rescan")
         self.buttons["rescan"].clicked.connect(self.rescan_games)
         apply_tooltip(self.buttons["rescan"], "rescan_button")
@@ -312,6 +317,7 @@ class ButtonManager:
         self.button_layout.addWidget(self.buttons["game_not_found"], alignment=Qt.AlignLeft)
         self.button_layout.addStretch()
         self.button_layout.addWidget(self.buttons["rescan"])
+        self.button_layout.addWidget(self.buttons["add"])
         self.button_layout.addWidget(self.buttons["select"])
 
     def show_buttons(self):
@@ -335,12 +341,44 @@ class ButtonManager:
             self.thread.error.connect(self.window._on_processing_error)
             self.thread.start()
 
+    def add_game_manually(self) -> None:
+        file_path, _ = QFileDialog.getOpenFileName(
+            self.window,
+            "Select Game Executable",
+            "",
+            "Executable Files (*.exe)"
+        )
+        if not file_path:
+            return
+
+        exe_name = os.path.basename(file_path)
+        profile = self.window.game_manager.profile_manager.get_profile_by_exe(exe_name)
+
+        if not profile:
+            ErrorHandler.handleError(f"{exe_name} is not a supported game executable.")
+            return
+
+        game_dir = os.path.dirname(file_path)
+
+        detected_games = self.window.game_manager.getGamesFromRegistry()
+        existing_paths = {os.path.normpath(p) for p in detected_games.values()}
+
+        normalized_new_path = os.path.normpath(game_dir)
+
+        if normalized_new_path not in existing_paths:
+            manual_paths = self.window.config_manager.getConfigKeyManuallyAddedGames()
+            if game_dir not in manual_paths:
+                manual_paths.append(game_dir)
+                self.window.config_manager.setConfigKeyManuallyAddedGames(manual_paths)
+                self.window._populate_table()
+
     def rescan_games(self) -> None:
         self.window._show_spinner()
         self._do_rescan()
 
     def _do_rescan(self) -> None:
         try:
+            self.window.config_manager.setConfigKeyManuallyAddedGames([])
             self.window._populate_table(is_rescan=True)
             QTimer.singleShot(50, self._finalize_rescan)
         except Exception as e:

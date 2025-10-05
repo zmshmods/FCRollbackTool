@@ -8,8 +8,8 @@ UPDATES_REPO = "FCRollbackToolUpdates"
 
 class ToolUpdateManager:
     def __init__(self):
-        self.TOOL_VERSION = "1.2.2 Beta"
-        self.BUILD_VERSION = "5.27.09.2025"
+        self.TOOL_VERSION = "1.2.3 Beta"
+        self.BUILD_VERSION = "6.5.10.2025"
         self.UPDATE_MANIFEST = f"https://raw.githubusercontent.com/{GITHUB_ACC}/{UPDATES_REPO}/main/toolupdate.json"
         self.CHANGELOG_BASE_URL = f"https://raw.githubusercontent.com/{GITHUB_ACC}/{UPDATES_REPO}/main/Changelogs/"
         self._manifest_cache = {}
@@ -19,6 +19,22 @@ class ToolUpdateManager:
         return self.TOOL_VERSION
     def getToolBulidVersion(self) -> str:
         return self.BUILD_VERSION
+
+    def get_all_versions(self) -> list:
+        if not self._manifest_cache:
+            self.FetchManifests()
+        return self._manifest_cache.get("ToolUpdate", {}).get("VersionHistory", [])
+
+    def get_changelog_for_version(self, version: str) -> list:
+        try:
+            if version not in self._changelog_cache:
+                response = requests.get(f"{self.CHANGELOG_BASE_URL}{version}.txt", timeout=10)
+                response.raise_for_status()
+                self._changelog_cache[version] = response.text.splitlines()
+            return self._changelog_cache[version]
+        except Exception as e:
+            logger.error(f"Error fetching changelog for version {version}: {e}")
+            return [f"- Unable to fetch changelog for v{version}"]
 # --
     def FetchManifests(self) -> None:
         try:

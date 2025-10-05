@@ -6,7 +6,6 @@ import hashlib
 import requests
 import pickle
 import zlib
-import traceback
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List, Callable
 import xml.etree.ElementTree as ET
@@ -21,10 +20,12 @@ from Core.ErrorHandler import ErrorHandler
 from Core.GameProfile import GameProfileManager, GameProfile
 
 try:
-    from Core.FIFAModMetaReader import FIFAModMetaReader # type: ignore
+    from Core.FIFAModMetaReader import ModReaderFactory # type: ignore
 except ModuleNotFoundError:
-    FIFAModMetaReader = None
+    ModReaderFactory = None
     logger.warning("Core.FIFAModMetaReader module not available in the source code.")
+
+from Libraries.SteamDDLib.app.manifest_parser import Manifest
 
 class GameManager:
     def __init__(self):
@@ -50,6 +51,8 @@ class GameManager:
         self._index_cache = {}
         self._live_editor_versions_cache = {}
         self._mods_cache = {}
+        self._depot_manifest_cache = {}
+        self._depot_changelog_cache = {}
 
     # region Getters for Keys and Constants
     def getTitleUpdateSHA1Key(self) -> str: return "SHA1"
@@ -165,18 +168,42 @@ class GameManager:
         valid_paths = {}
         if emit_status and is_rescan: emit_status([("Rescanning for games...", "white")])
         for profile in self.profile_manager.get_all_profiles():
-            try:
-                with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, profile.registry_key) as key:
-                    install_dir, _ = winreg.QueryValueEx(key, profile.registry_value_name)
-                    install_dir = os.path.normpath(install_dir)
-                    game_path = os.path.join(install_dir, profile.exe_name)
-                    if os.path.exists(game_path):
-                        valid_paths[profile.exe_name] = install_dir
-                        logger.info(f"Game found: {profile.exe_name}")
-            except FileNotFoundError:
-                logger.info(f"Registry key not found for: {profile.exe_name}")
-            except Exception as e:
-                ErrorHandler.handleError(f"Error accessing registry for {profile.exe_name}: {e}")
+            keys_to_check = profile.registry_key if isinstance(profile.registry_key, list) else [profile.registry_key]
+            
+            found_game_for_profile = False
+
+            for key_path in keys_to_check:
+                try:
+                    with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, key_path) as key:
+                        install_dir, _ = winreg.QueryValueEx(key, profile.registry_value_name)
+                        install_dir = os.path.normpath(install_dir)
+                        game_path = os.path.join(install_dir, profile.exe_name)
+                        if os.path.exists(game_path):
+                            valid_paths[profile.exe_name] = install_dir
+                            logger.info(f"Game found: {profile.exe_name}")
+                            
+                            found_game_for_profile = True
+                            break
+                except FileNotFoundError:
+                    continue
+                except Exception as e:
+                    ErrorHandler.handleError(f"Error accessing registry for {profile.exe_name} at {key_path}: {e}")
+
+            if not found_game_for_profile:
+                logger.info(f"Game not found in registry path for: {profile.exe_name}")
+
+        manual_paths = ConfigManager().getConfigKeyManuallyAddedGames()
+        for path in manual_paths:
+            if not os.path.isdir(path):
+                continue
+            for profile in self.profile_manager.get_all_profiles():
+                exe_path = os.path.join(path, profile.exe_name)
+                if os.path.exists(exe_path):
+                    if profile.exe_name not in valid_paths:
+                        valid_paths[profile.exe_name] = path
+                        logger.info(f"Manually added game found: {profile.exe_name}")
+                    break
+                
         return valid_paths
 
     def getSelectedGameId(self, game_root_path: str) -> str:
@@ -700,10 +727,24 @@ class GameManager:
             for tu in title_updates:
                 patch_id = tu.get(self.getTitleUpdatePatchIDKey())
                 tu_name_full = tu.get(self.getTitleUpdateNameKey())
+
+                if not patch_id or not tu_name_full:
+                    continue
+
+                short_name = ""
+                if "title update" in tu_name_full.lower():
+                    match = re.search(r'title update\s+([\d\.]+)', tu_name_full, re.IGNORECASE)
+                    if match:
+                        short_name = f"TU {match.group(1).strip()}"
+                else:
+                    match = re.search(r'(\d+(\.\d+)+)', tu_name_full)
+                    if match:
+                        short_name = f"v{match.group(1).strip()}"
                 
-                if patch_id and tu_name_full and "Title Update" in tu_name_full:
-                    short_name = tu_name_full.replace("Title Update", "TU").split(" - ")[-1].strip()
-                    patch_id_to_tu_map[patch_id] = short_name
+                if not short_name:
+                    short_name = tu_name_full.split(' - ')[-1].strip()
+
+                patch_id_to_tu_map[patch_id] = short_name
 
             folders_to_rename = []
             folder_name_pattern = re.compile(r"From (\d+) to (\d+)(?: \((.+)\))?")
@@ -719,7 +760,7 @@ class GameManager:
                         end_name = patch_id_to_tu_map.get(id2)
 
                         if start_name and end_name:
-                            suffix = f" {date}" if date else folder_name.split(f"{id2}")[-1]
+                            suffix = f" ({date})" if date else folder_name.split(f"{id2}")[-1]
                             new_name = f"From {start_name} to {end_name}{suffix}"
                             if new_name != folder_name:
                                 folders_to_rename.append({
@@ -791,8 +832,9 @@ class GameManager:
         if custom_file_paths:
             for mod_file_path in custom_file_paths:
                 try:
-                    mod_reader = FIFAModMetaReader(mod_file_path)
-                    mod_data = mod_reader.read()
+                    mod_reader_instance = ModReaderFactory.get_reader(mod_file_path)
+                    mod_data = mod_reader_instance.read()
+                    
                     if not mod_data or mod_data.game_profile.lower() != game_id.lower():
                         continue
                     
@@ -839,8 +881,8 @@ class GameManager:
                     for mod_filename in all_mod_files:
                         mod_file_path = os.path.join(mods_folder, mod_filename)
                         try:
-                            mod_reader = FIFAModMetaReader(mod_file_path)
-                            mod_data = mod_reader.read()
+                            mod_reader_instance = ModReaderFactory.get_reader(mod_file_path)
+                            mod_data = mod_reader_instance.read()
                             if not mod_data or mod_data.game_profile.lower() != game_id.lower():
                                 continue
                             all_mods_data.append({"filename": mod_filename, "file_path": mod_file_path, "data": mod_data})
@@ -980,4 +1022,53 @@ class GameManager:
         return (data := self.fetchLiveEditorVersionsData(config_mgr)) and data.get("le_ver", {})
     def getLiveEditorCompatibility(self, config_mgr: ConfigManager) -> Optional[Dict]:
         return (data := self.fetchLiveEditorVersionsData(config_mgr)) and data.get("compatibility", {})
+
+    def fetchDepotManifest(self, game_id: str, depot_type: str, depot_id: str, manifest_id: str) -> Optional[Manifest]:
+        """Fetches and parses a depot manifest file from GitHub directly into memory."""
+        url = f"https://raw.githubusercontent.com/{GITHUB_ACC}/{UPDATES_REPO}/main/Profiles/{game_id}/Depot/Manifests/{depot_type}/manifest_{depot_id}_{manifest_id}.txt"
+
+        if url in self._depot_manifest_cache:
+            return self._depot_manifest_cache[url]
+
+        try:
+            response = requests.get(url, timeout=self.TIMEOUT)
+            response.raise_for_status()
+            manifest_content = response.text
+
+            manifest_data = Manifest.from_string(manifest_content)
+
+            self._depot_manifest_cache[url] = manifest_data
+            return manifest_data
+
+        except requests.RequestException as e:
+            logger.error(f"Failed to fetch depot manifest from {url}: {e}")
+            return None
+        except ValueError as e:
+            ErrorHandler.handleError(f"Failed to parse manifest file from {url}: {e}")
+            return None
+        except Exception as e:
+            ErrorHandler.handleError(f"An unexpected error occurred while processing manifest {url}: {e}")
+            return None
+        
+    def fetchDepotChangelog(self, game_id: str, depot_type: str, manifest_id: str) -> Optional[Dict]:
+        url = f"https://raw.githubusercontent.com/{GITHUB_ACC}/{UPDATES_REPO}/main/Profiles/{game_id}/Depot/Changelogs/{depot_type}/{manifest_id}.json"
+
+        if url in self._depot_changelog_cache:
+            return self._depot_changelog_cache[url]
+
+        try:
+            response = requests.get(url, timeout=self.TIMEOUT)
+            response.raise_for_status()
+            data = response.json()
+            self._depot_changelog_cache[url] = data
+            return data
+        except requests.RequestException as e:
+            logger.error(f"Failed to fetch depot changelog from {url}: {e}")
+            return None
+
+    def getDepotTypeMain(self) -> str:
+        return "Main"
+
+    def getDepotTypeLanguage(self) -> str:
+        return "Language"
     # endregion

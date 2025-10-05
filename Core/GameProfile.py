@@ -44,7 +44,10 @@ class FC24Profile(GameProfile):
     id = "FC24"
     display_name = "EA SPORTS FC 24"
     exe_name = "FC24.exe"
-    registry_key = r"SOFTWARE\EA SPORTS\EA SPORTS FC 24"
+    registry_key = [
+        r"SOFTWARE\Wow6432Node\EA Games\EA Sports FC 24",
+        r"SOFTWARE\EA SPORTS\EA SPORTS FC 24"
+    ]
     steam_app_id = 2195250
     
     app_data_folder_name = "FC 24"
@@ -61,7 +64,10 @@ class FC25Profile(GameProfile):
     id = "FC25"
     display_name = "EA SPORTS FC 25"
     exe_name = "FC25.exe"
-    registry_key = r"SOFTWARE\EA SPORTS\EA SPORTS FC 25"
+    registry_key = [
+        r"SOFTWARE\WOW6432Node\EA Sports\EA SPORTS FC 25",
+        r"SOFTWARE\EA SPORTS\EA SPORTS FC 25"
+    ]
     steam_app_id = 2669321
     
     app_data_folder_name = display_name
@@ -72,7 +78,10 @@ class FC26Profile(GameProfile):
     id = "FC26"
     display_name = "EA SPORTS FC 26"
     exe_name = "FC26.exe"
-    registry_key = r"SOFTWARE\EA SPORTS\EA SPORTS FC 26"
+    registry_key = [
+        r"SOFTWARE\WOW6432Node\EA Sports\EA SPORTS FC 26",
+        r"SOFTWARE\EA SPORTS\EA SPORTS FC 26"
+    ]
     steam_app_id = 3405690
     
     app_data_folder_name = display_name

@@ -1,9 +1,11 @@
 import os
+import subprocess
 from typing import List
-from PySide6.QtWidgets import QVBoxLayout, QHeaderView, QFrame, QTableWidgetItem, QAbstractItemView
-from PySide6.QtCore import Qt, QFileSystemWatcher, Signal, QDateTime
-from PySide6.QtGui import QColor
-from qfluentwidgets import TableWidget
+from PySide6.QtWidgets import (QVBoxLayout, QHeaderView, QFrame, QTableWidgetItem, 
+                               QAbstractItemView, QApplication)
+from PySide6.QtCore import Qt, QFileSystemWatcher, Signal, QDateTime, QPoint, QUrl
+from PySide6.QtGui import QColor, QAction, QDesktopServices
+from qfluentwidgets import TableWidget, FluentIcon, RoundMenu
 
 from Core.Logger import logger
 from Core.MainDataManager import MainDataManager
@@ -94,7 +96,7 @@ class BaseTable(QFrame):
             update_sha = update.get(self.sha1_key, "")
             if self.uses_sha1 and current_sha_config and update_sha == current_sha_config:
                 name_key = self._get_name_key()
-                logger.debug(f"Found updated update: {update.get(name_key, 'Unknown')} with SHA1 {update_sha}")
+                logger.debug(f"Found installed update: {update.get(name_key, 'Unknown')} with SHA1 {update_sha}")
             self._fill_table_row(row, update, current_sha_config, profile_files)
 
         for col_idx, header in enumerate(self.ordered_headers):
@@ -200,6 +202,9 @@ class BaseTable(QFrame):
         self.table.itemDelegate().setPriorityOrder(["pressed", "selected", "hover", "alternate"])
         self.table.itemDelegate().setShowIndicator(True)
         self.table.itemDelegate().setRowBorderRadius(0)
+        
+        self.table.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.table.customContextMenuRequested.connect(self._show_context_menu)
 
     def _setup_file_watcher(self):
         self.watcher = QFileSystemWatcher(self)
@@ -215,6 +220,76 @@ class BaseTable(QFrame):
                 self.game_settings_folder_watcher.addPath(settings_path)
                 logger.debug(f"File watcher set up for game settings directory: {settings_path}")
             self.game_settings_folder_watcher.directoryChanged.connect(self.update_table)
+
+    def _show_context_menu(self, pos: QPoint):
+        item = self.table.itemAt(pos)
+        if not item:
+            return
+
+        row = item.row()
+        updates_list = self.game_content.get(self.content_key, [])
+        if row >= len(updates_list):
+            return
+            
+        update_data = updates_list[row]
+        menu = RoundMenu(parent=self.table)
+
+        def add_copy_action(key, display_name, icon=FluentIcon.COPY):
+            value = update_data.get(key)
+            if value:
+                action = QAction(f"Copy {display_name}", menu)
+                action.setIcon(icon.icon())
+                action.triggered.connect(lambda checked=False, text=value: QApplication.clipboard().setText(str(text)))
+                menu.addAction(action)
+
+        if self.tab_key == self.game_manager.getTabKeyTitleUpdates():
+            add_copy_action(self.game_manager.getTitleUpdateNameKey(), "Name")
+            add_copy_action(self.game_manager.getTitleUpdateSemVerKey(), "Semantic Version")
+            add_copy_action(self.game_manager.getTitleUpdatePatchIDKey(), "Patch ID")
+            add_copy_action(self.game_manager.getTitleUpdateSHA1Key(), "SHA1", icon=FluentIcon.FINGERPRINT)
+            add_copy_action(self.game_manager.getTitleUpdateReleasedDateKey(), "Release Date")
+            add_copy_action(self.game_manager.getTitleUpdateRelativeDateKey(), "Relative Date")
+            add_copy_action(self.game_manager.getTitleUpdateDownloadURLKey(), "Download URL")
+            menu.addSeparator()
+            add_copy_action(self.game_manager.getTitleUpdateMainManifestIDKey(), "Main Manifest ID")
+            add_copy_action(self.game_manager.getTitleUpdateEngUsManifestIDKey(), "eng_us Manifest ID")
+
+        elif self.tab_key in [self.game_manager.getTabKeySquadsUpdates(), self.game_manager.getTabKeyFutSquadsUpdates()]:
+            add_copy_action(self._get_name_key(), "Name")
+            add_copy_action(self._get_released_date_key(), "Release Date")
+            add_copy_action(self._get_relative_date_key(), "Relative Date")
+            add_copy_action(self.game_manager.getSquadsBuildDateKey(), "Build Date")
+            add_copy_action(self.game_manager.getSquadsReleasedOnTUKey(), "Released On TU")
+            add_copy_action(self.game_manager.getSquadsSizeKey(), "Size")
+            add_copy_action(self.game_manager.getSquadsDbMajorKey(), "DB Major Version")
+
+        update_name = update_data.get(self._get_name_key())
+        if update_name and self.specific_monitor_dir:
+            found_path = None
+            for ext in self.main_data_manager.getCompressedFileExtensions() + [""]:
+                potential_path = os.path.join(self.specific_monitor_dir, update_name + ext)
+                if os.path.exists(potential_path):
+                    found_path = potential_path
+                    break
+            
+            if found_path:
+                menu.addSeparator()
+                locate_action = QAction("Locate in Profile Folder", menu)
+                locate_action.setIcon(FluentIcon.FOLDER.icon())
+                locate_action.triggered.connect(lambda: self._open_file_in_explorer(found_path))
+                menu.addAction(locate_action)
+
+        if menu.actions():
+            menu.exec(self.table.mapToGlobal(pos))
+
+    def _open_file_in_explorer(self, path: str):
+        try:
+            if os.name == 'nt':
+                subprocess.Popen(f'explorer /select,"{os.path.normpath(path)}"')
+            else:
+                QDesktopServices.openUrl(QUrl.fromLocalFile(os.path.dirname(path)))
+        except Exception as e:
+            ErrorHandler.handleError(f"Failed to open file in explorer: {e}")
 
     def _order_headers(self):
         if not self.visible_headers:

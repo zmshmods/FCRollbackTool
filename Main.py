@@ -27,6 +27,8 @@ from UIWindows.SquadsTablesFetcherWindow import SquadsTablesFetcherWindow
 from UIWindows.SquadsChangelogsFetcherWindow import SquadsChangelogsFetcherWindow
 from UIWindows.ToolUpdaterWindow import ToolUpdaterWindow
 from UIWindows.PatchNotesWindow import PatchNotesWindow
+from UIWindows.FilesChangelogWindow import FilesChangelogWindow
+
 
 from Core.Logger import logger
 from Core.ToolUpdateManager import ToolUpdateManager
@@ -286,6 +288,7 @@ class ButtonManager:
         self.download_windows: List[QWidget] = []
         self.install_windows: List[QWidget] = []
         self.patch_notes_windows: List[QWidget] = []
+        self.files_changelog_windows: List[QWidget] = []
 
     def create_buttons(self):
         try:
@@ -293,7 +296,7 @@ class ButtonManager:
                 "settings": ("", FluentIcon.SETTING, self.open_settings, "settings_button"),
                 "change_game": ("", FluentIcon.GAME, self.change_game, "change_game"),
                 "open_profile": ("", FluentIcon.FOLDER, self.open_profile_folder, "open_profile_folder"),
-                "unistall": (" Unistall", FluentIcon.DELETE, self.unistall_installed_file, "unistall_squad_button"),
+                "uninstall": (" Uninstall", FluentIcon.DELETE, self.uninstall_installed_file, "uninstall_squad_button"),
                 "install": (
                     " Install", FluentIcon.FOLDER_ADD, self.start_install, "install_button",
                     "border-top-right-radius: 0px; border-bottom-right-radius: 0px;"
@@ -323,8 +326,13 @@ class ButtonManager:
                     "", FluentIcon.LINK, self.open_patch_notes_url, "open_patch_notes_url_button",
                     "QPushButton { border-top-left-radius: 0px; border-bottom-left-radius: 0px; border-left: 1px solid rgba(255, 255, 255, 0.1); }",
                     (28, 28), (14, 14)
-                )
+                ),
+                "files_changelog": (
+                    " Files Changelog", FluentIcon.HISTORY, self.open_files_changelog, "files_changelog_button"
+                ),
+
             }
+
             for name, config in button_configs.items():
                 btn = QPushButton(config[0])
                 btn.setIcon(config[1].icon(Theme.DARK))
@@ -336,7 +344,7 @@ class ButtonManager:
                         btn.setFixedSize(*config[5])
                         btn.setIconSize(QSize(*config[6]))
                 self.buttons[name] = btn
-                if name in ["download", "install", "install_options", "download_options", "patch_notes", "patch_notes_options", "unistall"]:
+                if name in ["download", "install", "install_options", "download_options", "patch_notes", "patch_notes_options", "uninstall"]:
                     btn.setEnabled(False)
             self._setup_button_layout()
             return self.btn_container
@@ -369,12 +377,13 @@ class ButtonManager:
         for btn_name in ["settings", "change_game", "open_profile"]:
             btn_layout.addWidget(self.buttons[btn_name])
         btn_layout.addStretch()
-        btn_layout.addWidget(self.buttons["unistall"])
+        btn_layout.addWidget(self.buttons["uninstall"])
         btn_layout.addLayout(install_layout)
         btn_layout.addLayout(download_layout)
         for btn_name in ["fetch_tables", "fetch_changelogs", "open_url"]:
             btn_layout.addWidget(self.buttons[btn_name])
         btn_layout.addLayout(patch_notes_layout)
+        btn_layout.addWidget(self.buttons["files_changelog"])
         self.btn_container = QWidget(objectName="ButtonContainer", fixedHeight=45)
         self.btn_container.setLayout(btn_layout)
 
@@ -384,8 +393,8 @@ class ButtonManager:
             return
 
         try:
-            action_buttons = ["download", "download_options", "install", "install_options", "unistall",
-                              "fetch_tables", "fetch_changelogs", "open_url", "patch_notes", "patch_notes_options"]
+            action_buttons = ["download", "download_options", "install", "install_options", "uninstall",
+                              "fetch_tables", "fetch_changelogs", "open_url", "patch_notes", "patch_notes_options", "files_changelog"]
             for btn_name in action_buttons:
                 if btn_name in self.buttons:
                     self.buttons[btn_name].setEnabled(False)
@@ -413,6 +422,7 @@ class ButtonManager:
             self.buttons["open_url"].setEnabled(is_tu)
             self.buttons["patch_notes"].setEnabled(is_tu)
             self.buttons["patch_notes_options"].setEnabled(is_tu)
+            self.buttons["files_changelog"].setEnabled(is_tu)
 
             if status_text == status_mapping.get("AvailableForDownload", {}).get("text", ""):
                 self.buttons["download"].setEnabled(True)
@@ -422,7 +432,7 @@ class ButtonManager:
                 self.buttons["download"].setEnabled(True)
                 self.buttons["download_options"].setEnabled(True)
                 self.buttons["download"].setText(" Re-Download")
-                self.buttons["unistall"].setEnabled(True)
+                self.buttons["uninstall"].setEnabled(True)
 
                 update_name = self.game_manager.getSelectedUpdate(tab_key, table_component)
                 if update_name:
@@ -459,13 +469,15 @@ class ButtonManager:
     def update_button_visibility(self, tab_key: str):
         try:
             visibility = {
-                "unistall": tab_key in [self.game_manager.getTabKeySquadsUpdates(), self.game_manager.getTabKeyFutSquadsUpdates()],
+                "uninstall": tab_key in [self.game_manager.getTabKeySquadsUpdates(), self.game_manager.getTabKeyFutSquadsUpdates()],
                 "patch_notes": tab_key == self.game_manager.getTabKeyTitleUpdates(),
                 "patch_notes_options": tab_key == self.game_manager.getTabKeyTitleUpdates(),
                 "open_url": tab_key == self.game_manager.getTabKeyTitleUpdates(),
                 "fetch_tables": tab_key in [self.game_manager.getTabKeySquadsUpdates(), self.game_manager.getTabKeyFutSquadsUpdates()],
-                "fetch_changelogs": tab_key in [self.game_manager.getTabKeySquadsUpdates(), self.game_manager.getTabKeyFutSquadsUpdates()]
+                "fetch_changelogs": tab_key in [self.game_manager.getTabKeySquadsUpdates(), self.game_manager.getTabKeyFutSquadsUpdates()],
+                "files_changelog": tab_key == self.game_manager.getTabKeyTitleUpdates(),
             }
+
             for btn_name, visible in visibility.items():
                 self.buttons[btn_name].setVisible(visible)
         except Exception as e:
@@ -505,6 +517,60 @@ class ButtonManager:
 
     def open_changelogs(self):
         self._open_child_window(SquadsChangelogsFetcherWindow, (), self.changelogs_windows)
+
+    def open_files_changelog(self):
+        try:
+            tab_key = self.game_manager.getTabKeys()[self.main_container.tab_container.currentIndex()]
+            table_component = self.main_container.get_table_component(tab_key)
+            if not table_component:
+                raise ValueError("No table component found for the current tab.")
+
+            selected_row = table_component.table.currentRow()
+            if selected_row < 0:
+                return
+
+            profile_type, _ = self.main_window.get_tab_info(tab_key)
+            game_content_for_profile = self.main_window.game_content.get(profile_type, {})
+            
+            main_depot_id = game_content_for_profile.get(self.game_manager.getTitleUpdateMainDepotIDKey())
+            eng_us_depot_id = game_content_for_profile.get(self.game_manager.getTitleUpdateEngUsDepotIDKey())
+            
+            updates = game_content_for_profile.get(self.game_manager.getContentKeyTitleUpdate(), [])
+            if not updates or selected_row >= len(updates):
+                raise ValueError("Update list is invalid or row is out of bounds.")
+            
+            update_item = updates[selected_row]
+            main_manifest_id = update_item.get(self.game_manager.getTitleUpdateMainManifestIDKey())
+            eng_us_manifest_id = update_item.get(self.game_manager.getTitleUpdateEngUsManifestIDKey())
+            
+            if not main_manifest_id:
+                ErrorHandler.handleError("No Manifest ID found for this update.")
+                return
+
+            game_id = self.game_manager.getSelectedGameId(self.config_manager.getConfigKeySelectedGame())
+            
+            game_root_path = self.config_manager.getConfigKeySelectedGame()
+            if not game_root_path:
+                ErrorHandler.handleError("Could not determine the selected game path.")
+                return
+
+            changelog_window = FilesChangelogWindow(
+                game_manager=self.game_manager,
+                game_root_path=game_root_path,
+                game_id=game_id,
+                main_depot_id=main_depot_id,
+                eng_us_depot_id=eng_us_depot_id,
+                main_manifest_id=main_manifest_id,
+                eng_us_manifest_id=eng_us_manifest_id,
+                update_name=update_item.get(self.game_manager.getTitleUpdateNameKey(), "Unknown Update")
+            )
+            
+            self.files_changelog_windows.append(changelog_window)
+            changelog_window.show()
+            MainWindow.center_child_window(self.main_window, changelog_window)
+
+        except Exception as e:
+            ErrorHandler.handleError(f"Failed to open depot changelog window: {str(e)}")
 
     def patch_notes(self):
         try:
@@ -675,7 +741,7 @@ class ButtonManager:
         except Exception as e:
             ErrorHandler.handleError(f"Failed to start installation of {update_name}: {str(e)}")
 
-    def unistall_installed_file(self):
+    def uninstall_installed_file(self):
         try:
             tab_key = self.game_manager.getTabKeys()[self.main_container.tab_container.currentIndex()]
             table_component = self.main_container.get_table_component(tab_key)
@@ -685,14 +751,14 @@ class ButtonManager:
                 return
 
             settings_path = self.game_manager.getGameSettingsFolderPath(self.config_manager.getConfigKeySelectedGame())
-            file_to_unistall = os.path.join(settings_path, update_name)
+            file_to_uninstall = os.path.join(settings_path, update_name)
 
-            if os.path.exists(file_to_unistall):
-                os.remove(file_to_unistall)
-                logger.info(f"Successfully unistall squads file: {file_to_unistall}")
+            if os.path.exists(file_to_uninstall):
+                os.remove(file_to_uninstall)
+                logger.info(f"Successfully uninstall squads file: {file_to_uninstall}")
         
         except Exception as e:
-            ErrorHandler.handleError(f"Failed to unistall file: {str(e)}")
+            ErrorHandler.handleError(f"Failed to uninstall file: {str(e)}")
 
     def show_install_options(self):
         try:

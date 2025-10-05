@@ -35,7 +35,8 @@ class ConfigManager:
         self.default_config = {
             "GameConfig": {
                 "SelectedGame": None,
-                "SHA1": None
+                "SHA1": None,
+                "ManuallyAddedGames": []
             },
             "Settings": {
                 "InstallationOptions": {
@@ -169,6 +170,7 @@ class ConfigManager:
 
     def getConfigKeySelectedGame(self) -> str: return self._get_config_value("GameConfig", "SelectedGame", "")
     def getConfigKeySHA1(self) -> Optional[str]: return self._get_config_value("GameConfig", "SHA1")
+    def getConfigKeyManuallyAddedGames(self) -> List[str]: return self._get_config_value("GameConfig", "ManuallyAddedGames", [])
     def getConfigKeyBackupGameSettingsFolder(self) -> bool: return self._get_config_value("Settings", "BackupGameSettingsFolder", True, "InstallationOptions")
     def getConfigKeyBackupTitleUpdate(self) -> bool: return self._get_config_value("Settings", "BackupTitleUpdate", False, "InstallationOptions")
     def getConfigKeyDeleteStoredTitleUpdate(self) -> bool: return self._get_config_value("Settings", "DeleteStoredTitleUpdate", False, "InstallationOptions")
@@ -181,7 +183,7 @@ class ConfigManager:
     def getConfigKeyLogDownloadProgress(self) -> bool: return self._get_config_value("Settings", "LogDownloadProgress", False, "DownloadOptions")
     def getConfigKeyAutoUseIDM(self) -> bool: return self._get_config_value("Settings", "AutoUseIDM", False, "DownloadOptions")
     def getConfigKeyIDMPath(self) -> Optional[str]: return self._get_config_value("Settings", "IDMPath", None, "DownloadOptions")
-    def getConfigKeyLastUsedTab(self) -> str: return self._get_config_value(" ard", "LastUsedTab", "TitleUpdates", "Visual")
+    def getConfigKeyLastUsedTab(self) -> str: return self._get_config_value("Settings", "LastUsedTab", "TitleUpdates", "Visual")
     def getConfigKeyTableColumns(self, table: str, default_columns: List[str] = None) -> List[str]:
         defaults = self.default_config["Settings"]["Visual"]["TableColumns"]
         return self._get_config_value("Settings", "TableColumns", defaults, "Visual").get(table, default_columns or [])
@@ -212,6 +214,7 @@ class ConfigManager:
     
     def setConfigKeySelectedGame(self, game_path: str) -> None: self._set_config_value("GameConfig", "SelectedGame", game_path)
     def setConfigKeySHA1(self, sha1: str) -> None: self._set_config_value("GameConfig", "SHA1", sha1) 
+    def setConfigKeyManuallyAddedGames(self, paths: List[str]) -> None: self._set_config_value("GameConfig", "ManuallyAddedGames", paths)
     def setConfigKeyBackupGameSettingsFolder(self, value: bool) -> None: self._set_config_value("Settings", "BackupGameSettingsFolder", value, "InstallationOptions")
     def setConfigKeyBackupTitleUpdate(self, value: bool) -> None: self._set_config_value("Settings", "BackupTitleUpdate", value, "InstallationOptions")
     def setConfigKeyDeleteStoredTitleUpdate(self, value: bool) -> None: self._set_config_value("Settings", "DeleteStoredTitleUpdate", value, "InstallationOptions")

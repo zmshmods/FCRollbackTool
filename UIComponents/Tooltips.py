@@ -96,7 +96,7 @@ TOOLTIPS = {
     "download_options_button": {"text": "Download Options", "position": ToolTipPosition.BOTTOM_LEFT, "delay": 880},
     "open_url_button": {"text": "Open download URL in browser", "position": ToolTipPosition.TOP, "delay": 880},
     "open_profile_folder": {"text": "Open game profile folder", "position": ToolTipPosition.TOP, "delay": 880},
-    "unistall_squad_button": {"text": "Unistall squads file", "position": ToolTipPosition.TOP, "delay": 880},
+    "uninstall_squad_button": {"text": "Uninstall squads file", "position": ToolTipPosition.TOP, "delay": 880},
     "install_button": {"text": "Auto Install the selected update", "position": ToolTipPosition.TOP, "delay": 880},
     "install_options_button": {"text": "Installation Options", "position": ToolTipPosition.BOTTOM_LEFT, "delay": 880},
     "launch_game_button": {"text": "Launch the game", "position": ToolTipPosition.BOTTOM_LEFT, "delay": 880},
