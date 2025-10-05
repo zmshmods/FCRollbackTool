@@ -170,3 +170,4 @@ nuitka-crash-report.xml
 *.lnk
 /.FRTEXE
 cd
+compile_log.txt
