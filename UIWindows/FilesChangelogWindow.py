@@ -154,7 +154,6 @@ class FileListItemDelegate(ListItemDelegate):
         elided_text = fm_name.elidedText(name, Qt.ElideMiddle, available_width)
 
         painter.setFont(name_font)
-        painter.setPen(option.palette.color(QPalette.ColorRole.Text))
         painter.drawText(QRect(left_bound, option.rect.y(), available_width, option.rect.height()), Qt.AlignVCenter | Qt.AlignLeft, elided_text)
 
         if size_text:
@@ -166,7 +165,7 @@ class FileListItemDelegate(ListItemDelegate):
             elif size_diff < 0:
                 painter.setPen(QColor("#FF99A4"))
             else:
-                painter.setPen(option.palette.color(QPalette.ColorRole.Text))
+                painter.setPen(QColor(200, 200, 200))
             painter.setFont(badge_font)
             painter.drawText(size_rect, Qt.AlignVCenter | Qt.AlignLeft, size_text)
 
@@ -502,12 +501,16 @@ class FilesChangelogWindow(BaseWindow):
         self.filter_type_combo.currentTextChanged.connect(self._populate_list)
 
         self.depot_combo = ComboBox()
-        self.depot_combo.addItems(["All Depots", "Main", "Language (eng_us)"])
+
+        depot_items = ["All Depots", "Main"]
+        if self.eng_us_manifest_id:
+            depot_items.append("Language (eng_us)")
+
+        self.depot_combo.addItems(depot_items)
+
         self.depot_combo.setFixedWidth(140)
         self.depot_combo.setFixedHeight(28)
         self.depot_combo.currentIndexChanged.connect(self._populate_list)
-        if not self.eng_us_manifest_id:
-            self.depot_combo.model().item(2).setEnabled(False)
 
         layout.addWidget(BodyLabel("View:"))
         layout.addWidget(self.view_mode_combo)
