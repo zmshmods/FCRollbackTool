@@ -162,6 +162,7 @@ cython_debug/
 config.json
 Core/key.py
 Core/FIFAModMetaReader.py
+Core/FIFAModMetaReaderV2.py
 Compile.py
 Profiles/
 Logs/
