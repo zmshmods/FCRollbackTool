@@ -18,7 +18,7 @@ from Core.DownloadCore import DownloadCore
 
 # Window Constants
 WINDOW_TITLE = "Downloading: {}"
-WINDOW_SIZE = (420, 220)
+WINDOW_SIZE = (460, 250)
 THEME_COLOR = "#00FF00"
 ICON_PATH = "Data/Assets/Icons/FRICON.png"
 SPACER_WIDTH = 75

@@ -192,11 +192,52 @@ class InstallCore(QThread):
             main_data_mgr = MainDataManager()
             ext = os.path.splitext(self.file_path)[1].lower()
             is_compressed = ext in main_data_mgr.getCompressedFileExtensions()
-            file_path, dest_dir = Path(self.file_path).resolve(), Path(self.game_path).resolve()
+            file_path, dest_dir = Path(
+                self.file_path).resolve(), Path(self.game_path).resolve()
 
-            self.emit_state(InstallState.INSTALLING_FILES, 0, os.path.basename(self.file_path))
+            # Clean the destination directory
+            logger.info(
+                f"Cleaning game directory before install: {dest_dir}")
+            data_folder_name_lower = "data"
+            try:
+                if not os.path.exists(dest_dir):
+                    logger.warning(f"Game directory not found, skipping clean: {dest_dir}")
+                else:
+                    for item_name in os.listdir(dest_dir):
+                        if self.is_canceled:
+                            return
 
-            expected_exes = [p.exe_name for p in self.game_mgr.profile_manager.get_all_profiles()]
+                        if item_name.lower() == data_folder_name_lower:
+                            logger.debug(f"Skipping deletion of: {item_name}")
+                            continue
+
+                        item_path = os.path.join(dest_dir, item_name)
+
+                        try:
+                            if os.path.isdir(item_path):
+                                shutil.rmtree(item_path)
+                                logger.debug(f"Deleted directory: {item_path}")
+                            elif os.path.isfile(item_path):
+                                os.remove(item_path)
+                                logger.debug(f"Deleted file: {item_path}")
+                        except PermissionError as pe:
+                            logger.error(
+                                f"Permission error while cleaning {item_path}: {str(pe)}")
+                            raise pe
+                        except Exception as e:
+                            logger.warning(
+                                f"Failed to delete {item_path} during pre-install clean: {str(e)}")
+
+            except Exception as e:
+                logger.error(
+                    f"Failed during pre-install cleaning of {dest_dir}: {str(e)}")
+                raise e 
+
+            self.emit_state(InstallState.INSTALLING_FILES,
+                            0, os.path.basename(self.file_path))
+
+            expected_exes = [
+                p.exe_name for p in self.game_mgr.profile_manager.get_all_profiles()]
 
             if is_compressed:
                 pwd = main_data_mgr.getKey()
@@ -207,8 +248,9 @@ class InstallCore(QThread):
                     rarfile.UNRAR_TOOL = unrar
                     with rarfile.RarFile(str(file_path)) as rf:
                         rf.setpassword(pwd)
-                        archive_files = [item.filename for item in rf.infolist() if not item.is_dir()]
-                        
+                        archive_files = [
+                            item.filename for item in rf.infolist() if not item.is_dir()]
+
                         root_dir = None
                         exe_path = None
                         found_exes = []
@@ -218,46 +260,56 @@ class InstallCore(QThread):
                             if os.path.basename(file).lower() in [exe.lower() for exe in expected_exes]:
                                 exe_path = file
                                 root_dir = os.path.dirname(file)
-                                logger.debug(f"Found executable: {os.path.basename(file)} at: {file}, root directory: {root_dir}")
+                                logger.debug(
+                                    f"Found executable: {os.path.basename(file)} at: {file}, root directory: {root_dir}")
                                 break
                         if not exe_path:
-                            raise ValueError(f"No expected executable ({', '.join(expected_exes)}), Please ensure the archive or folder you want to install it contains the game's executable file")
+                            raise ValueError(
+                                f"No expected executable ({', '.join(expected_exes)}), Please ensure the archive or folder you want to install it contains the game's executable file")
 
                         files_to_extract = archive_files if not root_dir else [
                             f for f in archive_files
                             if f.startswith(root_dir + '/') or f == exe_path
                         ]
-                        logger.debug(f"Extracting {len(files_to_extract)} files from root directory: {root_dir or 'archive root'}")
+                        logger.debug(
+                            f"Extracting {len(files_to_extract)} files from root directory: {root_dir or 'archive root'}")
 
                         for i, file in enumerate(files_to_extract):
                             if self.is_canceled:
                                 return
-                            rel_path = file.replace(os.sep, '/') if not root_dir else os.path.relpath(file, root_dir).replace(os.sep, '/')
-                            
+                            rel_path = file.replace(os.sep, '/') if not root_dir else os.path.relpath(
+                                file, root_dir).replace(os.sep, '/')
+
                             final_dest = os.path.join(dest_dir, rel_path)
                             self.delete_existing_file(final_dest)
-                            
+
                             rf.extract(file, path=dest_dir)
                             progress = ((i + 1) / len(files_to_extract)) * 100
-                            self.emit_state(InstallState.INSTALLING_FILES, int(progress), rel_path)
+                            self.emit_state(
+                                InstallState.INSTALLING_FILES, int(progress), rel_path)
                             logger.debug(f"Extracted: {rel_path}")
 
-                        src_root = os.path.join(dest_dir, root_dir) if root_dir else dest_dir
-                        parent_folder = os.path.join(dest_dir, root_dir.split('/')[0]) if root_dir else dest_dir
+                        src_root = os.path.join(
+                            dest_dir, root_dir) if root_dir else dest_dir
+                        parent_folder = os.path.join(
+                            dest_dir, root_dir.split('/')[0]) if root_dir else dest_dir
                         if root_dir and os.path.exists(src_root):
                             files = []
                             for root, _, filenames in os.walk(src_root):
-                                files.extend(os.path.join(root, fname) for fname in filenames)
+                                files.extend(os.path.join(root, fname)
+                                             for fname in filenames)
 
                             for src in files:
                                 if self.is_canceled:
-                                    shutil.rmtree(parent_folder, ignore_errors=True)
+                                    shutil.rmtree(
+                                        parent_folder, ignore_errors=True)
                                     return
-                                rel_path = os.path.relpath(src, src_root).replace(os.sep, '/')
+                                rel_path = os.path.relpath(
+                                    src, src_root).replace(os.sep, '/')
                                 dst = os.path.join(dest_dir, rel_path)
-                                
+
                                 self.delete_existing_file(dst)
-                                
+
                                 os.makedirs(os.path.dirname(dst), exist_ok=True)
                                 shutil.move(src, dst)
                                 logger.debug(f"Moved: {rel_path}")
@@ -265,23 +317,29 @@ class InstallCore(QThread):
                             for root, dirs, _ in os.walk(src_root):
                                 for d in dirs:
                                     src_subdir = os.path.join(root, d)
-                                    rel_subdir = os.path.relpath(src_subdir, src_root).replace(os.sep, '/')
-                                    dst_subdir = os.path.join(dest_dir, rel_subdir)
+                                    rel_subdir = os.path.relpath(
+                                        src_subdir, src_root).replace(os.sep, '/')
+                                    dst_subdir = os.path.join(
+                                        dest_dir, rel_subdir)
                                     os.makedirs(dst_subdir, exist_ok=True)
-                                    logger.debug(f"Moved directly to game path: {dst_subdir}")
+                                    logger.debug(
+                                        f"Moved directly to game path: {dst_subdir}")
 
                             if not os.path.exists(os.path.join(dest_dir, os.path.basename(exe_path))):
-                                raise ValueError(f"Failed to move executable {os.path.basename(exe_path)} to {dest_dir}")
+                                raise ValueError(
+                                    f"Failed to move executable {os.path.basename(exe_path)} to {dest_dir}")
 
                             shutil.rmtree(parent_folder, ignore_errors=True)
-                            logger.debug(f"Removed parent folder: {parent_folder}")
+                            logger.debug(
+                                f"Removed parent folder: {parent_folder}")
 
                 elif ext == ".zip":
                     with zipfile.ZipFile(str(file_path), 'r') as zf:
                         if pwd:
                             zf.setpassword(pwd.encode('utf-8'))
-                        archive_files = [item.filename for item in zf.infolist() if not item.is_dir()]
-                        
+                        archive_files = [
+                            item.filename for item in zf.infolist() if not item.is_dir()]
+
                         root_dir = None
                         exe_path = None
                         found_exes = []
@@ -291,46 +349,56 @@ class InstallCore(QThread):
                             if os.path.basename(file).lower() in [exe.lower() for exe in expected_exes]:
                                 exe_path = file
                                 root_dir = os.path.dirname(file)
-                                logger.debug(f"Found executable: {os.path.basename(file)} at: {file}, root directory: {root_dir}")
+                                logger.debug(
+                                    f"Found executable: {os.path.basename(file)} at: {file}, root directory: {root_dir}")
                                 break
                         if not exe_path:
-                            raise ValueError(f"No expected executable ({', '.join(expected_exes)}), Please ensure the archive or folder you want to install it contains the game's executable file")
+                            raise ValueError(
+                                f"No expected executable ({', '.join(expected_exes)}), Please ensure the archive or folder you want to install it contains the game's executable file")
 
                         files_to_extract = archive_files if not root_dir else [
                             f for f in archive_files
                             if f.startswith(root_dir + '/') or f == exe_path
                         ]
-                        logger.debug(f"Extracting {len(files_to_extract)} files from root directory: {root_dir or 'archive root'}")
+                        logger.debug(
+                            f"Extracting {len(files_to_extract)} files from root directory: {root_dir or 'archive root'}")
 
                         for i, file in enumerate(files_to_extract):
                             if self.is_canceled:
                                 return
-                            rel_path = file.replace(os.sep, '/') if not root_dir else os.path.relpath(file, root_dir).replace(os.sep, '/')
-                            
+                            rel_path = file.replace(os.sep, '/') if not root_dir else os.path.relpath(
+                                file, root_dir).replace(os.sep, '/')
+
                             final_dest = os.path.join(dest_dir, rel_path)
                             self.delete_existing_file(final_dest)
-                            
+
                             zf.extract(file, path=dest_dir)
                             progress = ((i + 1) / len(files_to_extract)) * 100
-                            self.emit_state(InstallState.INSTALLING_FILES, int(progress), rel_path)
+                            self.emit_state(
+                                InstallState.INSTALLING_FILES, int(progress), rel_path)
                             logger.debug(f"Extracted: {rel_path}")
 
-                        src_root = os.path.join(dest_dir, root_dir) if root_dir else dest_dir
-                        parent_folder = os.path.join(dest_dir, root_dir.split('/')[0]) if root_dir else dest_dir
+                        src_root = os.path.join(
+                            dest_dir, root_dir) if root_dir else dest_dir
+                        parent_folder = os.path.join(
+                            dest_dir, root_dir.split('/')[0]) if root_dir else dest_dir
                         if root_dir and os.path.exists(src_root):
                             files = []
                             for root, _, filenames in os.walk(src_root):
-                                files.extend(os.path.join(root, fname) for fname in filenames)
+                                files.extend(os.path.join(root, fname)
+                                             for fname in filenames)
 
                             for src in files:
                                 if self.is_canceled:
-                                    shutil.rmtree(parent_folder, ignore_errors=True)
+                                    shutil.rmtree(
+                                        parent_folder, ignore_errors=True)
                                     return
-                                rel_path = os.path.relpath(src, src_root).replace(os.sep, '/')
+                                rel_path = os.path.relpath(
+                                    src, src_root).replace(os.sep, '/')
                                 dst = os.path.join(dest_dir, rel_path)
-                                
+
                                 self.delete_existing_file(dst)
-                                
+
                                 os.makedirs(os.path.dirname(dst), exist_ok=True)
                                 shutil.move(src, dst)
                                 logger.debug(f"Moved: {rel_path}")
@@ -338,21 +406,27 @@ class InstallCore(QThread):
                             for root, dirs, _ in os.walk(src_root):
                                 for d in dirs:
                                     src_subdir = os.path.join(root, d)
-                                    rel_subdir = os.path.relpath(src_subdir, src_root).replace(os.sep, '/')
-                                    dst_subdir = os.path.join(dest_dir, rel_subdir)
+                                    rel_subdir = os.path.relpath(
+                                        src_subdir, src_root).replace(os.sep, '/')
+                                    dst_subdir = os.path.join(
+                                        dest_dir, rel_subdir)
                                     os.makedirs(dst_subdir, exist_ok=True)
-                                    logger.debug(f"Created directory: {dst_subdir}")
+                                    logger.debug(
+                                        f"Created directory: {dst_subdir}")
 
                             if not os.path.exists(os.path.join(dest_dir, os.path.basename(exe_path))):
-                                raise ValueError(f"Failed to move executable {os.path.basename(exe_path)} to {dest_dir}")
+                                raise ValueError(
+                                    f"Failed to move executable {os.path.basename(exe_path)} to {dest_dir}")
 
                             shutil.rmtree(parent_folder, ignore_errors=True)
-                            logger.debug(f"Removed parent folder: {parent_folder}")
+                            logger.debug(
+                                f"Removed parent folder: {parent_folder}")
 
                 elif ext == ".7z":
                     with py7zr.SevenZipFile(str(file_path), 'r', password=pwd) as szf:
-                        archive_files = [name for name in szf.getnames() if not name.endswith('/')]
-                        
+                        archive_files = [
+                            name for name in szf.getnames() if not name.endswith('/')]
+
                         root_dir = None
                         exe_path = None
                         found_exes = []
@@ -362,46 +436,56 @@ class InstallCore(QThread):
                             if os.path.basename(file).lower() in [exe.lower() for exe in expected_exes]:
                                 exe_path = file
                                 root_dir = os.path.dirname(file)
-                                logger.debug(f"Found executable: {os.path.basename(file)} at: {file}, root directory: {root_dir}")
+                                logger.debug(
+                                    f"Found executable: {os.path.basename(file)} at: {file}, root directory: {root_dir}")
                                 break
                         if not exe_path:
-                            raise ValueError(f"No expected executable ({', '.join(expected_exes)}), Please ensure the archive or folder you want to install it contains the game's executable file")
+                            raise ValueError(
+                                f"No expected executable ({', '.join(expected_exes)}), Please ensure the archive or folder you want to install it contains the game's executable file")
 
                         files_to_extract = archive_files if not root_dir else [
                             f for f in archive_files
                             if f.startswith(root_dir + '/') or f == exe_path
                         ]
-                        logger.debug(f"Extracting {len(files_to_extract)} files from root directory: {root_dir or 'archive root'}")
+                        logger.debug(
+                            f"Extracting {len(files_to_extract)} files from root directory: {root_dir or 'archive root'}")
 
                         for i, file in enumerate(files_to_extract):
                             if self.is_canceled:
                                 return
-                            rel_path = file.replace(os.sep, '/') if not root_dir else os.path.relpath(file, root_dir).replace(os.sep, '/')
-                            
+                            rel_path = file.replace(os.sep, '/') if not root_dir else os.path.relpath(
+                                file, root_dir).replace(os.sep, '/')
+
                             final_dest = os.path.join(dest_dir, rel_path)
                             self.delete_existing_file(final_dest)
-                            
+
                             szf.extract(targets=[file], path=dest_dir)
                             progress = ((i + 1) / len(files_to_extract)) * 100
-                            self.emit_state(InstallState.INSTALLING_FILES, int(progress), rel_path)
+                            self.emit_state(
+                                InstallState.INSTALLING_FILES, int(progress), rel_path)
                             logger.debug(f"Extracted: {rel_path}")
 
-                        src_root = os.path.join(dest_dir, root_dir) if root_dir else dest_dir
-                        parent_folder = os.path.join(dest_dir, root_dir.split('/')[0]) if root_dir else dest_dir
+                        src_root = os.path.join(
+                            dest_dir, root_dir) if root_dir else dest_dir
+                        parent_folder = os.path.join(
+                            dest_dir, root_dir.split('/')[0]) if root_dir else dest_dir
                         if root_dir and os.path.exists(src_root):
                             files = []
                             for root, _, filenames in os.walk(src_root):
-                                files.extend(os.path.join(root, fname) for fname in filenames)
+                                files.extend(os.path.join(root, fname)
+                                             for fname in filenames)
 
                             for src in files:
                                 if self.is_canceled:
-                                    shutil.rmtree(parent_folder, ignore_errors=True)
+                                    shutil.rmtree(
+                                        parent_folder, ignore_errors=True)
                                     return
-                                rel_path = os.path.relpath(src, src_root).replace(os.sep, '/')
+                                rel_path = os.path.relpath(
+                                    src, src_root).replace(os.sep, '/')
                                 dst = os.path.join(dest_dir, rel_path)
-                                
+
                                 self.delete_existing_file(dst)
-                                
+
                                 os.makedirs(os.path.dirname(dst), exist_ok=True)
                                 shutil.move(src, dst)
                                 logger.debug(f"Moved: {rel_path}")
@@ -409,21 +493,27 @@ class InstallCore(QThread):
                             for root, dirs, _ in os.walk(src_root):
                                 for d in dirs:
                                     src_subdir = os.path.join(root, d)
-                                    rel_subdir = os.path.relpath(src_subdir, src_root).replace(os.sep, '/')
-                                    dst_subdir = os.path.join(dest_dir, rel_subdir)
+                                    rel_subdir = os.path.relpath(
+                                        src_subdir, src_root).replace(os.sep, '/')
+                                    dst_subdir = os.path.join(
+                                        dest_dir, rel_subdir)
                                     os.makedirs(dst_subdir, exist_ok=True)
-                                    logger.debug(f"Created directory: {dst_subdir}")
+                                    logger.debug(
+                                        f"Created directory: {dst_subdir}")
 
                             if not os.path.exists(os.path.join(dest_dir, os.path.basename(exe_path))):
-                                raise ValueError(f"Failed to move executable {os.path.basename(exe_path)} to {dest_dir}")
+                                raise ValueError(
+                                    f"Failed to move executable {os.path.basename(exe_path)} to {dest_dir}")
 
                             shutil.rmtree(parent_folder, ignore_errors=True)
-                            logger.debug(f"Removed parent folder: {parent_folder}")
+                            logger.debug(
+                                f"Removed parent folder: {parent_folder}")
 
                 else:
                     raise ValueError(f"Unsupported file extension: {ext}")
 
-                logger.info(f"Extracted and moved compressed file contents to {dest_dir}")
+                logger.info(
+                    f"Extracted compressed file contents to {dest_dir}")
 
             else:
                 src_dir = file_path
@@ -435,35 +525,41 @@ class InstallCore(QThread):
                             found_exes.append(file)
                         if file.lower() in [exe.lower() for exe in expected_exes]:
                             root_dir = root
-                            logger.debug(f"Found executable: {file} in: {root_dir}")
+                            logger.debug(
+                                f"Found executable: {file} in: {root_dir}")
                             break
                     if root_dir:
                         break
                 if not root_dir:
-                    raise ValueError(f"No expected executable ({', '.join(expected_exes)}) found in source folder. Found: {', '.join(found_exes) if found_exes else 'none'}")
+                    raise ValueError(
+                        f"No expected executable ({', '.join(expected_exes)}) found in source folder. Found: {', '.join(found_exes) if found_exes else 'none'}")
 
                 files = []
                 for root, _, filenames in os.walk(root_dir):
-                    files.extend(os.path.join(root, fname) for fname in filenames)
+                    files.extend(os.path.join(root, fname)
+                                 for fname in filenames)
 
                 for i, src in enumerate(files):
                     if self.is_canceled:
                         return
-                    rel_path = os.path.relpath(src, root_dir).replace(os.sep, '/')
+                    rel_path = os.path.relpath(
+                        src, root_dir).replace(os.sep, '/')
                     dst = os.path.join(dest_dir, rel_path)
-                    
+
                     self.delete_existing_file(dst)
-                    
+
                     os.makedirs(os.path.dirname(dst), exist_ok=True)
                     shutil.copy2(src, dst)
                     progress = ((i + 1) / len(files)) * 100
-                    self.emit_state(InstallState.INSTALLING_FILES, int(progress), rel_path)
+                    self.emit_state(
+                        InstallState.INSTALLING_FILES, int(progress), rel_path)
                     logger.debug(f"Copied: {rel_path}")
 
                 for root, dirs, _ in os.walk(root_dir):
                     for d in dirs:
                         src_subdir = os.path.join(root, d)
-                        rel_subdir = os.path.relpath(src_subdir, root_dir).replace(os.sep, '/')
+                        rel_subdir = os.path.relpath(
+                            src_subdir, root_dir).replace(os.sep, '/')
                         dst_subdir = os.path.join(dest_dir, rel_subdir)
                         os.makedirs(dst_subdir, exist_ok=True)
                         logger.debug(f"Created directory: {dst_subdir}")
@@ -471,9 +567,11 @@ class InstallCore(QThread):
                 logger.info(f"Title Update copied to {dest_dir}")
 
             root_dir_name = os.path.basename(root_dir) if root_dir else ''
-            subfolder_path = os.path.join(dest_dir, root_dir_name) if root_dir_name else ''
+            subfolder_path = os.path.join(
+                dest_dir, root_dir_name) if root_dir_name else ''
             if subfolder_path and os.path.exists(subfolder_path) and os.path.isdir(subfolder_path):
-                logger.debug(f"Found subfolder {root_dir_name} in {dest_dir}, moving contents to root")
+                logger.debug(
+                    f"Found subfolder {root_dir_name} in {dest_dir}, moving contents to root")
                 for item in os.listdir(subfolder_path):
                     if self.is_canceled:
                         shutil.rmtree(subfolder_path, ignore_errors=True)
@@ -505,14 +603,16 @@ class InstallCore(QThread):
                 self.completed_signal.emit()
         except Exception as e:
             if isinstance(e, PermissionError):
-                ErrorHandler.handleError(f"Failed to install Title Update {self.update_name}: {str(e)}\n\nTo fix this, run the tool as administrator or move your game folder outside of the Program Files folder.")
+                ErrorHandler.handleError(
+                    f"Failed to install Title Update {self.update_name}: {str(e)}\n\nTo fix this, run the tool as administrator or move your game folder outside of the Program Files folder.")
             else:
-                ErrorHandler.handleError(f"Failed to install Title Update {self.update_name}: {str(e)}")
-           
+                ErrorHandler.handleError(
+                    f"Failed to install Title Update {self.update_name}: {str(e)}")
+
             self.error_signal.emit(str(e))
             if not self.is_canceled:
                 self.cancel()
-
+                
     def install_squad_update(self):
         """Install squad/fut update to game settings folder, handling both compressed and non-compressed files."""
         if self.is_canceled:

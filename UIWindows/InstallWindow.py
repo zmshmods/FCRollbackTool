@@ -16,7 +16,7 @@ from Core.GameManager import GameManager
 from Core.ErrorHandler import ErrorHandler
 
 WINDOW_TITLE = "Installing Update"
-WINDOW_SIZE = (420, 220)
+WINDOW_SIZE = (460, 250)
 THEME_COLOR = "#00FF00"
 SPACER_WIDTH = 75
 BAR_HEIGHT = 32
@@ -186,9 +186,10 @@ class InstallWindow(BaseWindow):
 
     def _setup_buttons(self):
         """Set up the Cancel button."""
-        self.main_layout.addWidget(QWidget(self, **SEPARATOR_STYLE))
-        button_container = self.button_manager.create_buttons()
-        self.main_layout.addWidget(button_container or QWidget(self))
+        # self.main_layout.addWidget(QWidget(self, **SEPARATOR_STYLE))
+        # button_container = self.button_manager.create_buttons()
+        # self.main_layout.addWidget(button_container or QWidget(self))
+        pass
 
     def showEvent(self, event):
         """Start installation when window is shown."""
@@ -254,7 +255,7 @@ class ButtonManager:
         self._init_buttons()
         button_layout = QHBoxLayout()
         button_layout.addStretch()
-        button_layout.addWidget(self.buttons["cancel"])
+        #button_layout.addWidget(self.buttons["cancel"])
         button_container = QWidget(self.window)
         button_container.setLayout(button_layout)
         return button_container
@@ -271,8 +272,9 @@ class ButtonManager:
 
     def update_button_states(self, completed=False, canceled=False, error=False):
         """Update button states after completion, cancellation, or error."""
-        self.buttons["cancel"].setEnabled(False)
-
+        # self.buttons["cancel"].setEnabled(False)
+        pass
+    
 def main():
     app = QApplication(sys.argv)
     app.setStyleSheet(MainStyles())
