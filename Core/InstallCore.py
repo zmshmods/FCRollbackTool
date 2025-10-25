@@ -204,6 +204,10 @@ class InstallCore(QThread):
                     logger.info(
                         f"Cleaning game directory before install (Game: {game_id}): {dest_dir}")
                     data_folder_name_lower = "data"
+                    steam_related_exclusions = ["steam_appid.txt", "eastore.ini"]
+                    for file in os.listdir(dest_dir):
+                        if file.lower().endswith(".vdf"):
+                            steam_related_exclusions.append(file.lower())
                     try:
                         if not os.path.exists(dest_dir):
                             raise FileNotFoundError(f"Game directory not found, cannot install update. Path does not exist: {dest_dir}")
@@ -212,7 +216,7 @@ class InstallCore(QThread):
                                 if self.is_canceled:
                                     return
 
-                                if item_name.lower() == data_folder_name_lower:
+                                if item_name.lower() == data_folder_name_lower or item_name.lower() in steam_related_exclusions:
                                     logger.debug(f"Skipping deletion of: {item_name}")
                                     continue
 
