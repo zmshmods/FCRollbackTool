@@ -152,6 +152,7 @@ class MenuBar:
                 self.show_window(lambda: ImportTitleUpdateWindow(folder))
 
     def ToolsMenu(self, button):
+        game_id = self.parent.game_manager.getSelectedGameId(self.parent.config_manager.getConfigKeySelectedGame())
         menu = QMenu(self.parent)
         menu.setStyleSheet(self.FromBarStyles)
         repair_submenu = QMenu("Repair Game", self.parent)
@@ -162,7 +163,21 @@ class MenuBar:
         repair_submenu.addAction(self._create_action("Epic Games", "epic_games", lambda: self.show_window(EpicGamesWindow)))
         menu.addMenu(repair_submenu)
         menu.addAction(self._create_action("Clear EA App Cache", "clear_cache", delete_cache_files))
-        menu.addAction(self._create_action("Live Editor Compatibility Info", "live_editor_compatibility", lambda: self.show_window(LiveEditorCompatibilityInfo)))
+
+        match game_id:
+            case "FC24":
+                live_editor_action = self._create_action(
+                    "Live Editor Compatibility Info", "live_editor_compatibility", lambda: None
+                )
+                live_editor_action.setEnabled(False)
+                menu.addAction(live_editor_action)
+
+            case _:
+                menu.addAction(self._create_action(
+                    "Live Editor Compatibility Info", "live_editor_compatibility",
+                    lambda: self.show_window(LiveEditorCompatibilityInfo)
+                ))
+
         menu.addAction(self._create_action("Mods Compatibility Info", "mods_compatibility", lambda: self.show_window(ModsCompatibilityInfo)))
         menu.addAction(self._create_action("FET TU Changes Folder Renamer", "fet_tu_changes_renamer", lambda: self.show_window(FETTUChangelogFoldersRenamer)))
         menu.exec(button.mapToGlobal(QPoint(button.rect().bottomLeft().x(), button.rect().bottomLeft().y())))

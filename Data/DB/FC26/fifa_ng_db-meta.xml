@@ -2367,7 +2367,7 @@
       <field name="modetypestr" shortname="XuPr" type="DBOFIELDTYPE_STRING" depth="512" null="False" rangehigh="0" rangelow="0" update="True" />
     </fields>
   </table>
-  <table name="vanitystoreitemlink" shortname="SizI" maxupdate="-1" maxinsert="1000" maxdelete="1000" savegroups="squads">
+  <table name="vanitystoreitemlink" shortname="SizI" maxupdate="-1" maxinsert="943" maxdelete="943" savegroups="squads">
     <fields>
       <field name="itemid" shortname="TsLM" type="DBOFIELDTYPE_INTEGER" depth="19" null="False" rangehigh="500000" rangelow="0" update="True" key="True" />
       <field name="assettype" shortname="jmFE" type="DBOFIELDTYPE_INTEGER" depth="6" null="False" rangehigh="50" rangelow="0" update="True" />
@@ -3511,7 +3511,7 @@
       <field name="gameassetstrid" shortname="Pirg" type="DBOFIELDTYPE_STRING" depth="600" null="False" rangehigh="0" rangelow="0" />
     </fields>
   </table>
-  <table name="tattoo" shortname="yeQw" maxupdate="-1" maxinsert="100" maxdelete="100" savegroups="squads">
+  <table name="tattoo" shortname="yeQw" maxupdate="-1" maxinsert="90" maxdelete="90" savegroups="squads">
     <fields>
       <field name="tattooid" shortname="zNFu" type="DBOFIELDTYPE_INTEGER" depth="11" null="False" rangehigh="2000" rangelow="0" key="True" />
       <field name="tattooback" shortname="HEDC" type="DBOFIELDTYPE_INTEGER" depth="1" null="False" rangehigh="1" rangelow="0" />
@@ -8687,7 +8687,7 @@
       <field name="ishub" shortname="rWZf" type="DBOFIELDTYPE_INTEGER" depth="1" null="False" rangehigh="1" rangelow="0" />
     </fields>
   </table>
-  <table name="accessories" shortname="RMfq" maxupdate="-1" maxinsert="250" maxdelete="250" savegroups="squads">
+  <table name="accessories" shortname="RMfq" maxupdate="-1" maxinsert="249" maxdelete="249" savegroups="squads">
     <fields>
       <field name="accessoryid" shortname="KYeV" type="DBOFIELDTYPE_INTEGER" depth="11" null="False" rangehigh="2000" rangelow="0" update="True" key="True" />
       <field name="clothingtype" shortname="yPLv" type="DBOFIELDTYPE_INTEGER" depth="5" null="False" rangehigh="16" rangelow="0" update="True" />

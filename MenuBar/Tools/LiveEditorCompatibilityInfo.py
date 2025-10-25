@@ -195,7 +195,7 @@ class LiveEditorCompatibilityInfo(BaseWindow):
         game_ver_data = result["data"].get("game_ver", {})
         compat = result["data"].get("compatibility", {})
         self.table.setRowCount(len(game_ver_data))
-        sorted_versions = sorted(game_ver_data.items(), key=lambda x: x[0], reverse=True)
+        sorted_versions = sorted(game_ver_data.items(), key=lambda x: tuple(map(int, x[0].split('.'))), reverse=True)
         for row_idx, (sem_ver, tu) in enumerate(sorted_versions):
             item = QTableWidgetItem(sem_ver)
             item.setTextAlignment(Qt.AlignCenter)

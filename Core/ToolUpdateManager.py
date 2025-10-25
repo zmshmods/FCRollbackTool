@@ -8,8 +8,8 @@ UPDATES_REPO = "FCRollbackToolUpdates"
 
 class ToolUpdateManager:
     def __init__(self):
-        self.TOOL_VERSION = "1.2.4 Beta"
-        self.BUILD_VERSION = "8.24.10.2025"
+        self.TOOL_VERSION = "1.2.5 Beta"
+        self.BUILD_VERSION = "9.25.10.2025"
         self.UPDATE_MANIFEST = f"https://raw.githubusercontent.com/{GITHUB_ACC}/{UPDATES_REPO}/main/toolupdate.json"
         self.CHANGELOG_BASE_URL = f"https://raw.githubusercontent.com/{GITHUB_ACC}/{UPDATES_REPO}/main/Changelogs/"
         self._manifest_cache = {}
@@ -17,7 +17,7 @@ class ToolUpdateManager:
 
     def getToolVersion(self) -> str:
         return self.TOOL_VERSION
-    def getToolBulidVersion(self) -> str:
+    def getToolBuildVersion(self) -> str:
         return self.BUILD_VERSION
 
     def get_all_versions(self) -> list:
@@ -52,7 +52,7 @@ class ToolUpdateManager:
     def getManifestBuildVersion(self) -> str:
         if not self._manifest_cache:
             self.FetchManifests()
-        return self._manifest_cache.get("ToolUpdate", {}).get("BulidVersion", "Unknown Build Version")
+        return self._manifest_cache.get("ToolUpdate", {}).get("BuildVersion", "Unknown Build Version")
     def getMatchingVersion(self) -> bool:
         return self.getToolVersion() == self.getManifestToolVersion()
     def getToolChangelog(self) -> list:

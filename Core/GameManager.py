@@ -157,13 +157,6 @@ class GameManager:
         return []
     # endregion
 
-    # region Game and Path Management
-    def _get_profile(self, game_root_path: str) -> Optional[GameProfile]:
-        if not game_root_path or not os.path.isdir(game_root_path):
-            logger.warning(f"Invalid game root path provided: {game_root_path}")
-            return None
-        return self.profile_manager.get_profile_by_exe(os.path.basename(game_root_path))
-
     def getGamesFromRegistry(self, emit_status: Optional[Callable[[str], None]] = None, is_rescan: bool = False) -> Dict[str, str]:
         valid_paths = {}
         if emit_status and is_rescan: emit_status([("Rescanning for games...", "white")])
@@ -286,22 +279,6 @@ class GameManager:
             return {}
         return content
     
-    def _load_base_cache(self, base_cache_file: str, game_id: str, emit_status: Optional[Callable[[str], None]]) -> Dict[str, Any]:
-        content = {}
-        if os.path.exists(base_cache_file):
-            if emit_status: emit_status([("Loading BaseCache as fallback ", "white"), ("(Out of date)", "red")])
-            try:
-                with open(base_cache_file, "rb") as f:
-                    content = pickle.loads(zlib.decompress(f.read()))
-                self._content_cache.update({f"{game_id}_{k}": v for k, v in content.items()})
-                logger.info(f"Loaded BaseCache for {game_id} from {base_cache_file}")
-                NotificationHandler.showWarning("The tool couldn’t fetch the latest list updates, and no recent local cache is available/valid to load.\n\nWe’ve switched to a base data list, meaning the lists are most likely out of date!, Please check your internet connection to retrieve the latest updates when possible.\n\nClick OK to continue.")
-            except Exception as e:
-                logger.error(f"Failed to load BaseCache {base_cache_file}: {e}")
-        else:
-            logger.warning(f"BaseCache file not found at {base_cache_file}")
-        return content
-    
     def _load_local_cache(self, local_file: str, emit_status: Optional[Callable[[str], None]]) -> Dict[str, Any]:
         content = {}
         if os.path.exists(local_file):
@@ -313,6 +290,24 @@ class GameManager:
                 logger.info(f"Cache loaded for {os.path.splitext(os.path.basename(local_file))[0]} from {local_file}")
             except Exception as e:
                 logger.error(f"Failed to load local cache {local_file}: {e}")
+        return content
+    
+    def _load_base_cache(self, base_cache_file: str, game_id: str, emit_status: Optional[Callable[[str], None]]) -> Dict[str, Any]:
+        content = {}
+        if os.path.exists(base_cache_file):
+            if emit_status: emit_status([("Loading BaseCache as fallback ", "white"), ("(Out of date)", "red")])
+            try:
+                with open(base_cache_file, "rb") as f:
+                    content = pickle.loads(zlib.decompress(f.read()))
+                self._content_cache.update({f"{game_id}_{k}": v for k, v in content.items()})
+                logger.info(f"Loaded BaseCache for {game_id} from {base_cache_file}")
+                NotificationHandler.showWarning("The tool couldn’t fetch the latest list updates, and no recent local cache is available/valid to load.\n\nWe’ve switched to a base data list, meaning the lists are most likely out of date!, Please check your internet connection to retrieve the latest updates when possible.\n\nClick OK to continue.")
+            except Exception as e:
+                raise RuntimeError(f"Failed to load BaseCache {base_cache_file}: {e}") from e
+        else:
+            logger.error(f"BaseCache file not found at {base_cache_file}")
+            raise FileNotFoundError(f"BaseCache file not found: {base_cache_file}")
+        
         return content
     
     def _fetch_updates(self, game_id: str, profile_types: List[str], emit_status: Optional[Callable[[str], None]]) -> Dict[str, Any]:
@@ -445,15 +440,16 @@ class GameManager:
         return changelogs_path
 
     def _get_profile(self, game_root_path: str) -> Optional[GameProfile]:
+        if game_root_path:
+            game_root_path = game_root_path.strip() 
+
         if not game_root_path or not os.path.isdir(game_root_path):
             logger.warning(f"Invalid game root path provided: {game_root_path}")
             return None
-        
+
         for profile in self.profile_manager.get_all_profiles():
             if os.path.exists(os.path.join(game_root_path, profile.exe_name)):
-                return profile
-                
-        logger.warning(f"Could not determine game profile from path: {game_root_path}")
+                return profile           
         return None
 
     def getTableUrl(self, index_url: str, table_name: str, config_mgr: ConfigManager) -> Optional[str]:

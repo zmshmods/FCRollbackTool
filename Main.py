@@ -1,5 +1,6 @@
 import os
 import sys
+import platform
 import webbrowser
 from typing import Dict, List, Tuple, Optional
 from PySide6.QtCore import QPoint, QSize, Qt, QSharedMemory, QUrl, QTimer
@@ -43,7 +44,7 @@ from Core.GameLauncher import launch_game_threaded
 # Constants
 APP_NAME = "FC Rollback Tool"
 VERSION = ToolUpdateManager().getToolVersion()
-BUILD_VERSION = ToolUpdateManager().getToolBulidVersion()
+BUILD_VERSION = ToolUpdateManager().getToolBuildVersion()
 WINDOW_TITLE = f"{APP_NAME} - v{VERSION} ({{}}) {{}}"
 APP_ICON_PATH = "Data/Assets/Icons/FRICON.png"
 THEME_COLOR = "#00FF00"
@@ -68,6 +69,7 @@ class MainWindow(BaseWindow):
         self.resize(*WINDOW_SIZE)
         self.center_window()
         self.config_manager.register_config_updated_callback(self._on_config_updated)
+        self._is_updating_tab = False
         self.setup_ui()
 
     def closeEvent(self, event):
@@ -99,6 +101,8 @@ class MainWindow(BaseWindow):
         super().closeEvent(event)
 
     def _on_config_updated(self, table: str):
+        if self._is_updating_tab:
+            return
         try:
             if not self.main_container:
                 raise AttributeError("main_container not initialized")
@@ -199,6 +203,10 @@ class MainWindow(BaseWindow):
             SelectGameWindow(ignore_selected_game=True).show()
 
     def _load_content_for_tab(self, tab_index: int):
+        if self._is_updating_tab:
+            return
+
+        self._is_updating_tab = True
         try:
             if not self.main_container:
                 raise AttributeError("main_container not initialized")
@@ -223,6 +231,8 @@ class MainWindow(BaseWindow):
             self.button_manager.update_button_visibility(tab_key)
         except Exception as e:
             ErrorHandler.handleError(f"Failed to load content for tab {tab_key}: {str(e)}")
+        finally:
+            self._is_updating_tab = False
 
     def on_tab_changed(self, index: int):
         try:
@@ -422,7 +432,15 @@ class ButtonManager:
             self.buttons["open_url"].setEnabled(is_tu)
             self.buttons["patch_notes"].setEnabled(is_tu)
             self.buttons["patch_notes_options"].setEnabled(is_tu)
-            self.buttons["files_changelog"].setEnabled(is_tu)
+            files_changelog_enabled = False
+            game_id = self.game_manager.getSelectedGameId(self.config_manager.getConfigKeySelectedGame())
+            match game_id:
+                case "FC24":
+                    files_changelog_enabled = False
+                case _:
+                    files_changelog_enabled = is_tu
+
+            self.buttons["files_changelog"].setEnabled(files_changelog_enabled)
 
             if status_text == status_mapping.get("AvailableForDownload", {}).get("text", ""):
                 self.buttons["download"].setEnabled(True)
@@ -882,8 +900,8 @@ class ButtonManager:
 
 def main():
     main_data_manager = MainDataManager()
-    logger.info(f"Starting {APP_NAME} v{VERSION} Build v{BUILD_VERSION} Launched From: {main_data_manager.application_path}")
-
+    logger.info(f"Starting {APP_NAME} v{VERSION} Build v{BUILD_VERSION} Launched From: {os.path.realpath(main_data_manager.application_path)}")
+    logger.info(f"OS: {platform.system()} {platform.release()} ({platform.version()}) - Arch: {platform.machine()}")
     app = QApplication(sys.argv)
     # font = QFont("")
     # font.setPointSize(10)

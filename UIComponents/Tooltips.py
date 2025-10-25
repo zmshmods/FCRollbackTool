@@ -102,6 +102,7 @@ TOOLTIPS = {
     "launch_game_button": {"text": "Launch the game", "position": ToolTipPosition.BOTTOM_LEFT, "delay": 880},
     "patch_notes_button": {"text": "Read the patch notes of the selected title update.", "position": ToolTipPosition.TOP, "delay": 880},
     "open_patch_notes_url_button": {"text": "Open the patch notes URL in browser.", "position": ToolTipPosition.TOP, "delay": 880},
+    "files_changelog_button": {"text": "View game files changed by the selected title update", "position": ToolTipPosition.TOP, "delay": 880},
     "fetch_tables_button": {"text": "Fetch the DB tables for the selected squad update.", "position": ToolTipPosition.TOP, "delay": 880},
     "fetch_changelogs_button": {"text": "Fetch the changelogs for the selected squad update.", "position": ToolTipPosition.TOP, "delay": 880},
 

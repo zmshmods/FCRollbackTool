@@ -105,7 +105,7 @@ class InformationWindow(BaseWindow):
         name_label = QLabel("FC Rollback Tool")
         name_label.setStyleSheet("font-size: 18px; color: white;")
         version_str = tool_update_mgr.getToolVersion()
-        build_str = tool_update_mgr.getToolBulidVersion()
+        build_str = tool_update_mgr.getToolBuildVersion()
         version_label = QLabel(f"Version {version_str} (Build {build_str})")
         version_label.setStyleSheet("font-size: 12px; color: rgba(255, 255, 255, 0.7);")
         ea_disclaimer_label = QLabel("The update files provided by this tool remain the intellectual property of Electronic Arts Inc.")

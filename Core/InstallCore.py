@@ -190,48 +190,53 @@ class InstallCore(QThread):
             logger.info(f"Installing Title Update: {self.update_name}")
             config_mgr = ConfigManager()
             main_data_mgr = MainDataManager()
+            game_id = self.game_mgr.getSelectedGameId(self.game_path)
             ext = os.path.splitext(self.file_path)[1].lower()
             is_compressed = ext in main_data_mgr.getCompressedFileExtensions()
             file_path, dest_dir = Path(
                 self.file_path).resolve(), Path(self.game_path).resolve()
 
             # Clean the destination directory
-            logger.info(
-                f"Cleaning game directory before install: {dest_dir}")
-            data_folder_name_lower = "data"
-            try:
-                if not os.path.exists(dest_dir):
-                    logger.warning(f"Game directory not found, skipping clean: {dest_dir}")
-                else:
-                    for item_name in os.listdir(dest_dir):
-                        if self.is_canceled:
-                            return
+            match game_id:
+                case "FC24":
+                    logger.info(f"Detected FC24. Only deleting files that have matching counterparts.")
+                case _: # Default case
+                    logger.info(
+                        f"Cleaning game directory before install (Game: {game_id}): {dest_dir}")
+                    data_folder_name_lower = "data"
+                    try:
+                        if not os.path.exists(dest_dir):
+                            raise FileNotFoundError(f"Game directory not found, cannot install update. Path does not exist: {dest_dir}")
+                        else:
+                            for item_name in os.listdir(dest_dir):
+                                if self.is_canceled:
+                                    return
 
-                        if item_name.lower() == data_folder_name_lower:
-                            logger.debug(f"Skipping deletion of: {item_name}")
-                            continue
+                                if item_name.lower() == data_folder_name_lower:
+                                    logger.debug(f"Skipping deletion of: {item_name}")
+                                    continue
 
-                        item_path = os.path.join(dest_dir, item_name)
+                                item_path = os.path.join(dest_dir, item_name)
 
-                        try:
-                            if os.path.isdir(item_path):
-                                shutil.rmtree(item_path)
-                                logger.debug(f"Deleted directory: {item_path}")
-                            elif os.path.isfile(item_path):
-                                os.remove(item_path)
-                                logger.debug(f"Deleted file: {item_path}")
-                        except PermissionError as pe:
-                            logger.error(
-                                f"Permission error while cleaning {item_path}: {str(pe)}")
-                            raise pe
-                        except Exception as e:
-                            logger.warning(
-                                f"Failed to delete {item_path} during pre-install clean: {str(e)}")
+                                try:
+                                    if os.path.isdir(item_path):
+                                        shutil.rmtree(item_path)
+                                        logger.debug(f"Deleted directory: {item_path}")
+                                    elif os.path.isfile(item_path):
+                                        os.remove(item_path)
+                                        logger.debug(f"Deleted file: {item_path}")
+                                except PermissionError as pe:
+                                    logger.error(
+                                        f"Permission error while cleaning {item_path}: {str(pe)}")
+                                    raise pe
+                                except Exception as e:
+                                    logger.warning(
+                                        f"Failed to delete {item_path} during pre-install clean: {str(e)}")
 
-            except Exception as e:
-                logger.error(
-                    f"Failed during pre-install cleaning of {dest_dir}: {str(e)}")
-                raise e 
+                    except Exception as e:
+                        logger.error(
+                            f"Failed during pre-install cleaning of {dest_dir}: {str(e)}")
+                        raise e
 
             self.emit_state(InstallState.INSTALLING_FILES,
                             0, os.path.basename(self.file_path))
@@ -274,14 +279,21 @@ class InstallCore(QThread):
                         logger.debug(
                             f"Extracting {len(files_to_extract)} files from root directory: {root_dir or 'archive root'}")
 
+                        # delete counterparts
+                        delete_targets = []
+                        for file in files_to_extract:
+                            rel_path = file.replace(os.sep, '/') if not root_dir else os.path.relpath(
+                                file, root_dir).replace(os.sep, '/')
+                            final_dest = os.path.join(dest_dir, rel_path)
+                            delete_targets.append(final_dest)
+                        for d in delete_targets:
+                            self.delete_existing_file(d)
+
                         for i, file in enumerate(files_to_extract):
                             if self.is_canceled:
                                 return
                             rel_path = file.replace(os.sep, '/') if not root_dir else os.path.relpath(
                                 file, root_dir).replace(os.sep, '/')
-
-                            final_dest = os.path.join(dest_dir, rel_path)
-                            self.delete_existing_file(final_dest)
 
                             rf.extract(file, path=dest_dir)
                             progress = ((i + 1) / len(files_to_extract)) * 100
@@ -297,7 +309,16 @@ class InstallCore(QThread):
                             files = []
                             for root, _, filenames in os.walk(src_root):
                                 files.extend(os.path.join(root, fname)
-                                             for fname in filenames)
+                                            for fname in filenames)
+
+                            dst_list = []
+                            for src in files:
+                                rel_path = os.path.relpath(
+                                    src, src_root).replace(os.sep, '/')
+                                dst = os.path.join(dest_dir, rel_path)
+                                dst_list.append(dst)
+                            for d in dst_list:
+                                self.delete_existing_file(d)
 
                             for src in files:
                                 if self.is_canceled:
@@ -307,8 +328,6 @@ class InstallCore(QThread):
                                 rel_path = os.path.relpath(
                                     src, src_root).replace(os.sep, '/')
                                 dst = os.path.join(dest_dir, rel_path)
-
-                                self.delete_existing_file(dst)
 
                                 os.makedirs(os.path.dirname(dst), exist_ok=True)
                                 shutil.move(src, dst)
@@ -363,14 +382,21 @@ class InstallCore(QThread):
                         logger.debug(
                             f"Extracting {len(files_to_extract)} files from root directory: {root_dir or 'archive root'}")
 
+                        # delete counterparts
+                        delete_targets = []
+                        for file in files_to_extract:
+                            rel_path = file.replace(os.sep, '/') if not root_dir else os.path.relpath(
+                                file, root_dir).replace(os.sep, '/')
+                            final_dest = os.path.join(dest_dir, rel_path)
+                            delete_targets.append(final_dest)
+                        for d in delete_targets:
+                            self.delete_existing_file(d)
+
                         for i, file in enumerate(files_to_extract):
                             if self.is_canceled:
                                 return
                             rel_path = file.replace(os.sep, '/') if not root_dir else os.path.relpath(
                                 file, root_dir).replace(os.sep, '/')
-
-                            final_dest = os.path.join(dest_dir, rel_path)
-                            self.delete_existing_file(final_dest)
 
                             zf.extract(file, path=dest_dir)
                             progress = ((i + 1) / len(files_to_extract)) * 100
@@ -386,7 +412,16 @@ class InstallCore(QThread):
                             files = []
                             for root, _, filenames in os.walk(src_root):
                                 files.extend(os.path.join(root, fname)
-                                             for fname in filenames)
+                                            for fname in filenames)
+
+                            dst_list = []
+                            for src in files:
+                                rel_path = os.path.relpath(
+                                    src, src_root).replace(os.sep, '/')
+                                dst = os.path.join(dest_dir, rel_path)
+                                dst_list.append(dst)
+                            for d in dst_list:
+                                self.delete_existing_file(d)
 
                             for src in files:
                                 if self.is_canceled:
@@ -396,8 +431,6 @@ class InstallCore(QThread):
                                 rel_path = os.path.relpath(
                                     src, src_root).replace(os.sep, '/')
                                 dst = os.path.join(dest_dir, rel_path)
-
-                                self.delete_existing_file(dst)
 
                                 os.makedirs(os.path.dirname(dst), exist_ok=True)
                                 shutil.move(src, dst)
@@ -450,14 +483,21 @@ class InstallCore(QThread):
                         logger.debug(
                             f"Extracting {len(files_to_extract)} files from root directory: {root_dir or 'archive root'}")
 
+                        # delete counterparts
+                        delete_targets = []
+                        for file in files_to_extract:
+                            rel_path = file.replace(os.sep, '/') if not root_dir else os.path.relpath(
+                                file, root_dir).replace(os.sep, '/')
+                            final_dest = os.path.join(dest_dir, rel_path)
+                            delete_targets.append(final_dest)
+                        for d in delete_targets:
+                            self.delete_existing_file(d)
+
                         for i, file in enumerate(files_to_extract):
                             if self.is_canceled:
                                 return
                             rel_path = file.replace(os.sep, '/') if not root_dir else os.path.relpath(
                                 file, root_dir).replace(os.sep, '/')
-
-                            final_dest = os.path.join(dest_dir, rel_path)
-                            self.delete_existing_file(final_dest)
 
                             szf.extract(targets=[file], path=dest_dir)
                             progress = ((i + 1) / len(files_to_extract)) * 100
@@ -473,7 +513,16 @@ class InstallCore(QThread):
                             files = []
                             for root, _, filenames in os.walk(src_root):
                                 files.extend(os.path.join(root, fname)
-                                             for fname in filenames)
+                                            for fname in filenames)
+
+                            dst_list = []
+                            for src in files:
+                                rel_path = os.path.relpath(
+                                    src, src_root).replace(os.sep, '/')
+                                dst = os.path.join(dest_dir, rel_path)
+                                dst_list.append(dst)
+                            for d in dst_list:
+                                self.delete_existing_file(d)
 
                             for src in files:
                                 if self.is_canceled:
@@ -483,8 +532,6 @@ class InstallCore(QThread):
                                 rel_path = os.path.relpath(
                                     src, src_root).replace(os.sep, '/')
                                 dst = os.path.join(dest_dir, rel_path)
-
-                                self.delete_existing_file(dst)
 
                                 os.makedirs(os.path.dirname(dst), exist_ok=True)
                                 shutil.move(src, dst)
@@ -537,7 +584,17 @@ class InstallCore(QThread):
                 files = []
                 for root, _, filenames in os.walk(root_dir):
                     files.extend(os.path.join(root, fname)
-                                 for fname in filenames)
+                                for fname in filenames)
+
+                # delete counterparts
+                dst_list = []
+                for src in files:
+                    rel_path = os.path.relpath(
+                        src, root_dir).replace(os.sep, '/')
+                    dst = os.path.join(dest_dir, rel_path)
+                    dst_list.append(dst)
+                for d in dst_list:
+                    self.delete_existing_file(d)
 
                 for i, src in enumerate(files):
                     if self.is_canceled:
@@ -545,8 +602,6 @@ class InstallCore(QThread):
                     rel_path = os.path.relpath(
                         src, root_dir).replace(os.sep, '/')
                     dst = os.path.join(dest_dir, rel_path)
-
-                    self.delete_existing_file(dst)
 
                     os.makedirs(os.path.dirname(dst), exist_ok=True)
                     shutil.copy2(src, dst)
