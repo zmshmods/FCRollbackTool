@@ -344,7 +344,7 @@ class InstallCore(QThread):
                         break
 
                 if not exe_path:
-                    raise ValueError(f"No expected executable found in the archive.")
+                    raise ValueError("No expected executable found in the archive.")
 
                 files_to_extract = (
                     archive_files
@@ -364,7 +364,7 @@ class InstallCore(QThread):
                         break
                 
                 if not root_dir:
-                    raise ValueError(f"No expected executable found in the folder.")
+                    raise ValueError("No expected executable found in the folder.")
 
                 for root, _, filenames in os.walk(root_dir):
                     files_to_copy.extend(os.path.join(root, fname) for fname in filenames)
