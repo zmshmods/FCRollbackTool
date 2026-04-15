@@ -2,13 +2,14 @@ import os, sys
 from typing import Optional, Dict, List
 import xml.etree.ElementTree as ET
 
-try:
-    from Core.key import key  # type: ignore
-except ModuleNotFoundError:
-    key = None
-    logger.warning("Core.key module not available in the source code.")
 from Core.Logger import logger
 from Core.ErrorHandler import ErrorHandler
+
+try:
+    from Core.key import ik  # type: ignore
+except ModuleNotFoundError:
+    ik = None
+    logger.warning("Core.key module not available in the source code.")
 
 class MainDataManager:
     _instance = None
@@ -39,10 +40,10 @@ class MainDataManager:
         return path
 
     def getAria2c(self) -> str: return self.getPath("ThirdParty/aria2c.exe")
-    def getUnRAR(self) -> str: return self.getPath("ThirdParty/UnRAR.exe")
+    def get7z(self) -> str: return self.getPath("ThirdParty/7z.exe")
     def getIcons(self) -> str: return self.getPath("Assets/Icons")
     def getBaseCache(self) -> str: return self.getPath("BaseCache")
-    def getKey(self) -> str: return key
+    def getKey(self) -> str: return ik() if ik else ""
     def getCompressedFileExtensions(self) -> List[str]: return [".rar", ".zip", ".7z"]
     def getDbMeta(self, game_version: str, squad_type: str) -> Dict:
         """Load and cache metadata from XML based on game version and squad type."""

@@ -3,15 +3,40 @@ import sys
 import time
 from typing import List, Optional
 from PySide6.QtWidgets import (
-    QApplication, QVBoxLayout, QHBoxLayout, QWidget, QSizePolicy, QPushButton,
-    QTableWidgetItem, QLabel, QCompleter, QFileDialog, QHeaderView
+    QApplication,
+    QVBoxLayout,
+    QHBoxLayout,
+    QWidget,
+    QSizePolicy,
+    QPushButton,
+    QTableWidgetItem,
+    QLabel,
+    QCompleter,
+    QFileDialog,
+    QHeaderView,
 )
 from PySide6.QtGui import QGuiApplication, QIcon
-from PySide6.QtCore import Qt, QUrl, QThread, Signal, QObject, QRunnable, QThreadPool, QEventLoop
+from PySide6.QtCore import (
+    Qt,
+    QUrl,
+    QThread,
+    Signal,
+    QObject,
+    QRunnable,
+    QThreadPool,
+    QEventLoop,
+)
 from PySide6.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkReply
 from qfluentwidgets import (
-    Theme, setTheme, setThemeColor, TableWidget, CheckBox, SearchLineEdit,
-    FluentIcon, InfoBar, InfoBarPosition
+    Theme,
+    setTheme,
+    setThemeColor,
+    TableWidget,
+    CheckBox,
+    SearchLineEdit,
+    FluentIcon,
+    InfoBar,
+    InfoBarPosition,
 )
 
 from UIComponents.Personalization import BaseWindow
@@ -36,13 +61,20 @@ SHOW_MAX_BUTTON = True
 SHOW_MIN_BUTTON = True
 SHOW_CLOSE_BUTTON = True
 
+
 class NetworkConfig:
     RETRY_WAIT = 2
     TIMEOUT = 7000
 
+
 class SquadsTablesFetcherWindow(BaseWindow):
-    def __init__(self, index_url: Optional[str] = None, update_name: Optional[str] = None,
-                 released_date: Optional[str] = None, parent: Optional[QWidget] = None):
+    def __init__(
+        self,
+        index_url: Optional[str] = None,
+        update_name: Optional[str] = None,
+        released_date: Optional[str] = None,
+        parent: Optional[QWidget] = None,
+    ):
         super().__init__(parent=parent)
         self.index_url = index_url
         self.update_name = update_name
@@ -96,7 +128,9 @@ class SquadsTablesFetcherWindow(BaseWindow):
 
     def center_window(self):
         screen = QGuiApplication.primaryScreen().geometry()
-        self.move((screen.width() - self.width()) // 2, (screen.height() - self.height()) // 2)
+        self.move(
+            (screen.width() - self.width()) // 2, (screen.height() - self.height()) // 2
+        )
 
     @staticmethod
     def center_child_window(parent_window, child_window):
@@ -121,7 +155,7 @@ class SquadsTablesFetcherWindow(BaseWindow):
             show_max_button=SHOW_MAX_BUTTON,
             show_min_button=SHOW_MIN_BUTTON,
             show_close_button=SHOW_CLOSE_BUTTON,
-            bar_height=BAR_HEIGHT
+            bar_height=BAR_HEIGHT,
         )
         title_bar.create_title_bar()
 
@@ -142,7 +176,9 @@ class SquadsTablesFetcherWindow(BaseWindow):
         self.main_layout.addWidget(self.main_container)
 
     def _setup_buttons(self):
-        separator = QWidget(self, styleSheet="background-color: rgba(255, 255, 255, 0.1);")
+        separator = QWidget(
+            self, styleSheet="background-color: rgba(255, 255, 255, 0.1);"
+        )
         separator.setFixedHeight(1)
         self.main_layout.addWidget(separator)
         self.main_layout.addWidget(self.button_manager.create_buttons())
@@ -153,8 +189,13 @@ class SquadsTablesFetcherWindow(BaseWindow):
             self.table.hide()
         self._clear_loading_widgets()
         self.loading_spinner = LoadingSpinner(self)
-        self.fetching_label = QLabel("Loading..." if is_index else "Fetching...", styleSheet="font-size: 16px; color: white;")
-        self.tables_label = QLabel("", styleSheet=f"font-size: 14px; color: {THEME_COLOR};")
+        self.fetching_label = QLabel(
+            "Loading..." if is_index else "Fetching...",
+            styleSheet="font-size: 16px; color: white;",
+        )
+        self.tables_label = QLabel(
+            "", styleSheet=f"font-size: 14px; color: {THEME_COLOR};"
+        )
         for widget in [self.loading_spinner, self.fetching_label, self.tables_label]:
             self.main_container_layout.addWidget(widget, alignment=Qt.AlignCenter)
 
@@ -186,35 +227,41 @@ class SquadsTablesFetcherWindow(BaseWindow):
         self.table.setWordWrap(False)
         self.table.setSortingEnabled(False)
         self.table.setColumnCount(5)
-        self.table.setHorizontalHeaderLabels([
-            "Select", self.game_manager.getTableNameKey(),
-            self.game_manager.getTableWrittenRecordsKey(),
-            self.game_manager.getTableTotalRecordsKey(),
-            self.game_manager.getTableSaveGroupsKey()
-        ])
+        self.table.setHorizontalHeaderLabels(
+            [
+                "Select",
+                self.game_manager.getTableNameKey(),
+                self.game_manager.getTableWrittenRecordsKey(),
+                self.game_manager.getTableTotalRecordsKey(),
+                self.game_manager.getTableSaveGroupsKey(),
+            ]
+        )
         self.table.horizontalHeader().setStretchLastSection(True)
         self.table.setSelectionMode(TableWidget.SingleSelection)
         self.table.setEditTriggers(TableWidget.NoEditTriggers)
         header = self.table.horizontalHeader()
-        header.setStyleSheet("QHeaderView::section { font-weight: Bold; }") #color: #FFFFFF;
+        header.setStyleSheet(
+            "QHeaderView::section { font-weight: Bold; }"
+        )  # color: #FFFFFF;
 
         for i in range(self.table.columnCount()):
-            self.table.horizontalHeaderItem(i).setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+            self.table.horizontalHeaderItem(i).setTextAlignment(
+                Qt.AlignLeft | Qt.AlignVCenter
+            )
         self.table.verticalHeader().setDefaultAlignment(Qt.AlignCenter)
         self.table.verticalHeader().setSectionResizeMode(QHeaderView.Fixed)
         self.table.verticalHeader().setDefaultSectionSize(45)
         self.table.cellClicked.connect(self.on_cell_clicked)
 
         # UIComponents\CustomQfluentwidgets\table_view.py
-        self.table.itemDelegate().setSelectedRowColor(color=None, alpha=0)
-        self.table.itemDelegate().setHoverRowColor(color=None, alpha=0)    
-        self.table.itemDelegate().setAlternateRowColor(color=None, alpha=2)
-        self.table.itemDelegate().setPressedRowColor(color=None, alpha=0)
-        self.table.itemDelegate().setPriorityOrder(["alternate", "selected", "pressed", "hover"])
-        self.table.itemDelegate().setShowIndicator(False)
+        # self.table.itemDelegate().setSelectedRowColor(color=None, alpha=0)
+        # self.table.itemDelegate().setHoverRowColor(color=None, alpha=0)
+        # self.table.itemDelegate().setAlternateRowColor(color=None, alpha=2)
+        # self.table.itemDelegate().setPressedRowColor(color=None, alpha=0)
+        # self.table.itemDelegate().setPriorityOrder(["alternate", "selected", "pressed", "hover"])
+        # self.table.itemDelegate().setShowIndicator(False)
 
         self.main_container_layout.addWidget(self.table)
-
 
     def on_cell_clicked(self, row: int, column: int):
         checkbox_widget = self.table.cellWidget(row, 0)
@@ -224,10 +271,12 @@ class SquadsTablesFetcherWindow(BaseWindow):
             checkbox.setChecked(new_state)
             self.checkbox_states[row] = new_state
             self.button_manager.update_select_all_state()
-            
+
     def start_fetching_data(self):
         self.index_thread = QThread()
-        self.index_worker = IndexFetchWorker(self.index_url, self.game_manager, self.update_name)
+        self.index_worker = IndexFetchWorker(
+            self.index_url, self.game_manager, self.update_name
+        )
         self.index_worker.moveToThread(self.index_thread)
         self.index_thread.started.connect(self.index_worker.run)
         self.index_worker.finished.connect(self.on_data_fetched)
@@ -240,7 +289,9 @@ class SquadsTablesFetcherWindow(BaseWindow):
             self._on_error("No tables data received from Index.json")
             return
         self.tables_data = tables_data
-        self.checkbox_states = [self.config_manager.getConfigKeySelectAllTables()] * len(tables_data)
+        self.checkbox_states = [
+            self.config_manager.getConfigKeySelectAllTables()
+        ] * len(tables_data)
         self._setup_tables()
         self.table.setRowCount(len(tables_data))
         table_names = []
@@ -252,7 +303,9 @@ class SquadsTablesFetcherWindow(BaseWindow):
         self._setup_completer(table_names)
         self.button_manager.select_all_checkbox.setEnabled(True)
         self.button_manager.exact_search_checkbox.setEnabled(True)
-        self.button_manager.select_all_checkbox.stateChanged.connect(self.button_manager.toggle_select_all)
+        self.button_manager.select_all_checkbox.stateChanged.connect(
+            self.button_manager.toggle_select_all
+        )
         self.button_manager.update_select_all_state(all(self.checkbox_states))
         self._cleanup_index_worker()
         self.hide_loading()
@@ -261,7 +314,9 @@ class SquadsTablesFetcherWindow(BaseWindow):
         checkbox = CheckBox()
         checkbox.setStyleSheet("margin-left: 10px; background-color: transparent;")
         checkbox.setChecked(self.checkbox_states[row])
-        checkbox.stateChanged.connect(lambda state, r=row: self.on_checkbox_state_changed(r, state))
+        checkbox.stateChanged.connect(
+            lambda state, r=row: self.on_checkbox_state_changed(r, state)
+        )
         checkbox_widget = QWidget()
         checkbox_layout = QHBoxLayout(checkbox_widget)
         checkbox_layout.addWidget(checkbox)
@@ -273,11 +328,14 @@ class SquadsTablesFetcherWindow(BaseWindow):
         if not table_name:
             logger.warning(f"No table name found for row {row}: {table}")
         self.table.setItem(row, 1, QTableWidgetItem(table_name))
-        for col, key in enumerate([
-            self.game_manager.getTableWrittenRecordsKey(),
-            self.game_manager.getTableTotalRecordsKey(),
-            self.game_manager.getTableSaveGroupsKey()
-        ], 2):
+        for col, key in enumerate(
+            [
+                self.game_manager.getTableWrittenRecordsKey(),
+                self.game_manager.getTableTotalRecordsKey(),
+                self.game_manager.getTableSaveGroupsKey(),
+            ],
+            2,
+        ):
             item = QTableWidgetItem(str(table.get(key, "")))
             item.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
             self.table.setItem(row, col, item)
@@ -285,23 +343,32 @@ class SquadsTablesFetcherWindow(BaseWindow):
     def _setup_completer(self, table_names: List[str]):
         valid_names = [name for name in table_names if name]
         self.completer = QCompleter(valid_names, self.search_line_edit)
-        self.completer.setCaseSensitivity(Qt.CaseSensitive if self.is_exact_search else Qt.CaseInsensitive)
+        self.completer.setCaseSensitivity(
+            Qt.CaseSensitive if self.is_exact_search else Qt.CaseInsensitive
+        )
         self.completer.setMaxVisibleItems(10)
         self.search_line_edit.setCompleter(self.completer)
 
     def toggle_exact_search(self, checked: bool):
         self.is_exact_search = checked
         if self.completer:
-            self.completer.setCaseSensitivity(Qt.CaseSensitive if self.is_exact_search else Qt.CaseInsensitive)
+            self.completer.setCaseSensitivity(
+                Qt.CaseSensitive if self.is_exact_search else Qt.CaseInsensitive
+            )
             self.filter_tables(self.search_line_edit.text())
 
     def filter_tables(self, text: str):
         if not self.table:
             return
-        text = text.lower()  
+        text = text.lower()
         for row in range(self.table.rowCount()):
-            table_name = self.table.item(row, 1).text().lower() 
-            self.table.setRowHidden(row, text not in table_name if not self.is_exact_search else text != table_name)
+            table_name = self.table.item(row, 1).text().lower()
+            self.table.setRowHidden(
+                row,
+                text not in table_name
+                if not self.is_exact_search
+                else text != table_name,
+            )
 
     def on_checkbox_state_changed(self, row: int, state: int):
         self.checkbox_states[row] = state == Qt.CheckState.Checked.value
@@ -317,11 +384,17 @@ class SquadsTablesFetcherWindow(BaseWindow):
         ]
         valid_tables = [name for name in selected if name]
         if len(valid_tables) < len(selected):
-            logger.warning(f"Excluded {len(selected) - len(valid_tables)} tables with empty names")
+            logger.warning(
+                f"Excluded {len(selected) - len(valid_tables)} tables with empty names"
+            )
         return valid_tables
 
     def get_squad_folder_name(self) -> str:
-        return f"{self.update_name.replace(' ', '_')}_Tables" if self.update_name else "Tables"
+        return (
+            f"{self.update_name.replace(' ', '_')}_Tables"
+            if self.update_name
+            else "Tables"
+        )
 
     def fetch_tables(self, selected_tables: List[str]):
         save_path = self._get_save_path()
@@ -341,20 +414,41 @@ class SquadsTablesFetcherWindow(BaseWindow):
             if self.is_fetching_canceled:
                 break
             worker = TableFetchWorker(
-                self.index_url, table_name, save_path, format,
-                self.game_manager, self.config_manager, self.tables_data, self.update_name
+                self.index_url,
+                table_name,
+                save_path,
+                format,
+                self.game_manager,
+                self.config_manager,
+                self.tables_data,
+                self.update_name,
             )
             worker.signals.started.connect(self.update_table_name)
             worker.signals.finished.connect(self.on_table_fetched)
             worker.signals.error.connect(self._on_error)
             self.thread_pool.start(worker)
-        if self.config_manager.getConfigKeyFetchSquadsDB() and self.game_manager.getDbName(self.index_url):
-            db_filename = f"{self.update_name.replace(' ', '_')}{self.game_manager.getDbExtension()}" if self.update_name else f"Database{self.game_manager.getDbExtension()}"
-            db_worker = TableFetchWorker(
-                self.index_url, db_filename, save_path, None,
-                self.game_manager, self.config_manager, self.tables_data, self.update_name
+        if (
+            self.config_manager.getConfigKeyFetchSquadsDB()
+            and self.game_manager.getDbName(self.index_url)
+        ):
+            db_filename = (
+                f"{self.update_name.replace(' ', '_')}{self.game_manager.getDbExtension()}"
+                if self.update_name
+                else f"Database{self.game_manager.getDbExtension()}"
             )
-            db_worker.signals.started.connect(lambda: self.update_table_name(db_filename))
+            db_worker = TableFetchWorker(
+                self.index_url,
+                db_filename,
+                save_path,
+                None,
+                self.game_manager,
+                self.config_manager,
+                self.tables_data,
+                self.update_name,
+            )
+            db_worker.signals.started.connect(
+                lambda: self.update_table_name(db_filename)
+            )
             db_worker.signals.finished.connect(self.on_table_fetched)
             db_worker.signals.error.connect(self._on_error)
             self.thread_pool.start(db_worker)
@@ -378,13 +472,19 @@ class SquadsTablesFetcherWindow(BaseWindow):
     def on_table_fetched(self, table_name: str):
         if self.is_fetching_canceled:
             return
-        db_filename = f"{self.update_name.replace(' ', '_')}{self.game_manager.getDbExtension()}" if self.update_name else f"Database{self.game_manager.getDbExtension()}"
+        db_filename = (
+            f"{self.update_name.replace(' ', '_')}{self.game_manager.getDbExtension()}"
+            if self.update_name
+            else f"Database{self.game_manager.getDbExtension()}"
+        )
         if table_name == db_filename:
             self.db_fetched = True
         else:
             self.fetched_tables.append(table_name)
         self.active_fetch_workers -= 1
-        logger.debug(f"Table fetched: {table_name}, remaining workers: {self.active_fetch_workers}")
+        logger.debug(
+            f"Table fetched: {table_name}, remaining workers: {self.active_fetch_workers}"
+        )
         if self.active_fetch_workers <= 0:
             self._show_success_message()
             self.hide_loading()
@@ -397,12 +497,22 @@ class SquadsTablesFetcherWindow(BaseWindow):
         if self.config_manager.getConfigKeySaveTablesInFolderUsingSquadFileName():
             save_path = os.path.join(save_path, self.get_squad_folder_name())
         elapsed_time = time.time() - self.start_time if self.start_time else 0
-        elapsed_time_str = f"{elapsed_time:.2f} seconds" if elapsed_time < 60 else f"{elapsed_time / 60:.2f} minutes"
+        elapsed_time_str = (
+            f"{elapsed_time:.2f} seconds"
+            if elapsed_time < 60
+            else f"{elapsed_time / 60:.2f} minutes"
+        )
         message = f"{table_count} {'Table' if table_count == 1 else 'Tables'}"
         if self.db_fetched:
-            db_name = f"{self.update_name.replace(' ', '_')}{self.game_manager.getDbExtension()}" if self.update_name else f"Database{self.game_manager.getDbExtension()}"
+            db_name = (
+                f"{self.update_name.replace(' ', '_')}{self.game_manager.getDbExtension()}"
+                if self.update_name
+                else f"Database{self.game_manager.getDbExtension()}"
+            )
             message += f" and {db_name}" if table_count > 0 else db_name
-        message += f" fetched successfully in {elapsed_time_str} and saved to {save_path}"
+        message += (
+            f" fetched successfully in {elapsed_time_str} and saved to {save_path}"
+        )
         InfoBar.success(
             title="Success",
             content=message,
@@ -410,7 +520,7 @@ class SquadsTablesFetcherWindow(BaseWindow):
             isClosable=True,
             position=InfoBarPosition.TOP,
             duration=2200,
-            parent=self
+            parent=self,
         )
         logger.info(f"{message}")
 
@@ -449,13 +559,14 @@ class SquadsTablesFetcherWindow(BaseWindow):
             self.index_worker.deleteLater()
             self.index_worker = None
             self.index_thread = None
-            
+
     def closeEvent(self, event):
-            self._cleanup_index_worker() 
-            if self.thread_pool:
-                self.thread_pool.clear()
-                self.thread_pool.waitForDone()  # Wait for all workers to finish
-            super().closeEvent(event)
+        self._cleanup_index_worker()
+        if self.thread_pool:
+            self.thread_pool.clear()
+            self.thread_pool.waitForDone()  # Wait for all workers to finish
+        super().closeEvent(event)
+
 
 class ButtonManager:
     def __init__(self, window: SquadsTablesFetcherWindow):
@@ -484,11 +595,13 @@ class ButtonManager:
         self.buttons = {
             "cancel": QPushButton("Cancel"),
             "fetch": QPushButton("Fetch Tables"),
-            "settings": QPushButton()
+            "settings": QPushButton(),
         }
         self.buttons["cancel"].clicked.connect(self.cancel)
         self.buttons["fetch"].clicked.connect(self.fetch)
-        self.buttons["fetch"].setStyleSheet("border-top-right-radius: 0px; border-bottom-right-radius: 0px;")
+        self.buttons["fetch"].setStyleSheet(
+            "border-top-right-radius: 0px; border-bottom-right-radius: 0px;"
+        )
         self.buttons["fetch"].setFixedWidth(120)
         self.buttons["settings"].clicked.connect(self.open_table_settings)
         self.buttons["settings"].setIcon(FluentIcon.SETTING.icon(Theme.DARK))
@@ -498,11 +611,17 @@ class ButtonManager:
         )
         self.buttons["settings"].setFixedSize(28, 28)
         self.select_all_checkbox = CheckBox("Select All")
-        self.select_all_checkbox.setChecked(self.window.config_manager.getConfigKeySelectAllTables())
-        self.select_all_checkbox.setStyleSheet("margin-left: 5px; background-color: transparent; color: white;")
+        self.select_all_checkbox.setChecked(
+            self.window.config_manager.getConfigKeySelectAllTables()
+        )
+        self.select_all_checkbox.setStyleSheet(
+            "margin-left: 5px; background-color: transparent; color: white;"
+        )
         self.select_all_checkbox.setEnabled(False)
         self.exact_search_checkbox = CheckBox("Exact Search")
-        self.exact_search_checkbox.setStyleSheet("margin-left: 5px; background-color: transparent; color: white;")
+        self.exact_search_checkbox.setStyleSheet(
+            "margin-left: 5px; background-color: transparent; color: white;"
+        )
         self.exact_search_checkbox.setEnabled(False)
         self.exact_search_checkbox.stateChanged.connect(self.on_exact_search_toggled)
 
@@ -517,9 +636,14 @@ class ButtonManager:
 
     def fetch(self):
         selected_tables = self.window.get_selected_tables()
-        fetch_db = self.window.config_manager.getConfigKeyFetchSquadsDB() and self.window.game_manager.getDbName(self.window.index_url)
+        fetch_db = (
+            self.window.config_manager.getConfigKeyFetchSquadsDB()
+            and self.window.game_manager.getDbName(self.window.index_url)
+        )
         if not selected_tables and not fetch_db:
-            ErrorHandler.handleError("No valid tables selected and database fetch is not enabled")
+            ErrorHandler.handleError(
+                "No valid tables selected and database fetch is not enabled"
+            )
             self.window.close()
             return
         self.window.fetch_tables(selected_tables)
@@ -555,6 +679,7 @@ class ButtonManager:
         self.select_all_checkbox.setEnabled(True)
         self.exact_search_checkbox.setEnabled(True)
 
+
 class NetworkWorker:
     def __init__(self):
         self.network_manager: Optional[QNetworkAccessManager] = None
@@ -588,26 +713,38 @@ class NetworkWorker:
                     self.current_reply = None
                     return data
                 error_msg = self.current_reply.errorString()
-                ErrorHandler.handleError(f"Error fetching data on attempt {attempt + 1}: {error_msg}")
+                ErrorHandler.handleError(
+                    f"Error fetching data on attempt {attempt + 1}: {error_msg}"
+                )
                 self.current_reply.deleteLater()
                 self.current_reply = None
                 if attempt < max_retries - 1:
                     time.sleep(NetworkConfig.RETRY_WAIT)
                 else:
-                    raise Exception(f"Failed to fetch data after {max_retries} attempts: {error_msg}")
+                    raise Exception(
+                        f"Failed to fetch data after {max_retries} attempts: {error_msg}"
+                    )
             except Exception as e:
-                ErrorHandler.handleError(f"Unexpected error on attempt {attempt + 1}: {str(e)}")
+                ErrorHandler.handleError(
+                    f"Unexpected error on attempt {attempt + 1}: {str(e)}"
+                )
                 if attempt < max_retries - 1:
                     time.sleep(NetworkConfig.RETRY_WAIT)
                 else:
                     raise
         return b""
 
+
 class IndexFetchWorker(QObject, NetworkWorker):
     finished = Signal(list)
     error = Signal(str)
 
-    def __init__(self, index_url: str, game_manager: GameManager, update_name: Optional[str] = None):
+    def __init__(
+        self,
+        index_url: str,
+        game_manager: GameManager,
+        update_name: Optional[str] = None,
+    ):
         super().__init__()
         self.index_url = index_url
         self.game_manager = game_manager
@@ -620,7 +757,9 @@ class IndexFetchWorker(QObject, NetworkWorker):
                 error_msg = "No tables data found in Index.json"
                 self.error.emit(error_msg)
                 return
-            logger.info(f"Index.json for {self.update_name} fetched successfully and found {len(tables_data)} tables in it")
+            logger.info(
+                f"Index.json for {self.update_name} fetched successfully and found {len(tables_data)} tables in it"
+            )
             self.finished.emit(tables_data)
         except Exception as e:
             error_msg = f"Failed to fetch Index.json from {self.index_url}: {str(e)}"
@@ -631,15 +770,24 @@ class IndexFetchWorker(QObject, NetworkWorker):
     def cancel(self):
         self._cleanup_network()
 
+
 class TableFetchWorker(QRunnable, NetworkWorker):
     class Signals(QObject):
         started = Signal(str)
         finished = Signal(str)
         error = Signal(str)
 
-    def __init__(self, index_url: str, table_name: str, save_path: str, format: str,
-                 game_manager: GameManager, config_manager: ConfigManager, tables_data: List[dict],
-                 update_name: Optional[str] = None):
+    def __init__(
+        self,
+        index_url: str,
+        table_name: str,
+        save_path: str,
+        format: str,
+        game_manager: GameManager,
+        config_manager: ConfigManager,
+        tables_data: List[dict],
+        update_name: Optional[str] = None,
+    ):
         super().__init__()
         self.signals = self.Signals()
         self.index_url = index_url
@@ -659,51 +807,84 @@ class TableFetchWorker(QRunnable, NetworkWorker):
             self.signals.error.emit(error_msg)
             return
         format_config = {
-            self.game_manager.getTableExtension(): (self.game_manager.getTableExtension(), lambda c, p: c.to_csv(p)),
+            self.game_manager.getTableExtension(): (
+                self.game_manager.getTableExtension(),
+                lambda c, p: c.to_csv(p),
+            ),
             ".json": (".json", lambda c, p: c.to_json(p)),
             ".txt (UTF-8 BOM)": (".txt", lambda c, p: c.to_utf8bom_txt(p)),
-            ".txt (UTF-16 LE)": (".txt", lambda c, p: c.to_utf16le_txt(p))
+            ".txt (UTF-16 LE)": (".txt", lambda c, p: c.to_utf16le_txt(p)),
         }
         try:
             if self.format is None:
-                file_path = os.path.normpath(os.path.join(self.save_path, self.table_name))
+                file_path = os.path.normpath(
+                    os.path.join(self.save_path, self.table_name)
+                )
             else:
                 ext, save_method = format_config.get(
-                    self.format, (self.game_manager.getTableExtension(), lambda c, p: c.to_csv(p))
+                    self.format,
+                    (self.game_manager.getTableExtension(), lambda c, p: c.to_csv(p)),
                 )
                 if self.format not in format_config:
-                    logger.warning(f"Invalid format '{self.format}' selected, falling back to {self.game_manager.getTableExtension()}")
+                    logger.warning(
+                        f"Invalid format '{self.format}' selected, falling back to {self.game_manager.getTableExtension()}"
+                    )
                 folder_path = self.save_path
                 if self.config_manager.getConfigKeySaveTablesInFolderUsingSquadFileName():
-                    folder_path = os.path.join(self.save_path, f"{self.update_name.replace(' ', '_')}_Tables" if self.update_name else "Tables")
-                file_path = os.path.normpath(os.path.join(folder_path, f"{self.table_name}{ext}"))
+                    folder_path = os.path.join(
+                        self.save_path,
+                        f"{self.update_name.replace(' ', '_')}_Tables"
+                        if self.update_name
+                        else "Tables",
+                    )
+                file_path = os.path.normpath(
+                    os.path.join(folder_path, f"{self.table_name}{ext}")
+                )
             os.makedirs(os.path.dirname(file_path), exist_ok=True)
             table_url = (
                 self.game_manager.getDbPathKey(self.index_url, self.config_manager)
                 if self.format is None
-                else self.game_manager.getTableUrl(self.index_url, self.table_name, self.config_manager)
+                else self.game_manager.getTableUrl(
+                    self.index_url, self.table_name, self.config_manager
+                )
             )
             if not table_url:
-                raise Exception(f"Failed to get URL for {'database file' if self.format is None else 'table'}: {self.table_name}")
+                raise Exception(
+                    f"Failed to get URL for {'database file' if self.format is None else 'table'}: {self.table_name}"
+                )
             self.signals.started.emit(self.table_name)
             if self.is_canceled:
                 return
             data = self.fetch_data(table_url, self.game_manager.MAX_RETRIES)
             if self.is_canceled:
-                logger.info(f"Fetch canceled after data retrieval for {'database file' if self.format is None else 'table'}: {self.table_name}")
+                logger.info(
+                    f"Fetch canceled after data retrieval for {'database file' if self.format is None else 'table'}: {self.table_name}"
+                )
                 return
             if self.format is None:
                 with open(file_path, "wb") as f:
                     f.write(data)
             else:
                 table_info = next(
-                    (t for t in self.tables_data if t.get(self.game_manager.getTableNameKey()) == self.table_name),
-                    None
+                    (
+                        t
+                        for t in self.tables_data
+                        if t.get(self.game_manager.getTableNameKey()) == self.table_name
+                    ),
+                    None,
                 )
-                converter = TableSettings(data, self.table_name, self.config_manager, table_info, self.index_url)
+                converter = TableSettings(
+                    data,
+                    self.table_name,
+                    self.config_manager,
+                    table_info,
+                    self.index_url,
+                )
                 save_method(converter, file_path)
             if self.is_canceled:
-                logger.info(f"Fetch canceled after saving for {'database file' if self.format is None else 'table'}: {self.table_name}")
+                logger.info(
+                    f"Fetch canceled after saving for {'database file' if self.format is None else 'table'}: {self.table_name}"
+                )
                 return
             self.signals.finished.emit(self.table_name)
         except PermissionError as e:
@@ -715,7 +896,9 @@ class TableFetchWorker(QRunnable, NetworkWorker):
                 try:
                     os.remove(file_path)
                 except PermissionError:
-                    logger.warning(f"Could not delete file {file_path} due to permission error")
+                    logger.warning(
+                        f"Could not delete file {file_path} due to permission error"
+                    )
             error_msg = f"Failed to download {'database file' if self.format is None else 'table'} {self.table_name}: {str(e)}"
             ErrorHandler.handleError(error_msg)
             self.signals.error.emit(error_msg)
@@ -725,7 +908,8 @@ class TableFetchWorker(QRunnable, NetworkWorker):
     def cancel(self):
         self.is_canceled = True
         self._cleanup_network()
-        
+
+
 def main():
     app = QApplication(sys.argv)
     app.setStyleSheet(MainStyles())
@@ -735,6 +919,7 @@ def main():
     window = SquadsTablesFetcherWindow()
     window.show()
     sys.exit(app.exec())
+
 
 if __name__ == "__main__":
     main()

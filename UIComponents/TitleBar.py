@@ -32,10 +32,13 @@ class TitleBar:
         self.title_label = None  # reference to the title label
 
     def create_title_bar(self) -> None:
-        """Create a customizable title bar."""
         title_bar = StandardTitleBar(self.window)
         self.window.setTitleBar(title_bar)
         title_bar.setDoubleClickEnabled(False)
+
+        # qframelesswindow's StandardTitleBar internally listens to QWidget.setWindowTitle() 
+        # and forcefully renders its own QLabel. We hide it to enforce our custom rich-text label and prevent visual overlapping during state changes.
+        title_bar.titleLabel.hide()
 
         if not self.show_max_button:
             title_bar.maxBtn.hide()

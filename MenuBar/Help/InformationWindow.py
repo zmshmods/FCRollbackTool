@@ -134,7 +134,7 @@ class InformationWindow(BaseWindow):
         scroll_layout.setSpacing(0)
         scroll_layout.setAlignment(Qt.AlignTop)
 
-        # --- Acknowledgments Section ---
+        # Acknowledgments Section
         ack_widget = QWidget()
         ack_layout = QVBoxLayout(ack_widget)
         ack_layout.setContentsMargins(20, 15, 20, 15)
@@ -152,7 +152,7 @@ class InformationWindow(BaseWindow):
             ("PyQt-Fluent-Widgets by zhiyiYo and others", "https://github.com/zhiyiYo/PyQt-Fluent-Widgets"),
             ("MediaFire", "https://www.mediafire.com"),
             ("Aria2", "https://github.com/aria2/aria2"),
-            ("UnRAR", "https://www.rarlab.com/rar_add.htm"),
+            ("7-Zip", "https://www.7-zip.org/"),
             ("FIFASquadFileDownloader by xAranaktu", "https://github.com/xAranaktu/FIFASquadFileDownloader"),
             ("DepotDownloader", "https://github.com/SteamRE/DepotDownloader"),
         ]
@@ -170,10 +170,10 @@ class InformationWindow(BaseWindow):
         
         scroll_layout.addWidget(ack_widget)
 
-        # --- Internal Separator ---
+        # Internal Separator
         scroll_layout.addWidget(QWidget(self, styleSheet=SEPARATOR_STYLE, fixedHeight=1))
 
-        # --- Useful Links Section ---
+        # Useful Links Section
         useful_links_widget = QWidget()
         useful_links_layout = QVBoxLayout(useful_links_widget)
         useful_links_layout.setContentsMargins(20, 15, 20, 15)

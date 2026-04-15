@@ -1,8 +1,6 @@
 import os
 import shutil
-import zipfile
-import py7zr
-import rarfile
+import subprocess
 import pickle
 import zlib
 from enum import Enum
@@ -72,7 +70,6 @@ class ImportTitleUpdate(QThread):
         self._cleanup()
 
     def run(self):
-        zf = rf = szf = None
         try:
             ext = os.path.splitext(self.input_path)[1].lower()
             is_compressed = os.path.isfile(self.input_path) and ext in self.data_mgr.getCompressedFileExtensions()
@@ -90,27 +87,41 @@ class ImportTitleUpdate(QThread):
             if is_compressed:
                 try:
                     pwd = self.data_mgr.getKey()
-                    if ext == ".zip":
-                        zf = zipfile.ZipFile(self.input_path, "r")
-                        if pwd: zf.setpassword(pwd.encode('utf-8'))
-                    elif ext == ".7z":
-                        szf = py7zr.SevenZipFile(self.input_path, "r", password=pwd)
-                    elif ext == ".rar":
-                        unrar_path = self.data_mgr.getUnRAR()
-                        if not os.path.exists(unrar_path):
-                            self._handle_error(f"UnRAR tool not found at: {unrar_path}")
-                            return
-                        rarfile.UNRAR_TOOL = unrar_path
-                        rf = rarfile.RarFile(self.input_path, "r")
-                        if pwd: rf.setpassword(pwd)
-                    else:
-                        self._handle_error(f"Unsupported archive type: {ext}")
+                    seven_z = self.data_mgr.get7z()
+                    
+                    if not os.path.exists(seven_z):
+                        self._handle_error(f"7z tool not found at: {seven_z}")
                         return
+                        
+                    list_cmd =[seven_z, "l", "-ba", "-slt", self.input_path]
+                    if pwd:
+                        list_cmd.insert(2, f"-p{pwd}")
+                        
+                    startupinfo = subprocess.STARTUPINFO()
+                    startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+                    
+                    result = subprocess.run(list_cmd, capture_output=True, text=True, startupinfo=startupinfo)
+                    
+                    archive_files =[]
+                    current_path = None
+                    is_dir = False
+                    for line in result.stdout.splitlines():
+                        line = line.strip()
+                        if line.startswith("Path = "):
+                            current_path = line[7:]
+                            is_dir = False
+                        elif line.startswith("Attributes = "):
+                            if "D" in line[13:]:
+                                is_dir = True
+                        elif line == "":
+                            if current_path and not is_dir:
+                                archive_files.append(current_path.replace("\\", "/"))
+                            current_path = None
+
                 except Exception as e:
-                    self._handle_error(f"Failed to open archive {self.input_path}: {str(e)}")
+                    self._handle_error(f"Failed to read archive {self.input_path}: {str(e)}")
                     return
 
-                archive_files = zf.namelist() if ext == ".zip" else szf.getnames() if ext == ".7z" else rf.namelist()
                 for file in archive_files:
                     if os.path.basename(file).lower() in [e.lower() for e in expected_exes]:
                         self.exe_path_in_source = file
@@ -127,13 +138,16 @@ class ImportTitleUpdate(QThread):
                     return
 
                 try:
-                    if ext == ".zip":
-                        zf.extract(self.exe_path_in_source, path=self.temp_path)
-                    elif ext == ".7z":
-                        szf.extract(targets=[self.exe_path_in_source], path=self.temp_path)
-                    elif ext == ".rar":
-                        rf.extract(self.exe_path_in_source, path=self.temp_path)
+                    extract_cmd =[seven_z, "x", self.input_path, f"-o{self.temp_path}", self.exe_path_in_source, "-y"]
+                    if pwd:
+                        extract_cmd.insert(2, f"-p{pwd}")
+                    
+                    startupinfo = subprocess.STARTUPINFO()
+                    startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+                    subprocess.run(extract_cmd, capture_output=True, startupinfo=startupinfo)
+                    
                     extracted_path = os.path.join(self.temp_path, self.exe_path_in_source)
+
                     temp_exe_path = os.path.join(self.temp_path, exe_name)
                     if os.path.exists(extracted_path):
                         os.makedirs(os.path.dirname(temp_exe_path), exist_ok=True)
@@ -204,34 +218,39 @@ class ImportTitleUpdate(QThread):
             os.makedirs(target_dir, exist_ok=True)
             update_size = self.get_file_size()
             final_path = os.path.join(target_dir, f"{update_name}{ext}" if is_compressed else update_name)
+            
+            is_same_file = os.path.abspath(self.input_path).lower() == os.path.abspath(final_path).lower()
+
             self.emit_state(ImportState.IMPORTING, 90, f"Importing {update_name} ({update_size})")
 
-            if is_compressed:
-                if os.path.exists(final_path):
-                    os.remove(final_path)
-                shutil.copy2(self.input_path, final_path)
+            if not is_same_file:
+                if is_compressed:
+                    if os.path.exists(final_path):
+                        os.remove(final_path)
+                    shutil.copy2(self.input_path, final_path)
+                else:
+                    if os.path.exists(final_path):
+                        shutil.rmtree(final_path, ignore_errors=True)
+                    os.makedirs(final_path, exist_ok=True)
+                    for item in os.listdir(root_dir):
+                        src, dst = os.path.join(root_dir, item), os.path.join(final_path, item)
+                        if os.path.isfile(src):
+                            shutil.copy2(src, dst)
+                        elif os.path.isdir(src):
+                            shutil.copytree(src, dst, dirs_exist_ok=True)
             else:
-                if os.path.exists(final_path):
-                    shutil.rmtree(final_path, ignore_errors=True)
-                os.makedirs(final_path, exist_ok=True)
-                for item in os.listdir(root_dir):
-                    src, dst = os.path.join(root_dir, item), os.path.join(final_path, item)
-                    if os.path.isfile(src):
-                        shutil.copy2(src, dst)
-                    elif os.path.isdir(src):
-                        shutil.copytree(src, dst, dirs_exist_ok=True)
+                self._handle_error(f"Source and destination are the exact same path: {final_path}")
+                return
 
             self.emit_state(ImportState.IMPORTING, 90, f"{update_name} ({update_size})", True)
             self._cleanup()
             self.emit_state(ImportState.COMPLETED, 100, "", True)
             self.completed_signal.emit()
+            
         except Exception as e:
             if not self.is_canceled:
                 self.error_signal.emit(f"Import failed: {str(e)}")
         finally:
-            if zf: zf.close()
-            if rf: rf.close()
-            if szf: szf.close()
             self._cleanup()
             self.quit()
 

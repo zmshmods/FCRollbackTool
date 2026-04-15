@@ -1,9 +1,23 @@
 import sys
-from PySide6.QtWidgets import (QApplication, QVBoxLayout, QHBoxLayout, QLabel, QWidget, QStackedWidget)
+from PySide6.QtWidgets import (
+    QApplication,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QWidget,
+    QStackedWidget,
+)
 from PySide6.QtGui import QGuiApplication, QIcon
 from PySide6.QtCore import Qt, QObject, QThread, Signal, QTimer
 
-from qfluentwidgets import Theme, setTheme, setThemeColor, ComboBox, ScrollArea, BodyLabel
+from qfluentwidgets import (
+    Theme,
+    setTheme,
+    setThemeColor,
+    ComboBox,
+    ScrollArea,
+    BodyLabel,
+)
 
 from UIComponents.Personalization import BaseWindow
 from UIComponents.MainStyles import MainStyles
@@ -19,6 +33,7 @@ WINDOW_SIZE = (720, 480)
 THEME_COLOR = "#00FF00"
 ICON_PATH = "Data/Assets/Icons/ic_fluent_code_24_filled.png"
 SEPARATOR_STYLE = "background-color: rgba(255, 255, 255, 0.1);"
+
 
 class ChangelogFetcher(QObject):
     versions_ready = Signal(list)
@@ -62,7 +77,9 @@ class ChangelogWindow(BaseWindow):
 
     def center_window(self) -> None:
         screen = QGuiApplication.primaryScreen().geometry()
-        self.move((screen.width() - self.width()) // 2, (screen.height() - self.height()) // 2)
+        self.move(
+            (screen.width() - self.width()) // 2, (screen.height() - self.height()) // 2
+        )
 
     def _setup_title_bar(self) -> None:
         title_bar = TitleBar(self, title=WINDOW_TITLE, icon_path=ICON_PATH)
@@ -77,7 +94,7 @@ class ChangelogWindow(BaseWindow):
         top_layout = QHBoxLayout()
         self.title_label = BodyLabel("FC Rollback Tool")
         self.title_label.setStyleSheet("font-size: 16px; font-weight: bold;")
-        
+
         top_layout.addWidget(self.title_label)
         top_layout.addStretch()
 
@@ -87,9 +104,11 @@ class ChangelogWindow(BaseWindow):
         self.version_combo.setEnabled(False)
         self.version_combo.currentTextChanged.connect(self._on_version_selected)
         top_layout.addWidget(self.version_combo)
-        
+
         container_layout.addLayout(top_layout)
-        container_layout.addWidget(QWidget(self, styleSheet=SEPARATOR_STYLE, fixedHeight=1))
+        container_layout.addWidget(
+            QWidget(self, styleSheet=SEPARATOR_STYLE, fixedHeight=1)
+        )
 
         self.stack = QStackedWidget(self)
         container_layout.addWidget(self.stack)
@@ -103,7 +122,7 @@ class ChangelogWindow(BaseWindow):
         loading_label.setAlignment(Qt.AlignCenter)
         loading_layout.addWidget(loading_label)
         self.stack.addWidget(loading_widget)
-        
+
         scroll_area = ScrollArea(self)
         scroll_area.setWidgetResizable(True)
         scroll_area.setStyleSheet("background: transparent; border: none;")
@@ -151,28 +170,36 @@ class ChangelogWindow(BaseWindow):
             self.title_label.setText(f"FC Rollback Tool v{version}")
             self._update_changelog_display(changelog)
             self.stack.setCurrentIndex(1)
-    
+
     def _update_changelog_display(self, changelog_lines: list):
         while self.changelog_layout.count() > 1:
             item = self.changelog_layout.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
-        
+
         for line in changelog_lines:
             stripped_line = line.strip()
             if not stripped_line:
                 continue
             if stripped_line.startswith("- *"):
                 changelog_label = QLabel(f"Note: {stripped_line[3:].strip()}")
-                changelog_label.setStyleSheet("font-size: 14px; color: yellow; background-color: transparent;")
+                changelog_label.setStyleSheet(
+                    "font-size: 14px; color: yellow; background-color: transparent;"
+                )
             else:
-                changelog_label = QLabel(f"• {stripped_line[1:].strip() if stripped_line.startswith('-') else stripped_line}")
-                changelog_label.setStyleSheet("font-size: 14px; color: white; background-color: transparent;")
+                changelog_label = QLabel(
+                    f"• {stripped_line[1:].strip() if stripped_line.startswith('-') else stripped_line}"
+                )
+                changelog_label.setStyleSheet(
+                    "font-size: 14px; color: white; background-color: transparent;"
+                )
             changelog_label.setWordWrap(True)
-            self.changelog_layout.insertWidget(self.changelog_layout.count() - 1, changelog_label)
+            self.changelog_layout.insertWidget(
+                self.changelog_layout.count() - 1, changelog_label
+            )
 
     def closeEvent(self, event):
-        if hasattr(self, 'fetcher_thread') and self.fetcher_thread.isRunning():
+        if hasattr(self, "fetcher_thread") and self.fetcher_thread.isRunning():
             self.fetcher_thread.quit()
             self.fetcher_thread.wait()
         super().closeEvent(event)
@@ -187,6 +214,7 @@ def main():
     window = ChangelogWindow()
     window.show()
     return app.exec()
+
 
 if __name__ == "__main__":
     main()

@@ -4,11 +4,32 @@ from typing import Optional, Dict, List
 
 from PySide6.QtCore import Qt, QSize, QUrl, QThread, Signal, QObject
 from PySide6.QtGui import QIcon, QDesktopServices
-from PySide6.QtWidgets import (QApplication, QVBoxLayout, QWidget, QHBoxLayout, QFrame, 
-                               QHeaderView, QPushButton, QFileIconProvider, QTableWidgetItem, 
-                               QAbstractItemView, QLabel, QStackedLayout, QSizePolicy)
+from PySide6.QtWidgets import (
+    QApplication,
+    QVBoxLayout,
+    QWidget,
+    QHBoxLayout,
+    QFrame,
+    QHeaderView,
+    QPushButton,
+    QFileIconProvider,
+    QTableWidgetItem,
+    QAbstractItemView,
+    QLabel,
+    QStackedLayout,
+    QSizePolicy,
+)
 
-from qfluentwidgets import (TableWidget, setTheme, Theme, setThemeColor, BodyLabel, FluentIcon, InfoBar, InfoBarPosition)
+from qfluentwidgets import (
+    TableWidget,
+    setTheme,
+    Theme,
+    setThemeColor,
+    BodyLabel,
+    FluentIcon,
+    InfoBar,
+    InfoBarPosition,
+)
 
 from UIComponents.Personalization import BaseWindow
 from UIComponents.MainStyles import MainStyles
@@ -24,6 +45,7 @@ WINDOW_SIZE = (720, 480)
 THEME_COLOR = "#00FF00"
 ICON_PATH = "Data/Assets/Icons/ic_fluent_rename_24_filled.png"
 SEPARATOR_STYLE = "background-color: rgba(255, 255, 255, 0.1);"
+
 
 class DataFetchWorker(QObject):
     finished = Signal(object)
@@ -41,6 +63,7 @@ class DataFetchWorker(QObject):
             ErrorHandler.handleError(f"Error fetching FET folder data: {e}")
             self.finished.emit(None)
 
+
 class FETTUChangelogFoldersRenamer(BaseWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -48,7 +71,7 @@ class FETTUChangelogFoldersRenamer(BaseWindow):
         self.config_manager = ConfigManager()
         self.folders_to_rename = []
         self.data_path = None
-        
+
         self.loading_spinner = None
         self.loading_label = None
         self.thread = None
@@ -84,7 +107,7 @@ class FETTUChangelogFoldersRenamer(BaseWindow):
             show_max_button=True,
             show_min_button=True,
             show_close_button=True,
-            bar_height=32
+            bar_height=32,
         )
         title_bar.create_title_bar()
 
@@ -96,7 +119,11 @@ class FETTUChangelogFoldersRenamer(BaseWindow):
         self.main_container_layout.setSpacing(0)
         self.main_layout.addWidget(self.main_container)
 
-        self.stacked_container = QWidget(self.main_container, styleSheet="background-color: rgba(0, 0, 0, 0.0);", sizePolicy=QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding))
+        self.stacked_container = QWidget(
+            self.main_container,
+            styleSheet="background-color: rgba(0, 0, 0, 0.0);",
+            sizePolicy=QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding),
+        )
         self.stacked_layout = QStackedLayout(self.stacked_container)
         self.main_container_layout.addWidget(self.stacked_container)
 
@@ -104,18 +131,28 @@ class FETTUChangelogFoldersRenamer(BaseWindow):
         self._configure_table()
         self.stacked_layout.addWidget(self.table)
 
-        self.placeholder_label = QLabel(self, styleSheet="font-size: 14px; color: white; background-color: transparent;")
+        self.placeholder_label = QLabel(
+            self,
+            styleSheet="font-size: 14px; color: white; background-color: transparent;",
+        )
         self.placeholder_label.setAlignment(Qt.AlignCenter)
         self.placeholder_label.setWordWrap(True)
         self.stacked_layout.addWidget(self.placeholder_label)
 
-        self.spinner_container = QWidget(self, styleSheet="background-color: transparent;")
+        self.spinner_container = QWidget(
+            self, styleSheet="background-color: transparent;"
+        )
         spinner_layout = QVBoxLayout(self.spinner_container)
         spinner_layout.setAlignment(Qt.AlignCenter)
         spinner_layout.setContentsMargins(0, 0, 0, 0)
         self.loading_spinner = LoadingSpinner(self)
         self.loading_spinner.setStyleSheet("background-color: transparent;")
-        self.loading_label = QLabel("", self, styleSheet="font-size: 16px; color: white; background-color: transparent;", alignment=Qt.AlignCenter)
+        self.loading_label = QLabel(
+            "",
+            self,
+            styleSheet="font-size: 16px; color: white; background-color: transparent;",
+            alignment=Qt.AlignCenter,
+        )
         spinner_layout.addWidget(self.loading_spinner, alignment=Qt.AlignCenter)
         spinner_layout.addWidget(self.loading_label, alignment=Qt.AlignCenter)
         self.stacked_layout.addWidget(self.spinner_container)
@@ -142,12 +179,14 @@ class FETTUChangelogFoldersRenamer(BaseWindow):
         header.setStyleSheet("QHeaderView::section { font-weight: Bold; }")
         self.table.setAlternatingRowColors(True)
         self.table.verticalHeader().hide()
-        
+
         self.table.itemDelegate().setSelectedRowColor(color=None, alpha=0)
-        self.table.itemDelegate().setHoverRowColor(color=None, alpha=0)    
+        self.table.itemDelegate().setHoverRowColor(color=None, alpha=0)
         self.table.itemDelegate().setAlternateRowColor(color=None, alpha=2)
         self.table.itemDelegate().setPressedRowColor(color=None, alpha=0)
-        self.table.itemDelegate().setPriorityOrder(["alternate", "selected", "pressed", "hover"])
+        self.table.itemDelegate().setPriorityOrder(
+            ["alternate", "selected", "pressed", "hover"]
+        )
         self.table.itemDelegate().setShowIndicator(False)
         self.table.itemDelegate().setRowBorderRadius(0)
 
@@ -155,7 +194,7 @@ class FETTUChangelogFoldersRenamer(BaseWindow):
         bottom_widget = QWidget(fixedHeight=48)
         bottom_layout = QHBoxLayout(bottom_widget)
         bottom_layout.setContentsMargins(15, 0, 15, 0)
-        
+
         self.open_folder_button = QPushButton()
         self.open_folder_button.setIcon(FluentIcon.FOLDER.icon())
         self.open_folder_button.clicked.connect(self._open_folder)
@@ -166,9 +205,9 @@ class FETTUChangelogFoldersRenamer(BaseWindow):
         self.refresh_button.setIconSize(QSize(14, 14))
         self.refresh_button.clicked.connect(self._start_data_fetch)
         apply_tooltip(self.refresh_button, "refresh_folder_list_tooltip")
-        
+
         self.status_label = BodyLabel("")
-        
+
         self.rename_all_button = QPushButton("Rename All")
         self.rename_all_button.setEnabled(False)
         self.rename_all_button.clicked.connect(self._execute_rename_all)
@@ -206,13 +245,15 @@ class FETTUChangelogFoldersRenamer(BaseWindow):
         self.hide_loading()
         self.table.setRowCount(0)
         self.folders_to_rename.clear()
-        
+
         self.data_path = result.get("path") if result else None
-        
+
         provider = QFileIconProvider()
-        folder_pixmap = provider.icon(QFileIconProvider.IconType.Folder).pixmap(QSize(16, 16), QIcon.Mode.Normal, QIcon.State.Off)
+        folder_pixmap = provider.icon(QFileIconProvider.IconType.Folder).pixmap(
+            QSize(16, 16), QIcon.Mode.Normal, QIcon.State.Off
+        )
         static_folder_icon = QIcon(folder_pixmap)
-        
+
         has_folders = result and result.get("folders")
         if not has_folders:
             relative_path = "Unknown"
@@ -220,15 +261,19 @@ class FETTUChangelogFoldersRenamer(BaseWindow):
                 parent_dir = os.path.basename(os.path.dirname(self.data_path))
                 current_dir = os.path.basename(self.data_path)
                 relative_path = os.path.join(parent_dir, current_dir)
-            
+
             self.show_placeholder(f"No folders can be renamed in:\n{relative_path}")
             self.status_label.setText("")
             self.rename_all_button.setEnabled(False)
-            self.open_folder_button.setEnabled(self.data_path is not None and os.path.exists(self.data_path))
+            self.open_folder_button.setEnabled(
+                self.data_path is not None and os.path.exists(self.data_path)
+            )
             return
-            
+
         self.table.setColumnCount(2)
-        self.table.setHorizontalHeaderLabels(["Original Name (Patch ID)", "New Name (TU Version)"])
+        self.table.setHorizontalHeaderLabels(
+            ["Original Name (Patch ID)", "New Name (TU Version)"]
+        )
         header = self.table.horizontalHeader()
         for i in range(header.count()):
             header.setSectionResizeMode(i, QHeaderView.Interactive)
@@ -242,17 +287,17 @@ class FETTUChangelogFoldersRenamer(BaseWindow):
             original_item.setTextAlignment(Qt.AlignCenter | Qt.AlignVCenter)
             original_item.setIcon(static_folder_icon)
             original_item.setData(Qt.ItemDataRole.UserRole, folder_info)
-            
+
             new_item = QTableWidgetItem(folder_info["new_name"])
             new_item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
             new_item.setTextAlignment(Qt.AlignCenter | Qt.AlignVCenter)
-            
+
             self.table.setItem(row, 0, original_item)
             self.table.setItem(row, 1, new_item)
 
         self.table.resizeColumnsToContents()
         self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
-        
+
         self.folders_to_rename = result["folders"]
         self.status_label.setText("")
         self.rename_all_button.setEnabled(True)
@@ -261,17 +306,20 @@ class FETTUChangelogFoldersRenamer(BaseWindow):
     def _execute_rename_all(self):
         if not self.folders_to_rename:
             return
-        rename_ops = [self.table.item(i, 0).data(Qt.ItemDataRole.UserRole) for i in range(self.table.rowCount())]
+        rename_ops = [
+            self.table.item(i, 0).data(Qt.ItemDataRole.UserRole)
+            for i in range(self.table.rowCount())
+        ]
         self._rename_folders(rename_ops)
 
     def _rename_folders(self, rename_ops: List[Dict]):
         if not rename_ops:
             return
-            
+
         success_count = 0
         failed_ops = []
         rows_to_remove = []
-        
+
         for idx, op in enumerate(rename_ops):
             try:
                 original_path = op["original_path"]
@@ -279,23 +327,29 @@ class FETTUChangelogFoldersRenamer(BaseWindow):
                 new_name = op["new_name"]
                 dir_path = os.path.dirname(original_path)
                 new_path = os.path.join(dir_path, new_name)
-                
+
                 if not os.path.exists(original_path):
                     failed_ops.append(f"'{original_name}' was not found.")
                 elif os.path.exists(new_path):
-                    failed_ops.append(f"Could not rename '{original_name}' because '{new_name}' already exists.")
+                    failed_ops.append(
+                        f"Could not rename '{original_name}' because '{new_name}' already exists."
+                    )
                     rows_to_remove.append(idx)
                 else:
                     os.rename(original_path, new_path)
                     success_count += 1
                     rows_to_remove.append(idx)
             except Exception as e:
-                ErrorHandler.handleError(f"Failed to rename '{op.get('original_name', 'Unknown')}': {e}")
-                failed_ops.append(f"An unexpected error occurred with '{op.get('original_name', 'Unknown')}'.")
-        
+                ErrorHandler.handleError(
+                    f"Failed to rename '{op.get('original_name', 'Unknown')}': {e}"
+                )
+                failed_ops.append(
+                    f"An unexpected error occurred with '{op.get('original_name', 'Unknown')}'."
+                )
+
         for row in sorted(rows_to_remove, reverse=True):
             self.table.removeRow(row)
-        
+
         total_count = len(rename_ops)
         if success_count > 0:
             InfoBar.success(
@@ -305,7 +359,7 @@ class FETTUChangelogFoldersRenamer(BaseWindow):
                 isClosable=True,
                 position=InfoBarPosition.TOP,
                 duration=3000,
-                parent=self
+                parent=self,
             )
 
         if failed_ops:
@@ -317,7 +371,7 @@ class FETTUChangelogFoldersRenamer(BaseWindow):
                 isClosable=True,
                 position=InfoBarPosition.TOP,
                 duration=6000,
-                parent=self
+                parent=self,
             )
 
         if self.table.rowCount() == 0:
@@ -329,7 +383,9 @@ class FETTUChangelogFoldersRenamer(BaseWindow):
             self.show_placeholder(f"No folders can be renamed in:\n{relative_path}")
             self.status_label.setText("")
             self.rename_all_button.setEnabled(False)
-            self.open_folder_button.setEnabled(self.data_path is not None and os.path.exists(self.data_path))
+            self.open_folder_button.setEnabled(
+                self.data_path is not None and os.path.exists(self.data_path)
+            )
 
     def _open_folder(self):
         if self.data_path and os.path.exists(self.data_path):
@@ -342,9 +398,9 @@ class FETTUChangelogFoldersRenamer(BaseWindow):
                 isClosable=True,
                 position=InfoBarPosition.TOP,
                 duration=3000,
-                parent=self
+                parent=self,
             )
-            
+
     def closeEvent(self, event):
         self._cleanup_thread()
         super().closeEvent(event)
@@ -358,18 +414,20 @@ class FETTUChangelogFoldersRenamer(BaseWindow):
             self.thread = None
         self.worker = None
 
+
 def main():
     app = QApplication(sys.argv)
     app.setStyleSheet(MainStyles())
-    
+
     icon = QIcon(ICON_PATH) if os.path.exists(ICON_PATH) else QIcon()
     app.setWindowIcon(icon)
-    
+
     setTheme(Theme.DARK)
     setThemeColor(THEME_COLOR)
     window = FETTUChangelogFoldersRenamer()
     window.show()
     sys.exit(app.exec())
+
 
 if __name__ == "__main__":
     main()

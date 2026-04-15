@@ -1,4 +1,5 @@
 import os
+import shutil
 import sys
 import platform
 import webbrowser
@@ -6,17 +7,33 @@ from typing import Dict, List, Tuple, Optional
 from PySide6.QtCore import QPoint, QSize, Qt, QSharedMemory, QUrl, QTimer
 from PySide6.QtGui import QDesktopServices, QGuiApplication, QIcon, QFont
 from PySide6.QtWidgets import (
-    QApplication, QHBoxLayout, QMenu, QPushButton,
-    QTabWidget, QVBoxLayout, QWidget, QWidgetAction, QFileDialog
+    QApplication,
+    QHBoxLayout,
+    QMenu,
+    QPushButton,
+    QTabWidget,
+    QVBoxLayout,
+    QWidget,
+    QWidgetAction,
+    QFileDialog,
 )
-from qfluentwidgets import CheckBox, FluentIcon, setTheme, setThemeColor, Theme, MessageBox
+from qfluentwidgets import (
+    CheckBox,
+    FluentIcon,
+    setTheme,
+    setThemeColor,
+    Theme,
+    MessageBox,
+)
 
 from UIComponents.BarStyles import BarStyles
 from UIComponents.MainStyles import MainStyles
 from UIComponents.MenuBar import MenuBar
 from UIComponents.Personalization import BaseWindow
 from Core.TableManager import (
-    TitleUpdateTable, SquadsUpdatesTable, FutSquadsUpdatesTable
+    TitleUpdateTable,
+    SquadsUpdatesTable,
+    FutSquadsUpdatesTable,
 )
 from UIComponents.TitleBar import TitleBar
 from UIComponents.Tooltips import apply_tooltip
@@ -48,7 +65,7 @@ BUILD_VERSION = ToolUpdateManager().getToolBuildVersion()
 WINDOW_TITLE = f"{APP_NAME} - v{VERSION} ({{}}) {{}}"
 APP_ICON_PATH = "Data/Assets/Icons/FRICON.png"
 THEME_COLOR = "#00FF00"
-WINDOW_SIZE = (990, 640)
+WINDOW_SIZE = (1026, 640)
 SHARED_MEMORY_KEY = "FCRollbackToolSharedMemory"
 SEPARATOR_STYLE = "background-color: rgba(255, 255, 255, 0.1);"
 SPACER_WIDTH = 130
@@ -57,8 +74,14 @@ SHOW_MAX_BUTTON = True
 SHOW_MIN_BUTTON = True
 SHOW_CLOSE_BUTTON = True
 
+
 class MainWindow(BaseWindow):
-    def __init__(self, config_manager: ConfigManager, game_manager: GameManager, game_content: Dict = None):
+    def __init__(
+        self,
+        config_manager: ConfigManager,
+        game_manager: GameManager,
+        game_content: Dict = None,
+    ):
         super().__init__()
         self.config_manager = config_manager
         self.game_manager = game_manager
@@ -77,7 +100,9 @@ class MainWindow(BaseWindow):
             if not self.main_container:
                 raise AttributeError("main_container not initialized")
             self.config_manager.setConfigKeyLastUsedTab(
-                self.game_manager.getTabKeys()[self.main_container.tab_container.currentIndex()]
+                self.game_manager.getTabKeys()[
+                    self.main_container.tab_container.currentIndex()
+                ]
             )
             if self.button_manager:
                 for window_list in [
@@ -85,7 +110,7 @@ class MainWindow(BaseWindow):
                     self.button_manager.changelogs_windows,
                     self.button_manager.download_windows,
                     self.button_manager.install_windows,
-                    self.button_manager.patch_notes_windows
+                    self.button_manager.patch_notes_windows,
                 ]:
                     for window in window_list:
                         if window and not window.isHidden():
@@ -106,12 +131,20 @@ class MainWindow(BaseWindow):
         try:
             if not self.main_container:
                 raise AttributeError("main_container not initialized")
-            current_tab_key = self.game_manager.getTabKeys()[self.main_container.tab_container.currentIndex()]
+            current_tab_key = self.game_manager.getTabKeys()[
+                self.main_container.tab_container.currentIndex()
+            ]
             if current_tab_key == table:
-                self._load_content_for_tab(self.main_container.tab_container.currentIndex())
-                logger.debug(f"Updated title bar for table {table} due to config change")
+                self._load_content_for_tab(
+                    self.main_container.tab_container.currentIndex()
+                )
+                logger.debug(
+                    f"Updated title bar for table {table} due to config change"
+                )
         except Exception as e:
-            ErrorHandler.handleError(f"Failed to update title bar on config change for table {table}: {str(e)}")
+            ErrorHandler.handleError(
+                f"Failed to update title bar on config change for table {table}: {str(e)}"
+            )
 
     def setup_ui(self):
         try:
@@ -123,36 +156,51 @@ class MainWindow(BaseWindow):
             self.interface_layout.setContentsMargins(0, 0, 0, 0)
             self.interface_layout.setSpacing(0)
             self.title_bar = TitleBar(
-                window=self, title=WINDOW_TITLE.format("N/A", ""),
-                icon_path=APP_ICON_PATH, spacer_width=SPACER_WIDTH,
+                window=self,
+                title=WINDOW_TITLE.format("N/A", ""),
+                icon_path=APP_ICON_PATH,
+                spacer_width=SPACER_WIDTH,
                 buttons={
                     "launch_game": (
-                        " Launch Game", "Data/Assets/Icons/ic_fluent_play_24_regular.png",
-                        lambda: launch_game_threaded(self.config_manager, self.game_manager),
-                        ""
+                        " Launch Game",
+                        "Data/Assets/Icons/ic_fluent_play_24_regular.png",
+                        lambda: launch_game_threaded(
+                            self.config_manager, self.game_manager
+                        ),
+                        "",
                     )
                 },
-                show_max_button=SHOW_MAX_BUTTON, show_min_button=SHOW_MIN_BUTTON,
-                show_close_button=SHOW_CLOSE_BUTTON, bar_height=BAR_HEIGHT
+                show_max_button=SHOW_MAX_BUTTON,
+                show_min_button=SHOW_MIN_BUTTON,
+                show_close_button=SHOW_CLOSE_BUTTON,
+                bar_height=BAR_HEIGHT,
             )
             self.title_bar.create_title_bar()
             self.menu_bar = MenuBar(self)
             self.menu_bar.create_menu_bar()
             self.main_container = MainContainer(self.config_manager, self.game_manager)
             self.main_container.create_content_container()
-            self.button_manager = ButtonManager(self.config_manager, self.game_manager, self.main_container, self)
+            self.button_manager = ButtonManager(
+                self.config_manager, self.game_manager, self.main_container, self
+            )
             buttons_widget = self.button_manager.create_buttons()
             self.main_layout.addWidget(self.menu_bar.menu_bar_container)
-            self.main_layout.addWidget(QWidget(self, styleSheet=SEPARATOR_STYLE, fixedHeight=1))
+            self.main_layout.addWidget(
+                QWidget(self, styleSheet=SEPARATOR_STYLE, fixedHeight=1)
+            )
             self.interface_layout.addWidget(self.main_container.content_container)
             if buttons_widget:
                 self.interface_layout.addWidget(buttons_widget)
             self.main_layout.addWidget(self.interface_container)
-            
-            self.main_container.tab_container.currentChanged.connect(self.on_tab_changed)
+
+            self.main_container.tab_container.currentChanged.connect(
+                self.on_tab_changed
+            )
             for component in self.main_container.table_components.values():
-                if hasattr(component, 'table'):
-                    component.table.selectionModel().currentRowChanged.connect(self.button_manager.button_states)
+                if hasattr(component, "table"):
+                    component.table.selectionModel().currentRowChanged.connect(
+                        self.button_manager.button_states
+                    )
                     component.table_updated_signal.connect(
                         lambda comp=component: self.button_manager.button_states(
                             comp.table.selectionModel().currentIndex(), None
@@ -166,7 +214,9 @@ class MainWindow(BaseWindow):
 
     def center_window(self):
         screen = QGuiApplication.primaryScreen().geometry()
-        self.move((screen.width() - self.width()) // 2, (screen.height() - self.height()) // 2)
+        self.move(
+            (screen.width() - self.width()) // 2, (screen.height() - self.height()) // 2
+        )
 
     @staticmethod
     def center_child_window(parent_window, child_window):
@@ -178,11 +228,15 @@ class MainWindow(BaseWindow):
         child_window.move(x, y)
 
     def get_tab_info(self, tab_key: str) -> Tuple[str, str]:
-        profile_type = self.game_manager.getProfileTypeTitleUpdate() if tab_key == self.game_manager.getTabKeyTitleUpdates() else self.game_manager.getProfileTypeSquad()
+        profile_type = (
+            self.game_manager.getProfileTypeTitleUpdate()
+            if tab_key == self.game_manager.getTabKeyTitleUpdates()
+            else self.game_manager.getProfileTypeSquad()
+        )
         content_key = {
             self.game_manager.getTabKeyTitleUpdates(): self.game_manager.getContentKeyTitleUpdate(),
             self.game_manager.getTabKeySquadsUpdates(): self.game_manager.getContentKeySquad(),
-            self.game_manager.getTabKeyFutSquadsUpdates(): self.game_manager.getContentKeyFutSquad()
+            self.game_manager.getTabKeyFutSquadsUpdates(): self.game_manager.getContentKeyFutSquad(),
         }.get(tab_key)
         return profile_type, content_key
 
@@ -194,7 +248,14 @@ class MainWindow(BaseWindow):
             self.game_content = self.game_manager.loadGameContent(selected_game_path)
             if not self.game_content:
                 raise ValueError("No game content available")
-            tab_index = self.game_manager.getTabKeys().index(self.config_manager.getConfigKeyLastUsedTab()) if self.config_manager.getConfigKeyLastUsedTab() in self.game_manager.getTabKeys() else 0
+            tab_index = (
+                self.game_manager.getTabKeys().index(
+                    self.config_manager.getConfigKeyLastUsedTab()
+                )
+                if self.config_manager.getConfigKeyLastUsedTab()
+                in self.game_manager.getTabKeys()
+                else 0
+            )
             self.main_container.tab_container.setCurrentIndex(tab_index)
             self._load_content_for_tab(tab_index)
         except Exception as e:
@@ -214,23 +275,35 @@ class MainWindow(BaseWindow):
             profile_type, content_key = self.get_tab_info(tab_key)
             tab_content = self.game_content.get(profile_type, {}).get(content_key, [])
             version_key = self.config_manager.getContentVersionKey(tab_key)
-            content_version = self.game_content.get(profile_type, {}).get(version_key, "N/A")
+            content_version = self.game_content.get(profile_type, {}).get(
+                version_key, "N/A"
+            )
             if self.game_manager.is_offline:
-                status_text = "<span style='color: red;'>" + content_version + " Offline lists</span>"
+                status_text = (
+                    "<span style='color: red;'>"
+                    + content_version
+                    + " Offline lists</span>"
+                )
             else:
-                status_text = "<span style='color: #00FF00;'>" + content_version + "</span>"
+                status_text = (
+                    "<span style='color: #00FF00;'>" + content_version + "</span>"
+                )
             self.title_bar.update_title(WINDOW_TITLE.format(status_text, ""))
             table_component = self.main_container.get_table_component(tab_key)
             if table_component:
                 table_component.game_content = {content_key: tab_content}
                 table_component.update_table()
-                
-                if hasattr(table_component, 'table'):
-                    self.button_manager.button_states(table_component.table.selectionModel().currentIndex(), None)
+
+                if hasattr(table_component, "table"):
+                    self.button_manager.button_states(
+                        table_component.table.selectionModel().currentIndex(), None
+                    )
 
             self.button_manager.update_button_visibility(tab_key)
         except Exception as e:
-            ErrorHandler.handleError(f"Failed to load content for tab {tab_key}: {str(e)}")
+            ErrorHandler.handleError(
+                f"Failed to load content for tab {tab_key}: {str(e)}"
+            )
         finally:
             self._is_updating_tab = False
 
@@ -239,6 +312,7 @@ class MainWindow(BaseWindow):
             self._load_content_for_tab(index)
         except Exception as e:
             ErrorHandler.handleError(f"Failed to change tab: {str(e)}")
+
 
 class MainContainer:
     def __init__(self, config_manager: ConfigManager, game_manager: GameManager):
@@ -256,19 +330,38 @@ class MainContainer:
         self.tab_container = QTabWidget()
         self.tab_container.setStyleSheet(BarStyles())
         tab_configs = {
-            self.game_manager.getTabKeyTitleUpdates(): (TitleUpdateTable, FluentIcon.UPDATE, "Title Updates"),
-            self.game_manager.getTabKeySquadsUpdates(): (SquadsUpdatesTable, FluentIcon.PEOPLE, "Squads Updates"),
-            self.game_manager.getTabKeyFutSquadsUpdates(): (FutSquadsUpdatesTable, FluentIcon.PEOPLE, "FUT Squads Updates")
+            self.game_manager.getTabKeyTitleUpdates(): (
+                TitleUpdateTable,
+                FluentIcon.UPDATE,
+                "Title Updates",
+            ),
+            self.game_manager.getTabKeySquadsUpdates(): (
+                SquadsUpdatesTable,
+                FluentIcon.PEOPLE,
+                "Squads Updates",
+            ),
+            self.game_manager.getTabKeyFutSquadsUpdates(): (
+                FutSquadsUpdatesTable,
+                FluentIcon.PEOPLE,
+                "FUT Squads Updates",
+            ),
         }
         for tab_key, (table_class, icon, title) in tab_configs.items():
             widget = QWidget()
             layout = QVBoxLayout(widget)
             layout.setContentsMargins(0, 0, 0, 0)
             layout.setSpacing(0)
-            profile_type = self.game_manager.getProfileTypeTitleUpdate() if tab_key == self.game_manager.getTabKeyTitleUpdates() else self.game_manager.getProfileTypeSquad()
+            profile_type = (
+                self.game_manager.getProfileTypeTitleUpdate()
+                if tab_key == self.game_manager.getTabKeyTitleUpdates()
+                else self.game_manager.getProfileTypeSquad()
+            )
             self.table_components[tab_key] = table_class(
-                game_content={}, config_manager=self.config_manager,
-                game_manager=self.game_manager, profile_type=profile_type, tab_key=tab_key
+                game_content={},
+                config_manager=self.config_manager,
+                game_manager=self.game_manager,
+                profile_type=profile_type,
+                tab_key=tab_key,
             )
             layout.addWidget(self.table_components[tab_key].table)
             self.tab_container.addTab(widget, QIcon(icon.icon()), title)
@@ -285,8 +378,15 @@ class MainContainer:
             component.update_table()
             logger.debug(f"Updated game content for tab: {tab_key}")
 
+
 class ButtonManager:
-    def __init__(self, config_manager: ConfigManager, game_manager: GameManager, main_container: MainContainer, main_window: MainWindow):
+    def __init__(
+        self,
+        config_manager: ConfigManager,
+        game_manager: GameManager,
+        main_container: MainContainer,
+        main_window: MainWindow,
+    ):
         self.config_manager = config_manager
         self.game_manager = game_manager
         self.main_container = main_container
@@ -303,44 +403,103 @@ class ButtonManager:
     def create_buttons(self):
         try:
             button_configs = {
-                "settings": ("", FluentIcon.SETTING, self.open_settings, "settings_button"),
+                "settings": (
+                    "",
+                    FluentIcon.SETTING,
+                    self.open_settings,
+                    "settings_button",
+                ),
                 "change_game": ("", FluentIcon.GAME, self.change_game, "change_game"),
-                "open_profile": ("", FluentIcon.FOLDER, self.open_profile_folder, "open_profile_folder"),
-                "uninstall": (" Uninstall", FluentIcon.DELETE, self.uninstall_installed_file, "uninstall_squad_button"),
+                "open_profile": (
+                    "",
+                    FluentIcon.FOLDER,
+                    self.open_profile_folder,
+                    "open_profile_folder",
+                ),
+                "delete_from_profile": (
+                    "",
+                    FluentIcon.DELETE,
+                    self.delete_from_profile,
+                    "delete_from_profile_button",
+                ),
+                "uninstall": (
+                    " Uninstall",
+                    FluentIcon.REMOVE_FROM,
+                    self.uninstall_installed_file,
+                    "uninstall_squad_button",
+                ),
                 "install": (
-                    " Install", FluentIcon.FOLDER_ADD, self.start_install, "install_button",
-                    "border-top-right-radius: 0px; border-bottom-right-radius: 0px;"
+                    " Install",
+                    FluentIcon.FOLDER_ADD,
+                    self.start_install,
+                    "install_button",
+                    "border-top-right-radius: 0px; border-bottom-right-radius: 0px;",
                 ),
                 "install_options": (
-                    "", FluentIcon.ARROW_DOWN, self.show_install_options, "install_options_button",
+                    "",
+                    FluentIcon.ARROW_DOWN,
+                    self.show_install_options,
+                    "install_options_button",
                     "QPushButton { border-top-left-radius: 0px; border-bottom-left-radius: 0px; border-left: 1px solid rgba(255, 255, 255, 0.1); }",
-                    (28, 28), (12, 12)
+                    (28, 28),
+                    (12, 12),
                 ),
-                "fetch_tables": (" DB Tables", FluentIcon.DOCUMENT, self.open_tables, "fetch_tables_button"),
-                "fetch_changelogs": (" Changelogs", FluentIcon.CALORIES, self.open_changelogs, "fetch_changelogs_button"),
+                "fetch_tables": (
+                    " DB Tables",
+                    FluentIcon.DOCUMENT,
+                    self.open_tables,
+                    "fetch_tables_button",
+                ),
+                "fetch_changelogs": (
+                    " Changelogs",
+                    FluentIcon.CALORIES,
+                    self.open_changelogs,
+                    "fetch_changelogs_button",
+                ),
                 "download": (
-                    " Download", FluentIcon.DOWNLOAD, self.start_download, "download_button",
-                    "border-top-right-radius: 0px; border-bottom-right-radius: 0px;"
+                    " Download",
+                    FluentIcon.DOWNLOAD,
+                    self.start_download,
+                    "download_button",
+                    "border-top-right-radius: 0px; border-bottom-right-radius: 0px;",
                 ),
                 "download_options": (
-                    "", FluentIcon.ARROW_DOWN, self.show_download_options, "download_options_button",
+                    "",
+                    FluentIcon.ARROW_DOWN,
+                    self.show_download_options,
+                    "download_options_button",
                     "QPushButton { border-top-left-radius: 0px; border-bottom-left-radius: 0px; border-left: 1px solid rgba(255, 255, 255, 0.1); }",
-                    (28, 28), (12, 12)
+                    (28, 28),
+                    (12, 12),
                 ),
-                "open_url": (" Open URL", FluentIcon.LINK, self.open_in_browser, "open_url_button"),
+                "open_url": (
+                    " Open URL",
+                    FluentIcon.LINK,
+                    self.open_in_browser,
+                    "open_url_button",
+                ),
                 "patch_notes": (
-                    " Patch Notes", FluentIcon.CALORIES, self.patch_notes, "patch_notes_button",
-                    "border-top-right-radius: 0px; border-bottom-right-radius: 0px;"
+                    " Patch Notes",
+                    FluentIcon.CALORIES,
+                    self.patch_notes,
+                    "patch_notes_button",
+                    "border-top-right-radius: 0px; border-bottom-right-radius: 0px;",
                 ),
                 "patch_notes_options": (
-                    "", FluentIcon.LINK, self.open_patch_notes_url, "open_patch_notes_url_button",
+                    "",
+                    FluentIcon.LINK,
+                    self.open_patch_notes_url,
+                    "open_patch_notes_url_button",
                     "QPushButton { border-top-left-radius: 0px; border-bottom-left-radius: 0px; border-left: 1px solid rgba(255, 255, 255, 0.1); }",
-                    (28, 28), (14, 14)
+                    (28, 28),
+                    (14, 14),
                 ),
                 "files_changelog": (
-                    " Files Changelog", FluentIcon.HISTORY, self.open_files_changelog, "files_changelog_button"
+                    " Files Changelog",
+                    FluentIcon.HISTORY,
+                    self.open_files_changelog,
+                    "files_changelog_button",
                 ),
-
             }
 
             for name, config in button_configs.items():
@@ -354,7 +513,15 @@ class ButtonManager:
                         btn.setFixedSize(*config[5])
                         btn.setIconSize(QSize(*config[6]))
                 self.buttons[name] = btn
-                if name in ["download", "install", "install_options", "download_options", "patch_notes", "patch_notes_options", "uninstall"]:
+                if name in [
+                    "download",
+                    "install",
+                    "install_options",
+                    "download_options",
+                    "patch_notes",
+                    "patch_notes_options",
+                    "uninstall",
+                ]:
                     btn.setEnabled(False)
             self._setup_button_layout()
             return self.btn_container
@@ -374,7 +541,7 @@ class ButtonManager:
         download_layout.setSpacing(0)
         download_layout.addWidget(self.buttons["download"])
         download_layout.addWidget(self.buttons["download_options"])
-        
+
         patch_notes_layout = QHBoxLayout()
         patch_notes_layout.setContentsMargins(0, 0, 0, 0)
         patch_notes_layout.setSpacing(0)
@@ -384,56 +551,88 @@ class ButtonManager:
         btn_layout = QHBoxLayout()
         btn_layout.setContentsMargins(10, 0, 10, 0)
         btn_layout.setSpacing(5)
-        for btn_name in ["settings", "change_game", "open_profile"]:
+
+        for btn_name in ["settings", "change_game", "open_profile", "delete_from_profile"]:
             btn_layout.addWidget(self.buttons[btn_name])
+
         btn_layout.addStretch()
+
         btn_layout.addWidget(self.buttons["uninstall"])
         btn_layout.addLayout(install_layout)
         btn_layout.addLayout(download_layout)
+
         for btn_name in ["fetch_tables", "fetch_changelogs", "open_url"]:
             btn_layout.addWidget(self.buttons[btn_name])
+
         btn_layout.addLayout(patch_notes_layout)
         btn_layout.addWidget(self.buttons["files_changelog"])
+
         self.btn_container = QWidget(objectName="ButtonContainer", fixedHeight=45)
         self.btn_container.setLayout(btn_layout)
 
     def button_states(self, current, previous, deferred_call=False):
         if not deferred_call:
-            QTimer.singleShot(0, lambda: self.button_states(current, previous, deferred_call=True))
+            QTimer.singleShot(
+                0, lambda: self.button_states(current, previous, deferred_call=True)
+            )
             return
 
         try:
-            action_buttons = ["download", "download_options", "install", "install_options", "uninstall",
-                              "fetch_tables", "fetch_changelogs", "open_url", "patch_notes", "patch_notes_options", "files_changelog"]
+            action_buttons = [
+                "download",
+                "download_options",
+                "install",
+                "install_options",
+                "delete_from_profile",
+                "uninstall",
+                "fetch_tables",
+                "fetch_changelogs",
+                "open_url",
+                "patch_notes",
+                "patch_notes_options",
+                "files_changelog",
+            ]
             for btn_name in action_buttons:
                 if btn_name in self.buttons:
                     self.buttons[btn_name].setEnabled(False)
-            
+
             self.buttons["download"].setText(" Download")
             self.buttons["install"].setText(" Install")
 
-            tab_key = self.game_manager.getTabKeys()[self.main_container.tab_container.currentIndex()]
+            tab_key = self.game_manager.getTabKeys()[
+                self.main_container.tab_container.currentIndex()
+            ]
             table_component = self.main_container.get_table_component(tab_key)
-            
-            if not table_component or not hasattr(table_component, 'table') or not current.isValid() or current.row() < 0:
+
+            if (
+                not table_component
+                or not hasattr(table_component, "table")
+                or not current.isValid()
+                or current.row() < 0
+            ):
                 self.update_button_visibility(tab_key)
                 return
 
             table = table_component.table
             status_item = table.item(current.row(), table.columnCount() - 1)
             status_text = status_item.text() if status_item else ""
-            status_mapping = getattr(table_component, 'STATUS_MAPPING', {})
+            status_mapping = getattr(table_component, "STATUS_MAPPING", {})
 
-            is_squads = tab_key in [self.game_manager.getTabKeySquadsUpdates(), self.game_manager.getTabKeyFutSquadsUpdates()]
+            is_squads = tab_key in [
+                self.game_manager.getTabKeySquadsUpdates(),
+                self.game_manager.getTabKeyFutSquadsUpdates(),
+            ]
             is_tu = tab_key == self.game_manager.getTabKeyTitleUpdates()
-            
+
             self.buttons["fetch_tables"].setEnabled(is_squads)
             self.buttons["fetch_changelogs"].setEnabled(is_squads)
             self.buttons["open_url"].setEnabled(is_tu)
             self.buttons["patch_notes"].setEnabled(is_tu)
             self.buttons["patch_notes_options"].setEnabled(is_tu)
             files_changelog_enabled = False
-            game_id = self.game_manager.getSelectedGameId(self.config_manager.getConfigKeySelectedGame())
+            game_id = self.game_manager.getSelectedGameId(
+                self.config_manager.getConfigKeySelectedGame()
+            )
             match game_id:
                 case "FC24":
                     files_changelog_enabled = False
@@ -442,7 +641,28 @@ class ButtonManager:
 
             self.buttons["files_changelog"].setEnabled(files_changelog_enabled)
 
-            if status_text == status_mapping.get("AvailableForDownload", {}).get("text", ""):
+            update_name = self.game_manager.getSelectedUpdate(tab_key, table_component)
+            if update_name:
+                profile_files = table_component._get_profile_directories()
+                short_name = (
+                    self.game_manager.getSelectedGameId(
+                        self.config_manager.getConfigKeySelectedGame()
+                    )
+                    or ""
+                )
+                normalized_files = {
+                    file.strip().lower()
+                    for file in profile_files.get(short_name, set())
+                }
+
+                if table_component._is_update_available(
+                    update_name.strip().lower(), normalized_files
+                ):
+                    self.buttons["delete_from_profile"].setEnabled(True)
+
+            if status_text == status_mapping.get("AvailableForDownload", {}).get(
+                "text", ""
+            ):
                 self.buttons["download"].setEnabled(True)
                 self.buttons["download_options"].setEnabled(True)
 
@@ -452,12 +672,24 @@ class ButtonManager:
                 self.buttons["download"].setText(" Re-Download")
                 self.buttons["uninstall"].setEnabled(True)
 
-                update_name = self.game_manager.getSelectedUpdate(tab_key, table_component)
+                update_name = self.game_manager.getSelectedUpdate(
+                    tab_key, table_component
+                )
                 if update_name:
                     profile_files = table_component._get_profile_directories()
-                    short_name = self.game_manager.getSelectedGameId(self.config_manager.getConfigKeySelectedGame()) or ""
-                    normalized_files = {file.strip().lower() for file in profile_files.get(short_name, set())}
-                    if table_component._is_update_available(update_name.strip().lower(), normalized_files):
+                    short_name = (
+                        self.game_manager.getSelectedGameId(
+                            self.config_manager.getConfigKeySelectedGame()
+                        )
+                        or ""
+                    )
+                    normalized_files = {
+                        file.strip().lower()
+                        for file in profile_files.get(short_name, set())
+                    }
+                    if table_component._is_update_available(
+                        update_name.strip().lower(), normalized_files
+                    ):
                         self.buttons["install"].setText(" Re-Install")
                         self.buttons["install"].setEnabled(True)
                         self.buttons["install_options"].setEnabled(True)
@@ -466,15 +698,19 @@ class ButtonManager:
                         self.buttons["install"].setEnabled(False)
                         self.buttons["install_options"].setEnabled(False)
 
-            elif status_text == status_mapping.get("ReadyToInstall", {}).get("text", ""):
+            elif status_text == status_mapping.get("ReadyToInstall", {}).get(
+                "text", ""
+            ):
                 self.buttons["download"].setEnabled(True)
                 self.buttons["download_options"].setEnabled(True)
                 self.buttons["download"].setText(" Re-Download")
                 self.buttons["install"].setEnabled(True)
                 self.buttons["install_options"].setEnabled(True)
-            
-            elif status_text in [status_mapping.get("ComingInConfirmed", {}).get("text", ""),
-                                 status_mapping.get("NotAddedToList", {}).get("text", "")]:
+
+            elif status_text in [
+                status_mapping.get("ComingInConfirmed", {}).get("text", ""),
+                status_mapping.get("NotAddedToList", {}).get("text", ""),
+            ]:
                 self.buttons["fetch_tables"].setEnabled(False)
                 self.buttons["fetch_changelogs"].setEnabled(False)
                 self.buttons["open_url"].setEnabled(False)
@@ -487,12 +723,25 @@ class ButtonManager:
     def update_button_visibility(self, tab_key: str):
         try:
             visibility = {
-                "uninstall": tab_key in [self.game_manager.getTabKeySquadsUpdates(), self.game_manager.getTabKeyFutSquadsUpdates()],
+                "uninstall": tab_key
+                in [
+                    self.game_manager.getTabKeySquadsUpdates(),
+                    self.game_manager.getTabKeyFutSquadsUpdates(),
+                ],
                 "patch_notes": tab_key == self.game_manager.getTabKeyTitleUpdates(),
-                "patch_notes_options": tab_key == self.game_manager.getTabKeyTitleUpdates(),
+                "patch_notes_options": tab_key
+                == self.game_manager.getTabKeyTitleUpdates(),
                 "open_url": tab_key == self.game_manager.getTabKeyTitleUpdates(),
-                "fetch_tables": tab_key in [self.game_manager.getTabKeySquadsUpdates(), self.game_manager.getTabKeyFutSquadsUpdates()],
-                "fetch_changelogs": tab_key in [self.game_manager.getTabKeySquadsUpdates(), self.game_manager.getTabKeyFutSquadsUpdates()],
+                "fetch_tables": tab_key
+                in [
+                    self.game_manager.getTabKeySquadsUpdates(),
+                    self.game_manager.getTabKeyFutSquadsUpdates(),
+                ],
+                "fetch_changelogs": tab_key
+                in [
+                    self.game_manager.getTabKeySquadsUpdates(),
+                    self.game_manager.getTabKeyFutSquadsUpdates(),
+                ],
                 "files_changelog": tab_key == self.game_manager.getTabKeyTitleUpdates(),
             }
 
@@ -503,27 +752,43 @@ class ButtonManager:
 
     def _open_child_window(self, window_class, args: Tuple, window_list: List[QWidget]):
         try:
-            tab_key = self.game_manager.getTabKeys()[self.main_container.tab_container.currentIndex()]
+            tab_key = self.game_manager.getTabKeys()[
+                self.main_container.tab_container.currentIndex()
+            ]
             table = self.main_container.get_table_component(tab_key)
             if not table:
                 raise ValueError("No table component for the selected tab")
             update_name = self.game_manager.getSelectedUpdate(tab_key, table)
             if not update_name:
                 raise ValueError("No update selected")
-            content_key = self.game_manager.getContentKeySquad() if tab_key == self.game_manager.getTabKeySquadsUpdates() else self.game_manager.getContentKeyFutSquad()
+            content_key = (
+                self.game_manager.getContentKeySquad()
+                if tab_key == self.game_manager.getTabKeySquadsUpdates()
+                else self.game_manager.getContentKeyFutSquad()
+            )
             updates = self.game_manager.getUpdatesList(
-                table.game_content,
-                profile_type=self.game_manager.getProfileTypeSquad()
+                table.game_content, profile_type=self.game_manager.getProfileTypeSquad()
             )
             row = table.table.currentRow()
             if row < 0:
                 raise ValueError("No row selected")
-            index_url = updates[content_key][row].get(self.game_manager.getDownloadURLKeyForTab(tab_key))
+            index_url = updates[content_key][row].get(
+                self.game_manager.getDownloadURLKeyForTab(tab_key)
+            )
             if not index_url:
                 raise ValueError("No Index URL available")
-            update_name = updates[content_key][row].get(self.game_manager.getSquadsNameKey())
-            released_date = updates[content_key][row].get(self.game_manager.getSquadsReleasedDateKey())
-            window_instance = window_class(index_url=index_url, update_name=update_name, released_date=released_date, *args)
+            update_name = updates[content_key][row].get(
+                self.game_manager.getSquadsNameKey()
+            )
+            released_date = updates[content_key][row].get(
+                self.game_manager.getSquadsReleasedDateKey()
+            )
+            window_instance = window_class(
+                index_url=index_url,
+                update_name=update_name,
+                released_date=released_date,
+                *args,
+            )
             window_list.append(window_instance)
             window_instance.show()
             MainWindow.center_child_window(self.main_window, window_instance)
@@ -534,11 +799,15 @@ class ButtonManager:
         self._open_child_window(SquadsTablesFetcherWindow, (), self.tables_windows)
 
     def open_changelogs(self):
-        self._open_child_window(SquadsChangelogsFetcherWindow, (), self.changelogs_windows)
+        self._open_child_window(
+            SquadsChangelogsFetcherWindow, (), self.changelogs_windows
+        )
 
     def open_files_changelog(self):
         try:
-            tab_key = self.game_manager.getTabKeys()[self.main_container.tab_container.currentIndex()]
+            tab_key = self.game_manager.getTabKeys()[
+                self.main_container.tab_container.currentIndex()
+            ]
             table_component = self.main_container.get_table_component(tab_key)
             if not table_component:
                 raise ValueError("No table component found for the current tab.")
@@ -548,25 +817,39 @@ class ButtonManager:
                 return
 
             profile_type, _ = self.main_window.get_tab_info(tab_key)
-            game_content_for_profile = self.main_window.game_content.get(profile_type, {})
-            
-            main_depot_id = game_content_for_profile.get(self.game_manager.getTitleUpdateMainDepotIDKey())
-            eng_us_depot_id = game_content_for_profile.get(self.game_manager.getTitleUpdateEngUsDepotIDKey())
-            
-            updates = game_content_for_profile.get(self.game_manager.getContentKeyTitleUpdate(), [])
+            game_content_for_profile = self.main_window.game_content.get(
+                profile_type, {}
+            )
+
+            main_depot_id = game_content_for_profile.get(
+                self.game_manager.getTitleUpdateMainDepotIDKey()
+            )
+            eng_us_depot_id = game_content_for_profile.get(
+                self.game_manager.getTitleUpdateEngUsDepotIDKey()
+            )
+
+            updates = game_content_for_profile.get(
+                self.game_manager.getContentKeyTitleUpdate(), []
+            )
             if not updates or selected_row >= len(updates):
                 raise ValueError("Update list is invalid or row is out of bounds.")
-            
+
             update_item = updates[selected_row]
-            main_manifest_id = update_item.get(self.game_manager.getTitleUpdateMainManifestIDKey())
-            eng_us_manifest_id = update_item.get(self.game_manager.getTitleUpdateEngUsManifestIDKey())
-            
+            main_manifest_id = update_item.get(
+                self.game_manager.getTitleUpdateMainManifestIDKey()
+            )
+            eng_us_manifest_id = update_item.get(
+                self.game_manager.getTitleUpdateEngUsManifestIDKey()
+            )
+
             if not main_manifest_id:
                 ErrorHandler.handleError("No Manifest ID found for this update.")
                 return
 
-            game_id = self.game_manager.getSelectedGameId(self.config_manager.getConfigKeySelectedGame())
-            
+            game_id = self.game_manager.getSelectedGameId(
+                self.config_manager.getConfigKeySelectedGame()
+            )
+
             game_root_path = self.config_manager.getConfigKeySelectedGame()
             if not game_root_path:
                 ErrorHandler.handleError("Could not determine the selected game path.")
@@ -580,9 +863,11 @@ class ButtonManager:
                 eng_us_depot_id=eng_us_depot_id,
                 main_manifest_id=main_manifest_id,
                 eng_us_manifest_id=eng_us_manifest_id,
-                update_name=update_item.get(self.game_manager.getTitleUpdateNameKey(), "Unknown Update")
+                update_name=update_item.get(
+                    self.game_manager.getTitleUpdateNameKey(), "Unknown Update"
+                ),
             )
-            
+
             self.files_changelog_windows.append(changelog_window)
             changelog_window.show()
             MainWindow.center_child_window(self.main_window, changelog_window)
@@ -592,7 +877,9 @@ class ButtonManager:
 
     def patch_notes(self):
         try:
-            tab_key = self.game_manager.getTabKeys()[self.main_container.tab_container.currentIndex()]
+            tab_key = self.game_manager.getTabKeys()[
+                self.main_container.tab_container.currentIndex()
+            ]
             table_component = self.main_container.get_table_component(tab_key)
             if not table_component:
                 raise ValueError("No table component found for the current tab.")
@@ -603,16 +890,20 @@ class ButtonManager:
 
             updates = self.game_manager.getUpdatesList(
                 table_component.game_content,
-                profile_type=self.game_manager.getProfileTypeTitleUpdate()
+                profile_type=self.game_manager.getProfileTypeTitleUpdate(),
             )
-            
-            update_item = updates[self.game_manager.getContentKeyTitleUpdate()][selected_row]
-            patch_notes_url = update_item.get(self.game_manager.getTitleUpdatePatchNotesKey())
-            
+
+            update_item = updates[self.game_manager.getContentKeyTitleUpdate()][
+                selected_row
+            ]
+            patch_notes_url = update_item.get(
+                self.game_manager.getTitleUpdatePatchNotesKey()
+            )
+
             if not patch_notes_url:
                 ErrorHandler.handleError("No Patch Notes URL found for this update.")
                 return
-            
+
             patch_notes_window = PatchNotesWindow(self.game_manager, patch_notes_url)
             self.patch_notes_windows.append(patch_notes_window)
             patch_notes_window.show()
@@ -623,27 +914,33 @@ class ButtonManager:
 
     def open_patch_notes_url(self):
         try:
-            tab_key = self.game_manager.getTabKeys()[self.main_container.tab_container.currentIndex()]
+            tab_key = self.game_manager.getTabKeys()[
+                self.main_container.tab_container.currentIndex()
+            ]
             table = self.main_container.get_table_component(tab_key)
-            
+
             row = table.table.currentRow()
             if row < 0:
                 raise ValueError("Invalid row selected")
 
             updates = self.game_manager.getUpdatesList(
                 table.game_content,
-                profile_type=self.game_manager.getProfileTypeTitleUpdate()
+                profile_type=self.game_manager.getProfileTypeTitleUpdate(),
             )
-            
-            json_url = updates[self.game_manager.getContentKeyTitleUpdate()][row].get(self.game_manager.getTitleUpdatePatchNotesKey())
+
+            json_url = updates[self.game_manager.getContentKeyTitleUpdate()][row].get(
+                self.game_manager.getTitleUpdatePatchNotesKey()
+            )
             if not json_url:
                 raise ValueError("No patch notes JSON URL available")
-            
+
             patch_data = self.game_manager.fetchPatchNotesData(json_url)
             if patch_data and (trello_url := patch_data.get("shortUrl")):
                 webbrowser.open(trello_url)
             else:
-                NotificationHandler.showWarning("Could not find the direct Trello link, opening the data URL instead.")
+                NotificationHandler.showWarning(
+                    "Could not find the direct Trello link, opening the data URL instead."
+                )
                 webbrowser.open(json_url)
 
         except Exception as e:
@@ -651,16 +948,22 @@ class ButtonManager:
 
     def open_in_browser(self):
         try:
-            tab_key = self.game_manager.getTabKeys()[self.main_container.tab_container.currentIndex()]
+            tab_key = self.game_manager.getTabKeys()[
+                self.main_container.tab_container.currentIndex()
+            ]
             table = self.main_container.get_table_component(tab_key)
             updates = self.game_manager.getUpdatesList(
                 table.game_content,
-                profile_type=self.game_manager.getProfileTypeTitleUpdate()
+                profile_type=self.game_manager.getProfileTypeTitleUpdate(),
             )
             row = table.table.currentRow()
-            if row < 0 or row >= len(updates[self.game_manager.getContentKeyTitleUpdate()]):
+            if row < 0 or row >= len(
+                updates[self.game_manager.getContentKeyTitleUpdate()]
+            ):
                 raise ValueError("Invalid row selected")
-            url = updates[self.game_manager.getContentKeyTitleUpdate()][row].get(self.game_manager.getTitleUpdateDownloadURLKey())
+            url = updates[self.game_manager.getContentKeyTitleUpdate()][row].get(
+                self.game_manager.getTitleUpdateDownloadURLKey()
+            )
             if not url:
                 raise ValueError("No URL available")
             webbrowser.open(url)
@@ -669,7 +972,9 @@ class ButtonManager:
 
     def start_download(self):
         try:
-            tab_key = self.game_manager.getTabKeys()[self.main_container.tab_container.currentIndex()]
+            tab_key = self.game_manager.getTabKeys()[
+                self.main_container.tab_container.currentIndex()
+            ]
             table = self.main_container.get_table_component(tab_key)
             if not table:
                 raise ValueError("No table component")
@@ -681,24 +986,33 @@ class ButtonManager:
             content_key = {
                 self.game_manager.getTabKeyTitleUpdates(): self.game_manager.getContentKeyTitleUpdate(),
                 self.game_manager.getTabKeySquadsUpdates(): self.game_manager.getContentKeySquad(),
-                self.game_manager.getTabKeyFutSquadsUpdates(): self.game_manager.getContentKeyFutSquad()
+                self.game_manager.getTabKeyFutSquadsUpdates(): self.game_manager.getContentKeyFutSquad(),
             }[tab_key]
 
-            game_id = self.game_manager.getSelectedGameId(self.config_manager.getConfigKeySelectedGame())
+            game_id = self.game_manager.getSelectedGameId(
+                self.config_manager.getConfigKeySelectedGame()
+            )
             updates = self.game_manager.getUpdatesList(
                 table.game_content,
-                profile_type=self.game_manager.getProfileTypeTitleUpdate() if tab_key == self.game_manager.getTabKeyTitleUpdates() else self.game_manager.getProfileTypeSquad()
+                profile_type=self.game_manager.getProfileTypeTitleUpdate()
+                if tab_key == self.game_manager.getTabKeyTitleUpdates()
+                else self.game_manager.getProfileTypeSquad(),
             )
 
             row = table.table.currentRow()
             if row < 0:
                 raise ValueError("No row selected")
 
-            index_url = updates[content_key][row].get(self.game_manager.getDownloadURLKeyForTab(tab_key))
+            index_url = updates[content_key][row].get(
+                self.game_manager.getDownloadURLKeyForTab(tab_key)
+            )
             if not index_url:
                 raise ValueError("No download URL")
-            
-            if tab_key == self.game_manager.getTabKeyTitleUpdates() and self.config_manager.getConfigKeyDownloadDisclaimer():
+
+            if (
+                tab_key == self.game_manager.getTabKeyTitleUpdates()
+                and self.config_manager.getConfigKeyDownloadDisclaimer()
+            ):
                 message = (
                     "Downloading a large number of files in a short period of time may result in your IP address "
                     "being temporarily or permanently banned from MediaFire servers. You can also use the (Open URL) "
@@ -714,126 +1028,302 @@ class ButtonManager:
 
             download_window = DownloadWindow(update_name, index_url, game_id, tab_key)
             self.download_windows.append(download_window)
+            download_window.auto_install_requested_signal.connect(self.start_install)
             download_window.show()
             MainWindow.center_child_window(self.main_window, download_window)
 
         except Exception as e:
             ErrorHandler.handleError(f"Failed to start download: {str(e)}")
 
-    def start_install(self):
+    def start_install(self) -> None:
         try:
-            tab_key = self.game_manager.getTabKeys()[self.main_container.tab_container.currentIndex()]
+            tab_key: str = self.game_manager.getTabKeys()[
+                self.main_container.tab_container.currentIndex()
+            ]
             table = self.main_container.get_table_component(tab_key)
-            if not table or not hasattr(table, 'table'):
+            if not table or not hasattr(table, "table"):
                 raise ValueError("Invalid table component")
 
-            update_name = self.game_manager.getSelectedUpdate(tab_key, table)
+            update_name: Optional[str] = self.game_manager.getSelectedUpdate(
+                tab_key, table
+            )
             if not update_name:
                 raise ValueError("No update selected")
 
-            game_path = self.config_manager.getConfigKeySelectedGame()
+            game_path: str = self.config_manager.getConfigKeySelectedGame()
             if not game_path:
                 raise ValueError("No game path selected")
 
-            profile_subfolder = {
+            game_id: str = self.game_manager.getSelectedGameId(game_path)
+
+            profile_subfolder: str = {
                 self.game_manager.getTabKeyTitleUpdates(): self.game_manager.getProfileTypeTitleUpdate(),
-                self.game_manager.getTabKeySquadsUpdates(): os.path.join(self.game_manager.getProfileTypeSquad(), self.game_manager.getContentKeySquad()),
-                self.game_manager.getTabKeyFutSquadsUpdates(): os.path.join(self.game_manager.getProfileTypeSquad(), self.game_manager.getContentKeyFutSquad())
+                self.game_manager.getTabKeySquadsUpdates(): os.path.join(
+                    self.game_manager.getProfileTypeSquad(),
+                    self.game_manager.getContentKeySquad(),
+                ),
+                self.game_manager.getTabKeyFutSquadsUpdates(): os.path.join(
+                    self.game_manager.getProfileTypeSquad(),
+                    self.game_manager.getContentKeyFutSquad(),
+                ),
             }.get(tab_key, "")
 
-            profile_folder = self.game_manager.getProfileDirectory(self.game_manager.getSelectedGameId(game_path), profile_subfolder)
-            file_path = os.path.join(profile_folder, update_name)
+            profile_folder: str = self.game_manager.getProfileDirectory(
+                game_id, profile_subfolder
+            )
+            file_path: str = os.path.join(profile_folder, update_name)
 
             for ext in MainDataManager().getCompressedFileExtensions() + [""]:
-                if os.path.exists(test_path := os.path.join(profile_folder, update_name + ext)):
-                    file_path = test_path
+                target_path: str = os.path.join(profile_folder, update_name + ext)
+                if os.path.exists(target_path):
+                    file_path = target_path
                     break
             else:
                 raise ValueError(f"Update file not found: {file_path}")
 
-            install_window = InstallWindow(update_name, tab_key, game_path, file_path, table_component=table)
+            install_window = InstallWindow(
+                update_name, tab_key, game_path, file_path, table_component=table
+            )
             install_window.setWindowModality(Qt.ApplicationModal)
             self.install_windows.append(install_window)
             install_window.show()
             MainWindow.center_child_window(self.main_window, install_window)
         except Exception as e:
-            ErrorHandler.handleError(f"Failed to start installation of {update_name}: {str(e)}")
+            ErrorHandler.handleError(
+                f"Failed to start installation of {update_name}: {str(e)}"
+            )
 
     def uninstall_installed_file(self):
         try:
-            tab_key = self.game_manager.getTabKeys()[self.main_container.tab_container.currentIndex()]
+            tab_key = self.game_manager.getTabKeys()[
+                self.main_container.tab_container.currentIndex()
+            ]
             table_component = self.main_container.get_table_component(tab_key)
 
             update_name = self.game_manager.getSelectedUpdate(tab_key, table_component)
             if not update_name:
                 return
 
-            settings_path = self.game_manager.getGameSettingsFolderPath(self.config_manager.getConfigKeySelectedGame())
+            settings_path = self.game_manager.getGameSettingsFolderPath(
+                self.config_manager.getConfigKeySelectedGame()
+            )
             file_to_uninstall = os.path.join(settings_path, update_name)
 
             if os.path.exists(file_to_uninstall):
                 os.remove(file_to_uninstall)
                 logger.info(f"Successfully uninstall squads file: {file_to_uninstall}")
-        
+
         except Exception as e:
             ErrorHandler.handleError(f"Failed to uninstall file: {str(e)}")
 
+    def delete_from_profile(self) -> None:
+        try:
+            tab_key: str = self.game_manager.getTabKeys()[
+                self.main_container.tab_container.currentIndex()
+            ]
+            table_component = self.main_container.get_table_component(tab_key)
+
+            if not table_component or not hasattr(table_component, "table"):
+                return
+
+            selected_rows = {
+                index.row() for index in table_component.table.selectedIndexes()
+            }
+            if not selected_rows:
+                return
+
+            count: int = len(selected_rows)
+            if count == 1:
+                item = table_component.table.item(list(selected_rows)[0], 0)
+                update_name_for_msg: str = item.text() if item else "this update"
+                message: str = f"Are you sure you want to permanently delete '{update_name_for_msg}' from your profile folder?"
+            else:
+                message: str = f"Are you sure you want to permanently delete {count} selected updates from your profile folder?"
+
+            response = NotificationHandler.showConfirmation(message)
+            if response != "Yes":
+                return
+
+            game_path: str = self.config_manager.getConfigKeySelectedGame()
+            game_id: str = self.game_manager.getSelectedGameId(game_path)
+
+            profile_subfolder: str = {
+                self.game_manager.getTabKeyTitleUpdates(): self.game_manager.getProfileTypeTitleUpdate(),
+                self.game_manager.getTabKeySquadsUpdates(): os.path.join(
+                    self.game_manager.getProfileTypeSquad(),
+                    self.game_manager.getContentKeySquad(),
+                ),
+                self.game_manager.getTabKeyFutSquadsUpdates(): os.path.join(
+                    self.game_manager.getProfileTypeSquad(),
+                    self.game_manager.getContentKeyFutSquad(),
+                ),
+            }.get(tab_key, "")
+
+            profile_folder: str = self.game_manager.getProfileDirectory(
+                game_id, profile_subfolder
+            )
+
+            deleted_count: int = 0
+
+            for row in selected_rows:
+                item = table_component.table.item(row, 0)
+                if not item:
+                    continue
+
+                update_name: str = item.text()
+
+                for ext in MainDataManager().getCompressedFileExtensions() + [""]:
+                    target_path: str = os.path.join(profile_folder, update_name + ext)
+
+                    if os.path.exists(target_path):
+                        try:
+                            if os.path.isfile(target_path):
+                                os.remove(target_path)
+                            elif os.path.isdir(target_path):
+                                shutil.rmtree(target_path)
+
+                            deleted_count += 1
+                            logger.info(
+                                f"Successfully deleted from profile: {target_path}"
+                            )
+                            break
+                        except OSError as e:
+                            ErrorHandler.handleError(
+                                f"Could not delete '{update_name}'.\nIt might be in use or open in another program.\nError: {e}"
+                            )
+
+            if deleted_count > 0:
+                table_component.update_table()
+                self.button_states(
+                    table_component.table.selectionModel().currentIndex(), None
+                )
+
+        except Exception as e:
+            ErrorHandler.handleError(f"Failed to delete from profile: {e}")
+
     def show_install_options(self):
         try:
-            menu = QMenu()
-            menu.setStyleSheet("QMenu { font-size: 12px; }")
-            tab = self.game_manager.getTabKeys()[self.main_container.tab_container.currentIndex()]
-            options = [
-                ("Backup \"settings\" folder for your game before install any title/squads update",
-                 self.config_manager.getConfigKeyBackupGameSettingsFolder,
-                 self.config_manager.setConfigKeyBackupGameSettingsFolder,
-                 "backupSettingsGameFolder",
-                 [self.game_manager.getTabKeyTitleUpdates(), self.game_manager.getTabKeySquadsUpdates(), self.game_manager.getTabKeyFutSquadsUpdates()]),
-                ("Backup \"current\" title update before install the other one",
-                 self.config_manager.getConfigKeyBackupTitleUpdate,
-                 self.config_manager.setConfigKeyBackupTitleUpdate,
-                 "backupCurrentTU",
-                 [self.game_manager.getTabKeyTitleUpdates()]),
-                ("Delete \"Title Update\" from profile folder once installed",
-                 self.config_manager.getConfigKeyDeleteStoredTitleUpdate,
-                 self.config_manager.setConfigKeyDeleteStoredTitleUpdate,
-                 "deleteTUAfterInatall",
-                 [self.game_manager.getTabKeyTitleUpdates()]),
-                ("Delete \"Squad File\" from profile folder once installed",
-                 self.config_manager.getConfigKeyDeleteSquadsAfterInstall,
-                 self.config_manager.setConfigKeyDeleteSquadsAfterInstall,
-                 "deleteSquadsAfterInatall",
-                 [self.game_manager.getTabKeySquadsUpdates(), self.game_manager.getTabKeyFutSquadsUpdates()]),
-                ("Delete \"Live Tuning Update\" after rolling back your title update",
-                 self.config_manager.getConfigKeyDeleteLiveTuningUpdate,
-                 self.config_manager.setConfigKeyDeleteLiveTuningUpdate,
-                 "deleteLiveTuningUpdate",
-                 [self.game_manager.getTabKeyTitleUpdates()])
+            menu = QMenu(self.main_window)
+            menu.setStyleSheet(BarStyles())
+            tab = self.game_manager.getTabKeys()[
+                self.main_container.tab_container.currentIndex()
             ]
+            options = [
+                (
+                    'Backup "settings" folder for your game before install any title/squads update',
+                    self.config_manager.getConfigKeyBackupGameSettingsFolder,
+                    self.config_manager.setConfigKeyBackupGameSettingsFolder,
+                    "backupSettingsGameFolder",
+                    [
+                        self.game_manager.getTabKeyTitleUpdates(),
+                        self.game_manager.getTabKeySquadsUpdates(),
+                        self.game_manager.getTabKeyFutSquadsUpdates(),
+                    ],
+                ),
+                (
+                    'Backup "current" title update before install the other one',
+                    self.config_manager.getConfigKeyBackupTitleUpdate,
+                    self.config_manager.setConfigKeyBackupTitleUpdate,
+                    "backupCurrentTU",
+                    [self.game_manager.getTabKeyTitleUpdates()],
+                ),
+                (
+                    'Delete "Title Update" from profile folder once installed',
+                    self.config_manager.getConfigKeyDeleteStoredTitleUpdate,
+                    self.config_manager.setConfigKeyDeleteStoredTitleUpdate,
+                    "deleteTUAfterInatall",
+                    [self.game_manager.getTabKeyTitleUpdates()],
+                ),
+                (
+                    'Delete "Squad File" from profile folder once installed',
+                    self.config_manager.getConfigKeyDeleteSquadsAfterInstall,
+                    self.config_manager.setConfigKeyDeleteSquadsAfterInstall,
+                    "deleteSquadsAfterInatall",
+                    [
+                        self.game_manager.getTabKeySquadsUpdates(),
+                        self.game_manager.getTabKeyFutSquadsUpdates(),
+                    ],
+                ),
+                (
+                    'Delete "Live Tuning Update" after rolling back your title update',
+                    self.config_manager.getConfigKeyDeleteLiveTuningUpdate,
+                    self.config_manager.setConfigKeyDeleteLiveTuningUpdate,
+                    "deleteLiveTuningUpdate",
+                    [self.game_manager.getTabKeyTitleUpdates()],
+                ),
+                (
+                    'Auto-elevate administrator privileges without confirmation prompt',
+                    self.config_manager.getConfigKeyAutoElevateAdminWithoutPrompt,
+                    self.config_manager.setConfigKeyAutoElevateAdminWithoutPrompt,
+                    "autoElevateAdmin",
+                    [
+                        self.game_manager.getTabKeyTitleUpdates(),
+                        self.game_manager.getTabKeySquadsUpdates(),
+                        self.game_manager.getTabKeyFutSquadsUpdates(),
+                    ],
+                ),
+            ]
+            
+            options.sort(key=lambda opt: tab not in opt[4])
+            
             for text, get, set, tooltip, tabs in options:
                 chk = CheckBox(text)
                 chk.setTristate(False)
                 chk.setChecked(get())
-                color = 'white' if tab in tabs else 'rgba(255, 255, 255, 0.4)'
-                chk.setStyleSheet(f"CheckBox {{ font-size: 12px; color: {color}; }}")
+                color = "white" if tab in tabs else "rgba(255, 255, 255, 0.4)"
+                chk.setStyleSheet(f"""
+                    CheckBox {{ 
+                        font-size: 12px; 
+                        color: {color}; 
+                        padding: 5px 5px;
+                        background-color: transparent; 
+                        border-radius: 0px;
+                    }}
+                    CheckBox:hover {{
+                        background-color: #353535;
+                    }}
+                    CheckBox:pressed {{
+                        background-color: #303030;
+                    }}
+                """)
                 chk.setEnabled(tab in tabs)
                 chk.toggled.connect(lambda c, s=set: s(c))
                 apply_tooltip(chk, tooltip)
                 act = QWidgetAction(menu)
                 act.setDefaultWidget(chk)
                 menu.addAction(act)
-            menu.exec(self.buttons["install_options"].mapToGlobal(QPoint(0, self.buttons["install_options"].height())))
+            menu.exec(
+                self.buttons["install_options"].mapToGlobal(
+                    QPoint(0, self.buttons["install_options"].height())
+                )
+            )
         except Exception as e:
             ErrorHandler.handleError(f"Failed to show install options: {str(e)}")
 
     def show_download_options(self):
         try:
-            menu = QMenu()
-            menu.setStyleSheet("QMenu { font-size: 12px; }")
-            chk = CheckBox("Auto-use installed IDM for handling downloads instead of aria2")
+            menu = QMenu(self.main_window)
+            menu.setStyleSheet(BarStyles())
+            chk = CheckBox(
+                "Auto-use installed IDM for handling downloads instead of aria2"
+            )
             chk.setTristate(False)
             chk.setChecked(self.config_manager.getConfigKeyAutoUseIDM())
-            chk.setStyleSheet("CheckBox { font-size: 12px; color: white; }")
+            chk.setStyleSheet("""
+                CheckBox { 
+                    font-size: 12px; 
+                    color: white; 
+                    padding: 5px 5px;
+                    background-color: transparent; 
+                    border-radius: 0px;
+                }
+                CheckBox:hover {
+                    background-color: #353535;
+                }
+                CheckBox:pressed {
+                    background-color: #303030;
+                }
+            """)
 
             def toggle_idm(checked):
                 self.config_manager.setConfigKeyAutoUseIDM(checked)
@@ -846,34 +1336,75 @@ class ButtonManager:
                             parent=None,
                             caption="Select IDM Executable",
                             dir=os.path.expanduser("~"),
-                            filter="Executable Files (*.exe)"
+                            filter="Executable Files (*.exe)",
                         )
                         if file_path and os.path.exists(file_path):
                             self.config_manager.setConfigKeyIDMPath(file_path)
                         else:
                             chk.setChecked(False)
                             self.config_manager.setConfigKeyAutoUseIDM(False)
-                            NotificationHandler.showWarning("No valid IDM executable selected. IDM will not be used.")
+                            NotificationHandler.showWarning(
+                                "No valid IDM executable selected. IDM will not be used."
+                            )
 
             chk.toggled.connect(toggle_idm)
             apply_tooltip(chk, "autoUseIDM")
             act = QWidgetAction(menu)
             act.setDefaultWidget(chk)
             menu.addAction(act)
-            menu.exec(self.buttons["download_options"].mapToGlobal(QPoint(0, self.buttons["download_options"].height())))
+
+            chk2 = CheckBox("Auto-Install After Download")
+            chk2.setTristate(False)
+            chk2.setChecked(self.config_manager.getConfigKeyAutoInstallAfterDownload())
+            chk2.setStyleSheet("""
+                CheckBox { 
+                    font-size: 12px; 
+                    color: white; 
+                    padding: 5px 5px;
+                    background-color: transparent; 
+                    border-radius: 0px;
+                }
+                CheckBox:hover {
+                    background-color: #353535;
+                }
+                CheckBox:pressed {
+                    background-color: #303030;
+                }
+            """)
+            chk2.toggled.connect(lambda checked: self.config_manager.setConfigKeyAutoInstallAfterDownload(checked))
+            apply_tooltip(chk2, "auto_install_download_checkbox")
+            act2 = QWidgetAction(menu)
+            act2.setDefaultWidget(chk2)
+            menu.addAction(act2)
+
+            menu.exec(
+                self.buttons["download_options"].mapToGlobal(
+                    QPoint(0, self.buttons["download_options"].height())
+                )
+            )
         except Exception as e:
             ErrorHandler.handleError(f"Failed to show download options: {str(e)}")
 
     def open_profile_folder(self):
         try:
-            tab = self.game_manager.getTabKeys()[self.main_container.tab_container.currentIndex()]
+            tab = self.game_manager.getTabKeys()[
+                self.main_container.tab_container.currentIndex()
+            ]
             subfolder = {
                 self.game_manager.getTabKeyTitleUpdates(): self.game_manager.getProfileTypeTitleUpdate(),
-                self.game_manager.getTabKeySquadsUpdates(): os.path.join(self.game_manager.getProfileTypeSquad(), self.game_manager.getContentKeySquad()),
-                self.game_manager.getTabKeyFutSquadsUpdates(): os.path.join(self.game_manager.getProfileTypeSquad(), self.game_manager.getContentKeyFutSquad())
+                self.game_manager.getTabKeySquadsUpdates(): os.path.join(
+                    self.game_manager.getProfileTypeSquad(),
+                    self.game_manager.getContentKeySquad(),
+                ),
+                self.game_manager.getTabKeyFutSquadsUpdates(): os.path.join(
+                    self.game_manager.getProfileTypeSquad(),
+                    self.game_manager.getContentKeyFutSquad(),
+                ),
             }.get(tab, self.game_manager.getProfileTypeSquad())
 
-            game_id = self.game_manager.getSelectedGameId(self.config_manager.getConfigKeySelectedGame())
+            game_id = self.game_manager.getSelectedGameId(
+                self.config_manager.getConfigKeySelectedGame()
+            )
             if not game_id:
                 ErrorHandler.handleError("Could not identify the selected game.")
                 return
@@ -885,8 +1416,11 @@ class ButtonManager:
 
     def change_game(self):
         try:
-            QApplication.activeWindow().close()
-            SelectGameWindow(ignore_selected_game=True).show()
+            self._select_game_window = SelectGameWindow(ignore_selected_game=True)
+            self._select_game_window.show()
+            for window in QApplication.topLevelWidgets():
+                if window != self._select_game_window:
+                    window.close()
         except Exception as e:
             ErrorHandler.handleError(f"Failed to change game: {str(e)}")
 
@@ -898,10 +1432,23 @@ class ButtonManager:
         except Exception as e:
             ErrorHandler.handleError(f"Failed to open settings window: {str(e)}")
 
+
 def main():
     main_data_manager = MainDataManager()
-    logger.info(f"Starting {APP_NAME} v{VERSION} Build v{BUILD_VERSION} Launched From: {os.path.realpath(main_data_manager.application_path)}")
-    logger.info(f"OS: {platform.system()} {platform.release()} ({platform.version()}) - Arch: {platform.machine()}")
+    logger.info(
+        f"Starting {APP_NAME} v{VERSION} Build v{BUILD_VERSION} Launched From: {os.path.realpath(main_data_manager.application_path)}"
+    )
+    logger.info(
+        f"OS: {platform.system()} {platform.release()} ({platform.version()}) - Arch: {platform.machine()}"
+    )
+
+    config_manager = ConfigManager()
+    selected_game_path = config_manager.getConfigKeySelectedGame()
+    if selected_game_path:
+        logger.info(f"Selected Game Path: {selected_game_path}")
+    else:
+        logger.info("No game currently selected.")
+
     app = QApplication(sys.argv)
     # font = QFont("")
     # font.setPointSize(10)
@@ -926,9 +1473,12 @@ def main():
 
     main_window = SelectGameWindow()
     main_window.show()
-    
-    app.aboutToQuit.connect(lambda: app_data_manager.manageTempFolder(clean=True, clean_all=True))
+
+    app.aboutToQuit.connect(
+        lambda: app_data_manager.manageTempFolder(clean=True, clean_all=True)
+    )
     sys.exit(app.exec())
+
 
 if __name__ == "__main__":
     main()

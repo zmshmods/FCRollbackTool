@@ -47,10 +47,6 @@ def MainStyles():
     QWidget#ButtonContainer { background-color: transparent; }
 
     /*######## Menu ########*/
-    QMenu { 
-        background-color: rgb(43, 43, 43); 
-        border-radius: 5px; 
-    }
 
     CheckBox { 
         font-size: 12px; 

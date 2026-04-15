@@ -3,22 +3,50 @@ import sys
 import time
 from typing import List, Optional
 from PySide6.QtWidgets import (
-    QApplication, QVBoxLayout, QHBoxLayout, QWidget, QSizePolicy, QPushButton,
-    QTableWidgetItem, QLabel, QCompleter, QFileDialog, QHeaderView
+    QApplication,
+    QVBoxLayout,
+    QHBoxLayout,
+    QWidget,
+    QSizePolicy,
+    QPushButton,
+    QTableWidgetItem,
+    QLabel,
+    QCompleter,
+    QFileDialog,
+    QHeaderView,
 )
 from PySide6.QtGui import QGuiApplication, QIcon
-from PySide6.QtCore import Qt, QUrl, QThread, Signal, QObject, QRunnable, QThreadPool, QEventLoop
+from PySide6.QtCore import (
+    Qt,
+    QUrl,
+    QThread,
+    Signal,
+    QObject,
+    QRunnable,
+    QThreadPool,
+    QEventLoop,
+)
 from PySide6.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkReply
 from qfluentwidgets import (
-    Theme, setTheme, setThemeColor, TableWidget, CheckBox, SearchLineEdit,
-    FluentIcon, InfoBar, InfoBarPosition
+    Theme,
+    setTheme,
+    setThemeColor,
+    TableWidget,
+    CheckBox,
+    SearchLineEdit,
+    FluentIcon,
+    InfoBar,
+    InfoBarPosition,
 )
 
 from UIComponents.Personalization import BaseWindow
 from UIComponents.MainStyles import MainStyles
 from UIComponents.TitleBar import TitleBar
 from UIComponents.Spinner import LoadingSpinner
-from UIWindows.SquadsChangelogsSettingsWindow import ChangelogsSettingsWindow, ChangelogsSettings
+from UIWindows.SquadsChangelogsSettingsWindow import (
+    ChangelogsSettingsWindow,
+    ChangelogsSettings,
+)
 
 from Core.Logger import logger
 from Core.ConfigManager import ConfigManager
@@ -36,13 +64,20 @@ SHOW_MAX_BUTTON = True
 SHOW_MIN_BUTTON = True
 SHOW_CLOSE_BUTTON = True
 
+
 class NetworkConfig:
     RETRY_WAIT = 2
     TIMEOUT = 7000
 
+
 class SquadsChangelogsFetcherWindow(BaseWindow):
-    def __init__(self, index_url: Optional[str] = None, update_name: Optional[str] = None,
-                 released_date: Optional[str] = None, parent: Optional[QWidget] = None):
+    def __init__(
+        self,
+        index_url: Optional[str] = None,
+        update_name: Optional[str] = None,
+        released_date: Optional[str] = None,
+        parent: Optional[QWidget] = None,
+    ):
         super().__init__(parent=parent)
         self.index_url = index_url
         self.update_name = update_name
@@ -95,7 +130,9 @@ class SquadsChangelogsFetcherWindow(BaseWindow):
 
     def center_window(self):
         screen = QGuiApplication.primaryScreen().geometry()
-        self.move((screen.width() - self.width()) // 2, (screen.height() - self.height()) // 2)
+        self.move(
+            (screen.width() - self.width()) // 2, (screen.height() - self.height()) // 2
+        )
 
     @staticmethod
     def center_child_window(parent_window, child_window):
@@ -120,7 +157,7 @@ class SquadsChangelogsFetcherWindow(BaseWindow):
             show_max_button=SHOW_MAX_BUTTON,
             show_min_button=SHOW_MIN_BUTTON,
             show_close_button=SHOW_CLOSE_BUTTON,
-            bar_height=BAR_HEIGHT
+            bar_height=BAR_HEIGHT,
         )
         title_bar.create_title_bar()
 
@@ -141,7 +178,9 @@ class SquadsChangelogsFetcherWindow(BaseWindow):
         self.main_layout.addWidget(self.main_container)
 
     def _setup_buttons(self):
-        separator = QWidget(self, styleSheet="background-color: rgba(255, 255, 255, 0.1);")
+        separator = QWidget(
+            self, styleSheet="background-color: rgba(255, 255, 255, 0.1);"
+        )
         separator.setFixedHeight(1)
         self.main_layout.addWidget(separator)
         self.main_layout.addWidget(self.button_manager.create_buttons())
@@ -152,13 +191,26 @@ class SquadsChangelogsFetcherWindow(BaseWindow):
             self.table.hide()
         self._clear_loading_widgets()
         self.loading_spinner = LoadingSpinner(self)
-        self.fetching_label = QLabel("Loading..." if is_index else "Fetching...", styleSheet="font-size: 16px; color: white;")
-        self.changelogs_label = QLabel("", styleSheet=f"font-size: 14px; color: {THEME_COLOR};")
-        for widget in [self.loading_spinner, self.fetching_label, self.changelogs_label]:
+        self.fetching_label = QLabel(
+            "Loading..." if is_index else "Fetching...",
+            styleSheet="font-size: 16px; color: white;",
+        )
+        self.changelogs_label = QLabel(
+            "", styleSheet=f"font-size: 14px; color: {THEME_COLOR};"
+        )
+        for widget in [
+            self.loading_spinner,
+            self.fetching_label,
+            self.changelogs_label,
+        ]:
             self.main_container_layout.addWidget(widget, alignment=Qt.AlignCenter)
 
     def _clear_loading_widgets(self):
-        for widget in [self.fetching_label, self.changelogs_label, self.loading_spinner]:
+        for widget in [
+            self.fetching_label,
+            self.changelogs_label,
+            self.loading_spinner,
+        ]:
             if widget:
                 widget.hide()
                 widget.deleteLater()
@@ -184,10 +236,12 @@ class SquadsChangelogsFetcherWindow(BaseWindow):
         self.table.setBorderRadius(0)
         self.table.setWordWrap(False)
         self.table.setSortingEnabled(False)
-        self.table.itemDelegate().setShowIndicator(False)
+        # self.table.itemDelegate().setShowIndicator(False)
         header = self.table.horizontalHeader()
-        header.setStyleSheet("QHeaderView::section { font-weight: Bold; }") #color: #FFFFFF;
-        
+        header.setStyleSheet(
+            "QHeaderView::section { font-weight: Bold; }"
+        )  # color: #FFFFFF;
+
         # Define count sub-keys using GameManager getters
         count_sub_keys = [
             self.game_manager.getChangelogCountsAddedKey(),
@@ -204,35 +258,40 @@ class SquadsChangelogsFetcherWindow(BaseWindow):
             self.game_manager.getChangelogCountsManagerTrackerReAppointedKey(),
             self.game_manager.getChangelogCountsManagerTrackerDepartedKey(),
             self.game_manager.getChangelogCountsGenericHeadModelsAddedKey(),
-            self.game_manager.getChangelogCountsGenericHeadModelsRemovedKey()
+            self.game_manager.getChangelogCountsGenericHeadModelsRemovedKey(),
         ]
-        
+
         # Set column count: Select + File Name + Type + each count key
         column_count = 3 + len(count_sub_keys)
         self.table.setColumnCount(column_count)
-        
+
         # Set header labels
-        header_labels = ["Select", self.game_manager.getChangelogFileNameKey(), self.game_manager.getChangelogTypeKey()] + count_sub_keys
+        header_labels = [
+            "Select",
+            self.game_manager.getChangelogFileNameKey(),
+            self.game_manager.getChangelogTypeKey(),
+        ] + count_sub_keys
         self.table.setHorizontalHeaderLabels(header_labels)
-        
+
         self.table.horizontalHeader().setStretchLastSection(True)
         self.table.setSelectionMode(TableWidget.SingleSelection)
         self.table.setEditTriggers(TableWidget.NoEditTriggers)
         for i in range(self.table.columnCount()):
-            self.table.horizontalHeaderItem(i).setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+            self.table.horizontalHeaderItem(i).setTextAlignment(
+                Qt.AlignLeft | Qt.AlignVCenter
+            )
         self.table.verticalHeader().setDefaultAlignment(Qt.AlignCenter)
         self.table.verticalHeader().setSectionResizeMode(QHeaderView.Fixed)
         self.table.verticalHeader().setDefaultSectionSize(45)
         self.table.cellClicked.connect(self.on_cell_clicked)
 
         # UIComponents\CustomQfluentwidgets\table_view.py
-        self.table.itemDelegate().setSelectedRowColor(color=None, alpha=0)
-        self.table.itemDelegate().setHoverRowColor(color=None, alpha=0)    
-        self.table.itemDelegate().setAlternateRowColor(color=None, alpha=2)
-        self.table.itemDelegate().setPressedRowColor(color=None, alpha=0)
-        self.table.itemDelegate().setPriorityOrder(["alternate", "selected", "pressed", "hover"])
-        self.table.itemDelegate().setShowIndicator(False)
-        
+        # self.table.itemDelegate().setSelectedRowColor(color=None, alpha=0)
+        # self.table.itemDelegate().setHoverRowColor(color=None, alpha=0)
+        # self.table.itemDelegate().setAlternateRowColor(color=None, alpha=2)
+        # self.table.itemDelegate().setPressedRowColor(color=None, alpha=0)
+        # self.table.itemDelegate().setPriorityOrder(["alternate", "selected", "pressed", "hover"])
+        # self.table.itemDelegate().setShowIndicator(False)
 
         self.main_container_layout.addWidget(self.table)
 
@@ -247,7 +306,9 @@ class SquadsChangelogsFetcherWindow(BaseWindow):
 
     def start_fetching_data(self):
         self.index_thread = QThread()
-        self.index_worker = IndexFetchWorker(self.index_url, self.game_manager, self.update_name)
+        self.index_worker = IndexFetchWorker(
+            self.index_url, self.game_manager, self.update_name
+        )
         self.index_worker.moveToThread(self.index_thread)
         self.index_thread.started.connect(self.index_worker.run)
         self.index_worker.finished.connect(self.on_data_fetched)
@@ -260,22 +321,30 @@ class SquadsChangelogsFetcherWindow(BaseWindow):
             self._on_error("No changelogs data received from Index.json")
             return
         self.changelogs_data = changelogs_data
-        self.checkbox_states = [self.config_manager.getConfigKeySelectAllChangelogs()] * len(changelogs_data)
+        self.checkbox_states = [
+            self.config_manager.getConfigKeySelectAllChangelogs()
+        ] * len(changelogs_data)
         self._setup_changelogs()
         self.table.setRowCount(len(changelogs_data))
         changelog_names = []
         for row, changelog in enumerate(changelogs_data):
             self._setup_changelog_row(row, changelog)
-            changelog_name = changelog.get(self.game_manager.getChangelogFileNameKey(), "")
+            changelog_name = changelog.get(
+                self.game_manager.getChangelogFileNameKey(), ""
+            )
             changelog_names.append(changelog_name)
         self.table.resizeColumnsToContents()
         for col in range(self.table.columnCount()):
             current_width = self.table.columnWidth(col)
-            self.table.setColumnWidth(col, current_width + 10) # extra width for longer names
+            self.table.setColumnWidth(
+                col, current_width + 10
+            )  # extra width for longer names
         self._setup_completer(changelog_names)
         self.button_manager.select_all_checkbox.setEnabled(True)
         self.button_manager.exact_search_checkbox.setEnabled(True)
-        self.button_manager.select_all_checkbox.stateChanged.connect(self.button_manager.toggle_select_all)
+        self.button_manager.select_all_checkbox.stateChanged.connect(
+            self.button_manager.toggle_select_all
+        )
         self.button_manager.update_select_all_state(all(self.checkbox_states))
         self._cleanup_index_worker()
         self.hide_loading()
@@ -284,7 +353,9 @@ class SquadsChangelogsFetcherWindow(BaseWindow):
         checkbox = CheckBox()
         checkbox.setStyleSheet("margin-left: 10px; background-color: transparent;")
         checkbox.setChecked(self.checkbox_states[row])
-        checkbox.stateChanged.connect(lambda state, r=row: self.on_checkbox_state_changed(r, state))
+        checkbox.stateChanged.connect(
+            lambda state, r=row: self.on_checkbox_state_changed(r, state)
+        )
         checkbox_widget = QWidget()
         checkbox_layout = QHBoxLayout(checkbox_widget)
         checkbox_layout.addWidget(checkbox)
@@ -292,19 +363,22 @@ class SquadsChangelogsFetcherWindow(BaseWindow):
         checkbox_layout.setContentsMargins(0, 0, 0, 0)
         self.table.setCellWidget(row, 0, checkbox_widget)
         self.checkbox_widgets.append(checkbox_widget)
-        
+
         changelog_name = changelog.get(self.game_manager.getChangelogFileNameKey(), "")
         if not changelog_name:
             logger.warning(f"No changelog name found for row {row}: {changelog}")
         self.table.setItem(row, 1, QTableWidgetItem(changelog_name))
-        
-        for col, key in enumerate([
-            self.game_manager.getChangelogTypeKey(),
-        ], 2):
+
+        for col, key in enumerate(
+            [
+                self.game_manager.getChangelogTypeKey(),
+            ],
+            2,
+        ):
             item = QTableWidgetItem(str(changelog.get(key, "")))
             item.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
             self.table.setItem(row, col, item)
-        
+
         counts = changelog.get(self.game_manager.getChangelogCountsKey(), {})
         count_sub_keys = [
             self.game_manager.getChangelogCountsAddedKey(),
@@ -321,7 +395,7 @@ class SquadsChangelogsFetcherWindow(BaseWindow):
             self.game_manager.getChangelogCountsManagerTrackerReAppointedKey(),
             self.game_manager.getChangelogCountsManagerTrackerDepartedKey(),
             self.game_manager.getChangelogCountsGenericHeadModelsAddedKey(),
-            self.game_manager.getChangelogCountsGenericHeadModelsRemovedKey()
+            self.game_manager.getChangelogCountsGenericHeadModelsRemovedKey(),
         ]
         for col, key in enumerate(count_sub_keys, start=3):
             item = QTableWidgetItem(str(counts.get(key, "")))
@@ -331,14 +405,18 @@ class SquadsChangelogsFetcherWindow(BaseWindow):
     def _setup_completer(self, changelog_names: List[str]):
         valid_names = [name for name in changelog_names if name]
         self.completer = QCompleter(valid_names, self.search_line_edit)
-        self.completer.setCaseSensitivity(Qt.CaseSensitive if self.is_exact_search else Qt.CaseInsensitive)
+        self.completer.setCaseSensitivity(
+            Qt.CaseSensitive if self.is_exact_search else Qt.CaseInsensitive
+        )
         self.completer.setMaxVisibleItems(10)
         self.search_line_edit.setCompleter(self.completer)
 
     def toggle_exact_search(self, checked: bool):
         self.is_exact_search = checked
         if self.completer:
-            self.completer.setCaseSensitivity(Qt.CaseSensitive if self.is_exact_search else Qt.CaseInsensitive)
+            self.completer.setCaseSensitivity(
+                Qt.CaseSensitive if self.is_exact_search else Qt.CaseInsensitive
+            )
             self.filter_changelogs(self.search_line_edit.text())
 
     def on_checkbox_state_changed(self, row: int, state: int):
@@ -351,7 +429,12 @@ class SquadsChangelogsFetcherWindow(BaseWindow):
         text = text.lower()
         for row in range(self.table.rowCount()):
             changelog_name = self.table.item(row, 1).text().lower()
-            self.table.setRowHidden(row, text not in changelog_name if not self.is_exact_search else text != changelog_name)
+            self.table.setRowHidden(
+                row,
+                text not in changelog_name
+                if not self.is_exact_search
+                else text != changelog_name,
+            )
 
     def get_selected_changelogs(self) -> List[str]:
         if not self.table:
@@ -363,17 +446,25 @@ class SquadsChangelogsFetcherWindow(BaseWindow):
         ]
         valid_changelogs = [name for name in selected if name]
         if len(valid_changelogs) < len(selected):
-            logger.warning(f"Excluded {len(selected) - len(valid_changelogs)} changelogs with empty names")
+            logger.warning(
+                f"Excluded {len(selected) - len(valid_changelogs)} changelogs with empty names"
+            )
         return valid_changelogs
 
     def get_squad_folder_name(self) -> str:
-        return f"{self.update_name.replace(' ', '_')}_Changelogs" if self.update_name else "Changelogs"
+        return (
+            f"{self.update_name.replace(' ', '_')}_Changelogs"
+            if self.update_name
+            else "Changelogs"
+        )
 
     def fetch_changelogs(self, selected_changelogs: List[str]):
         save_path = self._get_save_path()
         if not save_path:
             return
-        logger.info(f"Start fetching {len(selected_changelogs)} changelogs to {save_path}")
+        logger.info(
+            f"Start fetching {len(selected_changelogs)} changelogs to {save_path}"
+        )
         self.start_time = time.time()
         self.button_manager.disable_buttons()
         self.show_loading()
@@ -386,8 +477,14 @@ class SquadsChangelogsFetcherWindow(BaseWindow):
             if self.is_fetching_canceled:
                 break
             worker = ChangelogFetchWorker(
-                self.index_url, changelog_name, save_path, format,
-                self.game_manager, self.config_manager, self.changelogs_data, self.update_name
+                self.index_url,
+                changelog_name,
+                save_path,
+                format,
+                self.game_manager,
+                self.config_manager,
+                self.changelogs_data,
+                self.update_name,
             )
             worker.signals.started.connect(self.update_changelog_name)
             worker.signals.finished.connect(self.on_changelog_fetched)
@@ -399,7 +496,9 @@ class SquadsChangelogsFetcherWindow(BaseWindow):
         if not save_path or not os.path.isdir(save_path):
             self.current_save_path = None
             save_path = QFileDialog.getExistingDirectory(
-                self, "Choose Folder to Save Changelogs", os.path.expanduser("~/Desktop")
+                self,
+                "Choose Folder to Save Changelogs",
+                os.path.expanduser("~/Desktop"),
             )
             if not save_path:
                 return None
@@ -413,7 +512,9 @@ class SquadsChangelogsFetcherWindow(BaseWindow):
             return
         self.fetched_changelogs.append(changelog_name)
         self.active_fetch_workers -= 1
-        logger.debug(f"Changelog fetched: {changelog_name}, remaining workers: {self.active_fetch_workers}")
+        logger.debug(
+            f"Changelog fetched: {changelog_name}, remaining workers: {self.active_fetch_workers}"
+        )
         if self.active_fetch_workers <= 0:
             self._show_success_message()
             self.hide_loading()
@@ -426,7 +527,11 @@ class SquadsChangelogsFetcherWindow(BaseWindow):
         if self.config_manager.getConfigKeySaveChangelogsInFolderUsingSquadFileName():
             save_path = os.path.join(save_path, self.get_squad_folder_name())
         elapsed_time = time.time() - self.start_time if self.start_time else 0
-        elapsed_time_str = f"{elapsed_time:.2f} seconds" if elapsed_time < 60 else f"{elapsed_time / 60:.2f} minutes"
+        elapsed_time_str = (
+            f"{elapsed_time:.2f} seconds"
+            if elapsed_time < 60
+            else f"{elapsed_time / 60:.2f} minutes"
+        )
         message = f"{changelog_count} {'Changelog' if changelog_count == 1 else 'Changelogs'} fetched successfully in {elapsed_time_str} and saved to {save_path}"
         InfoBar.success(
             title="Success",
@@ -435,7 +540,7 @@ class SquadsChangelogsFetcherWindow(BaseWindow):
             isClosable=True,
             position=InfoBarPosition.TOP,
             duration=2200,
-            parent=self
+            parent=self,
         )
 
     def toggle_select_all(self, checked: bool):
@@ -475,11 +580,12 @@ class SquadsChangelogsFetcherWindow(BaseWindow):
             self.index_thread = None
 
     def closeEvent(self, event):
-            self._cleanup_index_worker()
-            if self.thread_pool:
-                self.thread_pool.clear()
-                self.thread_pool.waitForDone()  # Wait for all workers to finish
-            super().closeEvent(event)
+        self._cleanup_index_worker()
+        if self.thread_pool:
+            self.thread_pool.clear()
+            self.thread_pool.waitForDone()  # Wait for all workers to finish
+        super().closeEvent(event)
+
 
 class ButtonManager:
     def __init__(self, window: SquadsChangelogsFetcherWindow):
@@ -508,11 +614,13 @@ class ButtonManager:
         self.buttons = {
             "cancel": QPushButton("Cancel"),
             "fetch": QPushButton("Fetch Changelogs"),
-            "settings": QPushButton()
+            "settings": QPushButton(),
         }
         self.buttons["cancel"].clicked.connect(self.cancel)
         self.buttons["fetch"].clicked.connect(self.fetch)
-        self.buttons["fetch"].setStyleSheet("border-top-right-radius: 0px; border-bottom-right-radius: 0px;")
+        self.buttons["fetch"].setStyleSheet(
+            "border-top-right-radius: 0px; border-bottom-right-radius: 0px;"
+        )
         self.buttons["fetch"].setFixedWidth(120)
         self.buttons["settings"].clicked.connect(self.open_changelog_settings)
         self.buttons["settings"].setIcon(FluentIcon.SETTING.icon(Theme.DARK))
@@ -522,11 +630,17 @@ class ButtonManager:
         )
         self.buttons["settings"].setFixedSize(28, 28)
         self.select_all_checkbox = CheckBox("Select All")
-        self.select_all_checkbox.setChecked(self.window.config_manager.getConfigKeySelectAllChangelogs())
-        self.select_all_checkbox.setStyleSheet("margin-left: 5px; background-color: transparent; color: white;")
+        self.select_all_checkbox.setChecked(
+            self.window.config_manager.getConfigKeySelectAllChangelogs()
+        )
+        self.select_all_checkbox.setStyleSheet(
+            "margin-left: 5px; background-color: transparent; color: white;"
+        )
         self.select_all_checkbox.setEnabled(False)
         self.exact_search_checkbox = CheckBox("Exact Search")
-        self.exact_search_checkbox.setStyleSheet("margin-left: 5px; background-color: transparent; color: white;")
+        self.exact_search_checkbox.setStyleSheet(
+            "margin-left: 5px; background-color: transparent; color: white;"
+        )
         self.exact_search_checkbox.setEnabled(False)
         self.exact_search_checkbox.stateChanged.connect(self.on_exact_search_toggled)
 
@@ -550,7 +664,9 @@ class ButtonManager:
     def open_changelog_settings(self):
         try:
             settings_window = ChangelogsSettingsWindow()
-            SquadsChangelogsFetcherWindow.center_child_window(self.window, settings_window)
+            SquadsChangelogsFetcherWindow.center_child_window(
+                self.window, settings_window
+            )
             settings_window.show()
         except Exception as e:
             ErrorHandler.handleError(f"Failed to open settings window: {str(e)}")
@@ -577,7 +693,8 @@ class ButtonManager:
             btn.setEnabled(True)
         self.select_all_checkbox.setEnabled(True)
         self.exact_search_checkbox.setEnabled(True)
-        
+
+
 class NetworkWorker:
     def __init__(self):
         self.network_manager: Optional[QNetworkAccessManager] = None
@@ -611,26 +728,38 @@ class NetworkWorker:
                     self.current_reply = None
                     return data
                 error_msg = self.current_reply.errorString()
-                ErrorHandler.handleError(f"Error fetching data on attempt {attempt + 1}: {error_msg}")
+                ErrorHandler.handleError(
+                    f"Error fetching data on attempt {attempt + 1}: {error_msg}"
+                )
                 self.current_reply.deleteLater()
                 self.current_reply = None
                 if attempt < max_retries - 1:
                     time.sleep(NetworkConfig.RETRY_WAIT)
                 else:
-                    raise Exception(f"Failed to fetch data after {max_retries} attempts: {error_msg}")
+                    raise Exception(
+                        f"Failed to fetch data after {max_retries} attempts: {error_msg}"
+                    )
             except Exception as e:
-                ErrorHandler.handleError(f"Unexpected error on attempt {attempt + 1}: {str(e)}")
+                ErrorHandler.handleError(
+                    f"Unexpected error on attempt {attempt + 1}: {str(e)}"
+                )
                 if attempt < max_retries - 1:
                     time.sleep(NetworkConfig.RETRY_WAIT)
                 else:
                     raise
         return b""
 
+
 class IndexFetchWorker(QObject, NetworkWorker):
     finished = Signal(list)
     error = Signal(str)
 
-    def __init__(self, index_url: str, game_manager: GameManager, update_name: Optional[str] = None):
+    def __init__(
+        self,
+        index_url: str,
+        game_manager: GameManager,
+        update_name: Optional[str] = None,
+    ):
         super().__init__()
         self.index_url = index_url
         self.game_manager = game_manager
@@ -643,7 +772,9 @@ class IndexFetchWorker(QObject, NetworkWorker):
                 error_msg = "No changelogs data found in Index.json"
                 self.error.emit(error_msg)
                 return
-            logger.info(f"Index.json for {self.update_name} fetched successfully and found {len(changelogs_data)} changelogs in it")
+            logger.info(
+                f"Index.json for {self.update_name} fetched successfully and found {len(changelogs_data)} changelogs in it"
+            )
             self.finished.emit(changelogs_data)
         except Exception as e:
             error_msg = f"Failed to fetch Index.json from {self.index_url}: {str(e)}"
@@ -654,15 +785,24 @@ class IndexFetchWorker(QObject, NetworkWorker):
     def cancel(self):
         self._cleanup_network()
 
+
 class ChangelogFetchWorker(QRunnable, NetworkWorker):
     class Signals(QObject):
         started = Signal(str)
         finished = Signal(str)
         error = Signal(str)
 
-    def __init__(self, index_url: str, changelog_name: str, save_path: str, format: str,
-                 game_manager: GameManager, config_manager: ConfigManager, changelogs_data: List[dict],
-                 update_name: Optional[str] = None):
+    def __init__(
+        self,
+        index_url: str,
+        changelog_name: str,
+        save_path: str,
+        format: str,
+        game_manager: GameManager,
+        config_manager: ConfigManager,
+        changelogs_data: List[dict],
+        update_name: Optional[str] = None,
+    ):
         super().__init__()
         self.signals = self.Signals()
         self.index_url = index_url
@@ -677,44 +817,74 @@ class ChangelogFetchWorker(QRunnable, NetworkWorker):
 
     def run(self):
         if self.is_canceled or not self.changelog_name:
-            error_msg = f"Skipping fetch for empty changelog name: {self.changelog_name}"
+            error_msg = (
+                f"Skipping fetch for empty changelog name: {self.changelog_name}"
+            )
             ErrorHandler.handleError(error_msg)
             self.signals.error.emit(error_msg)
             return
         format_config = {
             ".xlsx": (".xlsx", lambda c, p: c.to_xlsx(p)),
             ".csv": (".csv", lambda c, p: c.to_csv(p)),
-            ".json": (".json", lambda c, p: c.to_json(p))
+            ".json": (".json", lambda c, p: c.to_json(p)),
         }
         try:
             ext, save_method = format_config.get(
                 self.format, (".xlsx", lambda c, p: c.to_xlsx(p))
             )
             if self.format not in format_config:
-                logger.warning(f"Invalid format '{self.format}' selected, falling back to .xlsx")
+                logger.warning(
+                    f"Invalid format '{self.format}' selected, falling back to .xlsx"
+                )
             folder_path = self.save_path
             if self.config_manager.getConfigKeySaveChangelogsInFolderUsingSquadFileName():
-                folder_path = os.path.join(self.save_path, f"{self.update_name.replace(' ', '_')}_Changelogs" if self.update_name else "Changelogs")
-            file_path = os.path.normpath(os.path.join(folder_path, f"{self.changelog_name}{ext}"))
+                folder_path = os.path.join(
+                    self.save_path,
+                    f"{self.update_name.replace(' ', '_')}_Changelogs"
+                    if self.update_name
+                    else "Changelogs",
+                )
+            file_path = os.path.normpath(
+                os.path.join(folder_path, f"{self.changelog_name}{ext}")
+            )
             os.makedirs(os.path.dirname(file_path), exist_ok=True)
-            changelog_url = self.game_manager.getChangelogUrl(self.index_url, self.changelog_name, self.config_manager)
+            changelog_url = self.game_manager.getChangelogUrl(
+                self.index_url, self.changelog_name, self.config_manager
+            )
             if not changelog_url:
-                raise Exception(f"Failed to get URL for changelog: {self.changelog_name}")
+                raise Exception(
+                    f"Failed to get URL for changelog: {self.changelog_name}"
+                )
             self.signals.started.emit(self.changelog_name)
             if self.is_canceled:
                 return
             data = self.fetch_data(changelog_url, self.game_manager.MAX_RETRIES)
             if self.is_canceled:
-                logger.info(f"Fetch canceled after data retrieval for changelog: {self.changelog_name}")
+                logger.info(
+                    f"Fetch canceled after data retrieval for changelog: {self.changelog_name}"
+                )
                 return
             changelog_info = next(
-                (c for c in self.changelogs_data if c.get(self.game_manager.getChangelogFileNameKey()) == self.changelog_name),
-                None
+                (
+                    c
+                    for c in self.changelogs_data
+                    if c.get(self.game_manager.getChangelogFileNameKey())
+                    == self.changelog_name
+                ),
+                None,
             )
-            converter = ChangelogsSettings(data, self.changelog_name, self.config_manager, changelog_info, self.index_url)
+            converter = ChangelogsSettings(
+                data,
+                self.changelog_name,
+                self.config_manager,
+                changelog_info,
+                self.index_url,
+            )
             save_method(converter, file_path)
             if self.is_canceled:
-                logger.info(f"Fetch canceled after saving for changelog: {self.changelog_name}")
+                logger.info(
+                    f"Fetch canceled after saving for changelog: {self.changelog_name}"
+                )
                 return
             self.signals.finished.emit(self.changelog_name)
         except PermissionError as e:
@@ -726,7 +896,9 @@ class ChangelogFetchWorker(QRunnable, NetworkWorker):
                 try:
                     os.remove(file_path)
                 except PermissionError:
-                    logger.warning(f"Could not delete file {file_path} due to permission error")
+                    logger.warning(
+                        f"Could not delete file {file_path} due to permission error"
+                    )
             error_msg = f"Failed to download changelog {self.changelog_name}: {str(e)}"
             ErrorHandler.handleError(error_msg)
             self.signals.error.emit(error_msg)
@@ -737,6 +909,7 @@ class ChangelogFetchWorker(QRunnable, NetworkWorker):
         self.is_canceled = True
         self._cleanup_network()
 
+
 def main():
     app = QApplication(sys.argv)
     app.setStyleSheet(MainStyles())
@@ -746,6 +919,7 @@ def main():
     window = SquadsChangelogsFetcherWindow()
     window.show()
     sys.exit(app.exec())
+
 
 if __name__ == "__main__":
     main()

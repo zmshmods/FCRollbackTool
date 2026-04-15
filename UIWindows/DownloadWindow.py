@@ -2,8 +2,9 @@ import sys
 import re
 from PySide6.QtWidgets import QApplication, QVBoxLayout, QHBoxLayout, QLabel, QWidget, QSizePolicy, QPushButton
 from PySide6.QtGui import QGuiApplication, QIcon, QColor
-from PySide6.QtCore import Qt, QTimer
-from qfluentwidgets import Theme, setTheme, setThemeColor, ProgressRing
+from PySide6.QtCore import Qt, QTimer, Signal
+from qfluentwidgets import Theme, setTheme, setThemeColor, ProgressRing, CheckBox, FluentIcon
+from UIComponents.Tooltips import apply_tooltip
 
 from UIComponents.Personalization import BaseWindow
 from UIComponents.MainStyles import MainStyles
@@ -32,6 +33,8 @@ BOLD_STYLE = "font-size: 16px; font-weight: bold; color: rgba(255, 255, 255, 0.9
 NORMAL_STYLE = "font-size: 14px; color: rgba(255, 255, 255, 0.7); background-color: transparent;"
 
 class DownloadWindow(BaseWindow):
+    auto_install_requested_signal = Signal()
+    
     def __init__(self, update_name, download_url, short_game_name, tab_key, file_name=None, parent=None):
         super().__init__(parent=parent)
         self.update_name = update_name or "Unknown Update"
@@ -178,7 +181,11 @@ class DownloadWindow(BaseWindow):
         logger.info("Download completed successfully.")
         self.progress_ring.setValue(100)
         self.update_info_label()
-        QTimer.singleShot(1000, self.close)
+        if self.config_manager.getConfigKeyAutoInstallAfterDownload():
+            self.auto_install_requested_signal.emit()
+            self.close()
+        else:
+            QTimer.singleShot(1000, self.close)
 
     def on_paused(self):
         if not self.use_idm:
@@ -322,14 +329,28 @@ class ButtonManager:
             "pause": (" Pause", self.toggle_pause, QIcon("Data/Assets/Icons/ic_fluent_Pause_24_regular.png")),
             "resume": (" Start", self.toggle_pause, QIcon("Data/Assets/Icons/ic_fluent_play_24_regular.png")),
             "cancel": ("Cancel", self.cancel, None),
-            "close": ("Close Window", self.close, None)
+            "close": ("Close Window", self.close, None),
+            "info": ("", None, FluentIcon.INFO.icon(Theme.DARK))
         }
         for name, (text, func, icon) in button_configs.items():
             btn = QPushButton(text)
-            btn.clicked.connect(func)
+            if func:
+                btn.clicked.connect(func)
             if icon:
                 btn.setIcon(icon)
             self.buttons[name] = btn
+            
+        self.buttons["info"].setFixedSize(28, 28)
+        self.buttons["info"].setStyleSheet("background-color: transparent; border: none;")
+        self.buttons["info"].setCursor(Qt.PointingHandCursor)
+        apply_tooltip(self.buttons["info"], "download_speed_info_tooltip")
+        
+        self.auto_install_checkbox = CheckBox("Auto-Install")
+        self.auto_install_checkbox.setChecked(self.window.config_manager.getConfigKeyAutoInstallAfterDownload())
+        self.auto_install_checkbox.setStyleSheet("background-color: transparent; color: white;")
+        self.auto_install_checkbox.stateChanged.connect(self.on_auto_install_toggled)
+        apply_tooltip(self.auto_install_checkbox, "auto_install_download_checkbox")
+            
         self.buttons["resume"].hide()
         if self.window.use_idm:
             self.buttons["pause"].hide()
@@ -341,14 +362,26 @@ class ButtonManager:
 
     def _setup_layout(self):
         self.button_layout = QHBoxLayout()
+        
+        left_layout = QHBoxLayout()
+        left_layout.setContentsMargins(0, 0, 0, 0)
+        left_layout.setSpacing(2)
+        left_layout.addWidget(self.buttons["info"])
+        left_layout.addWidget(self.auto_install_checkbox)
+        
+        self.button_layout.addLayout(left_layout)
+        self.button_layout.addStretch()
+        
         if not self.window.use_idm:
-            self.button_layout.addStretch()
             self.button_layout.addWidget(self.buttons["cancel"])
             self.button_layout.addWidget(self.buttons["pause"]) 
             self.button_layout.addWidget(self.buttons["resume"])
         else:
-            self.button_layout.addStretch()
             self.button_layout.addWidget(self.buttons["close"])
+
+    def on_auto_install_toggled(self, state: int):
+        checked = state == Qt.CheckState.Checked.value
+        self.window.config_manager.setConfigKeyAutoInstallAfterDownload(checked)
 
 def main():
     app = QApplication(sys.argv)

@@ -24,7 +24,7 @@ from Core.ErrorHandler import ErrorHandler
 
 # Constants for SettingsWindow
 WINDOW_TITLE = "Settings"
-WINDOW_SIZE = (990, 640)
+WINDOW_SIZE = (1026, 640)
 THEME_COLOR = "#00FF00"
 ICON_PATH = "Data/Assets/Icons/FRICON.png"
 SPACER_WIDTH = 75
@@ -517,6 +517,16 @@ class SettingsWindow(BaseWindow):
         
         card_layout.addWidget(delete_live_container)
 
+        separator = self._create_separator(height=1)
+        card_layout.addWidget(separator)
+
+        auto_elevate_cb = CheckBox("Auto-elevate administrator privileges without confirmation prompt")
+        auto_elevate_cb.setStyleSheet(TEXT_STYLE)
+        auto_elevate_cb.setChecked(self.config_mgr.getConfigKeyAutoElevateAdminWithoutPrompt())
+        auto_elevate_cb.stateChanged.connect(lambda state: self.config_mgr.setConfigKeyAutoElevateAdminWithoutPrompt(state == Qt.CheckState.Checked.value))
+        apply_tooltip(auto_elevate_cb, "autoElevateAdmin")
+        card_layout.addWidget(auto_elevate_cb)
+
         layout.addWidget(card)
         layout.addStretch()
         return widget
@@ -687,6 +697,27 @@ class SettingsWindow(BaseWindow):
         changepath_btn.clicked.connect(change_idm_path)
 
         card_layout.addWidget(idm_container)
+
+        # Separator
+        separator = self._create_separator(height=1)
+        card_layout.addWidget(separator)
+
+        # Auto-Install CheckBox
+        auto_install_container = QWidget()
+        auto_install_layout = QHBoxLayout(auto_install_container)
+        auto_install_layout.setContentsMargins(0, 0, 0, 0)
+        auto_install_layout.setSpacing(10)
+
+        auto_install_cb = CheckBox("Auto-Install After Download")
+        auto_install_cb.setStyleSheet(TEXT_STYLE)
+        auto_install_cb.setChecked(self.config_mgr.getConfigKeyAutoInstallAfterDownload())
+        auto_install_cb.stateChanged.connect(lambda state: self.config_mgr.setConfigKeyAutoInstallAfterDownload(state == Qt.CheckState.Checked.value))
+        apply_tooltip(auto_install_cb, "auto_install_download_checkbox")
+        
+        auto_install_layout.addWidget(auto_install_cb)
+        auto_install_layout.addStretch()
+
+        card_layout.addWidget(auto_install_container)
 
         layout.addWidget(card)
         layout.addStretch()

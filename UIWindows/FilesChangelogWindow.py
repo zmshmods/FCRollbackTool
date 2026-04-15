@@ -153,6 +153,7 @@ class FileListItemDelegate(ListItemDelegate):
 
         elided_text = fm_name.elidedText(name, Qt.ElideMiddle, available_width)
 
+        painter.setPen(QColor("white"))
         painter.setFont(name_font)
         painter.drawText(QRect(left_bound, option.rect.y(), available_width, option.rect.height()), Qt.AlignVCenter | Qt.AlignLeft, elided_text)
 

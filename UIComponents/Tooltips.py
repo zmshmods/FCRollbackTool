@@ -96,6 +96,7 @@ TOOLTIPS = {
     "download_options_button": {"text": "Download Options", "position": ToolTipPosition.BOTTOM_LEFT, "delay": 880},
     "open_url_button": {"text": "Open download URL in browser", "position": ToolTipPosition.TOP, "delay": 880},
     "open_profile_folder": {"text": "Open game profile folder", "position": ToolTipPosition.TOP, "delay": 880},
+    "delete_from_profile_button": {"text": "Delete the selected update from the tool's Profile folder.", "position": ToolTipPosition.TOP, "delay": 880},
     "uninstall_squad_button": {"text": "Uninstall squads file", "position": ToolTipPosition.TOP, "delay": 880},
     "install_button": {"text": "Auto Install the selected update", "position": ToolTipPosition.TOP, "delay": 880},
     "install_options_button": {"text": "Installation Options", "position": ToolTipPosition.BOTTOM_LEFT, "delay": 880},
@@ -123,6 +124,7 @@ TOOLTIPS = {
     "deleteLiveTuningUpdate": {"text": "This automatically deletes the Live Tuning Update file (attribdb.bin) after rolling back your title update.\nThis helps eliminate any changes to gameplay attributes, keeping the game using the original gameplay data from the title update only.", 
                                "formats": {"This helps eliminate any changes to gameplay attributes, keeping the game using the original gameplay data from the title update only.": ["highlight"]}, 
                                "position": ToolTipPosition.BOTTOM_LEFT, "delay": 880},
+    "autoElevateAdmin": {"text": "Automatically run the tool as Administrator when required without showing a confirmation message.", "position": ToolTipPosition.BOTTOM, "delay": 880},
     "deleteLiveTuningNow": {"text": "Delete Live Tuning Update", "position": ToolTipPosition.TOP, "delay": 880},
     "openLiveTuningFolder": {"text": "Locate", "position": ToolTipPosition.TOP, "delay": 880},
 
@@ -140,6 +142,7 @@ TOOLTIPS = {
                       "formats": {"This will override the automatically detected path.": ["highlight"]}, 
                       "position": ToolTipPosition.BOTTOM_LEFT, "delay": 880},
     "redetectIDMPath": {"text": "Re-Detect Internet Download Manager executable path.", "position": ToolTipPosition.TOP, "delay": 880},
+    "auto_install_download_checkbox": {"text": "Automatically install the update after the download is complete.", "position": ToolTipPosition.BOTTOM, "delay": 880},
     
     # Tables Settings
     "resetAllTablesSettings": {"text": "Reset all table settings to default values.", "position": ToolTipPosition.TOP, "delay": 880},
@@ -222,6 +225,13 @@ TOOLTIPS = {
     "refresh_folder_list_tooltip": {
         "text": "Refresh",
         "position": ToolTipPosition.TOP,
+        "delay": 600
+    },
+
+    "download_speed_info_tooltip": {
+        "text": "Experiencing download issues or slow speeds?<br>The tool relies on MediaFire servers, which can occasionally be slow or unstable (This is not a tool-related issue).<br><br>You can try the following to resolve this:<br>- Using Cloudflare WARP 1.1.1.1 / VPN.<br>- If you already use a WARP/VPN, try turning it off.<br>- Changing your DNS settings.<br>- Pause and resume the download.<br>- Restart your PC.",
+        "formats": {"- Using Cloudflare WARP 1.1.1.1 / VPN.": ["highlight"], "- If you already use a WARP/VPN, try turning it off.": ["highlight"], "- Changing your DNS settings.": ["highlight"], "- Pause and resume the download.": ["highlight"], "- Restart your PC.": ["highlight"]},
+        "position": ToolTipPosition.BOTTOM,
         "delay": 600
     },
 
