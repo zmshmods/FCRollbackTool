@@ -48,7 +48,6 @@ class ConfigManager:
                     "DeleteStoredTitleUpdate": False,
                     "DeleteSquadsAfterInstall": False,
                     "DeleteLiveTuningUpdate": True,
-                    "AutoElevateAdminWithoutPrompt": False,
                 },
                 "DownloadOptions": {
                     "Segments": "8",
@@ -248,13 +247,7 @@ class ConfigManager:
             "Settings", "DeleteLiveTuningUpdate", True, "InstallationOptions"
         )
 
-    def getConfigKeyAutoElevateAdminWithoutPrompt(self) -> bool:
-        return self._get_config_value(
-            "Settings", "AutoElevateAdminWithoutPrompt", False, "InstallationOptions"
-        )
 
-    def setConfigKeyAutoElevateAdminWithoutPrompt(self, value: bool) -> None:
-        self._set_config_value("Settings", "AutoElevateAdminWithoutPrompt", value, "InstallationOptions")
 
     def getConfigKeySegments(self) -> str:
         return self._get_config_value("Settings", "Segments", "8", "DownloadOptions")

@@ -7,14 +7,50 @@ import subprocess
 from urllib.parse import quote_plus
 
 from PySide6.QtCore import Qt, QThread, Signal, QObject, QTimer, QSize, QRect
-from PySide6.QtGui import (QIcon, QPixmap, QFont, QColor, QPalette, QFontMetrics, QPainter, QAction,
-                           QPainterPath, QGuiApplication)
-from PySide6.QtWidgets import (QApplication, QVBoxLayout, QWidget, QLabel, QHBoxLayout, QFrame,
-                                 QListWidgetItem, QPushButton, QFileDialog, QStackedWidget)
+from PySide6.QtGui import (
+    QIcon,
+    QPixmap,
+    QFont,
+    QColor,
+    QPalette,
+    QFontMetrics,
+    QPainter,
+    QAction,
+    QPainterPath,
+    QGuiApplication,
+)
+from PySide6.QtWidgets import (
+    QApplication,
+    QVBoxLayout,
+    QWidget,
+    QLabel,
+    QHBoxLayout,
+    QFrame,
+    QListWidgetItem,
+    QPushButton,
+    QFileDialog,
+    QStackedWidget,
+)
 
-from qfluentwidgets import (ComboBox, ScrollArea, SimpleCardWidget, FluentIcon, Theme, setTheme,
-                            setThemeColor, BodyLabel, CaptionLabel, setFont, InfoBadge, DotInfoBadge,
-                            ListWidget, isDarkTheme, ListItemDelegate, RoundMenu, CheckBox)
+from qfluentwidgets import (
+    ComboBox,
+    ScrollArea,
+    SimpleCardWidget,
+    FluentIcon,
+    Theme,
+    setTheme,
+    setThemeColor,
+    BodyLabel,
+    CaptionLabel,
+    setFont,
+    InfoBadge,
+    DotInfoBadge,
+    ListWidget,
+    isDarkTheme,
+    ListItemDelegate,
+    RoundMenu,
+    CheckBox,
+)
 
 from UIComponents.Personalization import BaseWindow
 from UIComponents.MainStyles import MainStyles
@@ -26,7 +62,7 @@ from Core.GameManager import GameManager
 from Core.ErrorHandler import ErrorHandler
 
 TITLE = "Mods Compatibility Info"
-WINDOW_SIZE = (990, 640)
+WINDOW_SIZE = (1026, 640)
 THEME_COLOR = "#00FF00"
 ICON_PATH = "Data/Assets/Icons/ic_fluent_shape_intersect_24_filled.png"
 SEPARATOR_STYLE = "background-color: rgba(255, 255, 255, 0.1);"
@@ -68,10 +104,13 @@ BROWSE_BUTTON_STYLE = """
 DISABLED_TEXT_STYLE = "color: rgb(140, 140, 140);"
 HOVER_TEXT_STYLE = "color: rgb(200, 255, 200);"
 
+
 class ResourceItemDelegate(ListItemDelegate):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.uniform_badge_width = self._calculate_uniform_width(['LEGACY', 'CHUNK', 'EBX', 'RES'])
+        self.uniform_badge_width = self._calculate_uniform_width(
+            ["LEGACY", "CHUNK", "EBX", "RES"]
+        )
 
     def _calculate_uniform_width(self, all_types):
         font = QFont()
@@ -92,7 +131,7 @@ class ResourceItemDelegate(ListItemDelegate):
         type_str = index.data(Qt.UserRole + 1)
         legacy_name = index.data(Qt.UserRole + 2)
 
-        text_to_display = legacy_name if type_str == 'LEGACY' and legacy_name else name
+        text_to_display = legacy_name if type_str == "LEGACY" and legacy_name else name
 
         font = painter.font()
         font.setPixelSize(13)
@@ -109,7 +148,9 @@ class ResourceItemDelegate(ListItemDelegate):
         badge_rect = QRect(option.rect.left() + 8, badge_y, badge_width, badge_height)
 
         text_rect = option.rect.adjusted(badge_rect.right() + 8, 0, -8, 0)
-        elided_text = fm.elidedText(str(text_to_display), Qt.ElideRight, text_rect.width())
+        elided_text = fm.elidedText(
+            str(text_to_display), Qt.ElideRight, text_rect.width()
+        )
         painter.drawText(text_rect, Qt.AlignVCenter | Qt.AlignLeft, elided_text)
 
         painter.setRenderHint(QPainter.Antialiasing)
@@ -128,6 +169,7 @@ class ResourceItemDelegate(ListItemDelegate):
 
     def sizeHint(self, option, index):
         return QSize(200, 38)
+
 
 class IconLoader(QObject):
     pixmapReady = Signal(object, QPixmap, str)
@@ -154,10 +196,17 @@ class IconLoader(QObject):
     def clear_queue(self):
         self.queue.clear()
 
+
 class DataFetchWorker(QObject):
     finished = Signal(dict)
 
-    def __init__(self, game_manager: GameManager, config_manager: ConfigManager, profile_name: Optional[str] = None, custom_file_paths: Optional[List[str]] = None):
+    def __init__(
+        self,
+        game_manager: GameManager,
+        config_manager: ConfigManager,
+        profile_name: Optional[str] = None,
+        custom_file_paths: Optional[List[str]] = None,
+    ):
         super().__init__()
         self.game_manager = game_manager
         self.config_manager = config_manager
@@ -166,11 +215,16 @@ class DataFetchWorker(QObject):
 
     def run(self):
         try:
-            data = self.game_manager.getModsCompatibilitInfo(self.config_manager, profile_name=self.profile_name, custom_file_paths=self.custom_file_paths)
+            data = self.game_manager.getModsCompatibilitInfo(
+                self.config_manager,
+                profile_name=self.profile_name,
+                custom_file_paths=self.custom_file_paths,
+            )
             self.finished.emit(data or {})
         except Exception as e:
             ErrorHandler.handleError(f"Error fetching mods compatibility data: {e}")
             self.finished.emit({})
+
 
 class ElidedLabel(BodyLabel):
     def __init__(self, text="", parent=None):
@@ -193,6 +247,7 @@ class ElidedLabel(BodyLabel):
         fm = self.fontMetrics()
         elided_text = fm.elidedText(self._full_text, self._mode, self.width())
         painter.drawText(self.rect(), self.alignment(), elided_text)
+
 
 class StatsCard(SimpleCardWidget):
     def __init__(self, label: str, value: str):
@@ -234,6 +289,7 @@ class StatsCard(SimpleCardWidget):
         for child in self.findChildren(DotInfoBadge):
             child.move(self.width() - child.width() - 8, 8)
 
+
 class GameVersionCard(SimpleCardWidget):
     def __init__(self):
         super().__init__()
@@ -252,6 +308,7 @@ class GameVersionCard(SimpleCardWidget):
 
     def setVersion(self, version_text: str):
         self.version_label.setText(version_text)
+
 
 class ControlsPanel(SimpleCardWidget):
     def __init__(self):
@@ -290,6 +347,7 @@ class ControlsPanel(SimpleCardWidget):
         layout.addWidget(BodyLabel("Compatibility:"))
         layout.addWidget(self.filter_compat)
 
+
 class ModCard(SimpleCardWidget):
     modSelected = Signal(dict)
 
@@ -305,7 +363,9 @@ class ModCard(SimpleCardWidget):
 
         if not is_local_files_check:
             tooltip_id = "mod_enabled_dot" if is_enabled else "mod_disabled_dot"
-            self.enabled_dot = DotInfoBadge.success() if is_enabled else DotInfoBadge.error()
+            self.enabled_dot = (
+                DotInfoBadge.success() if is_enabled else DotInfoBadge.error()
+            )
             self.enabled_dot.setFixedSize(10, 10)
             self.dot_hover_area = QWidget(self)
             apply_tooltip(self.dot_hover_area, tooltip_id)
@@ -334,7 +394,7 @@ class ModCard(SimpleCardWidget):
 
         author_label = CaptionLabel(f"By {mod_info.get('author', 'Unknown')}")
         tu_label = CaptionLabel(f"Requires TU: {mod_info.get('target_tu', 'Unknown')}")
-        
+
         info_layout.addWidget(self.title_label)
         info_layout.addWidget(author_label)
         info_layout.addWidget(tu_label)
@@ -362,7 +422,9 @@ class ModCard(SimpleCardWidget):
 
     def set_icon(self, pixmap: QPixmap):
         size = 52
-        pixmap = pixmap.scaled(size, size, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
+        pixmap = pixmap.scaled(
+            size, size, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation
+        )
 
         rounded = QPixmap(pixmap.size())
         rounded.fill(Qt.transparent)
@@ -410,7 +472,7 @@ class ModCard(SimpleCardWidget):
             self.enabled_dot.move(self.width() - 25, 8)
             self.dot_hover_area.setGeometry(self.enabled_dot.geometry())
             self.dot_hover_area.raise_()
-        if hasattr(self, 'compat_badge') and self.compat_badge:
+        if hasattr(self, "compat_badge") and self.compat_badge:
             icon_x = self.icon_label.x()
             icon_width = self.icon_label.width()
             badge_width = self.compat_badge.width()
@@ -426,18 +488,23 @@ class ModCard(SimpleCardWidget):
         menu = RoundMenu(parent=self)
 
         title = self.mod_info.get("title", "")
-        author = self.mod_info.get('author', '')
+        author = self.mod_info.get("author", "")
 
         copy_title_action = QAction(FluentIcon.COPY.icon(), "Copy Mod Name")
-        copy_title_action.triggered.connect(lambda: QApplication.clipboard().setText(title))
+        copy_title_action.triggered.connect(
+            lambda: QApplication.clipboard().setText(title)
+        )
 
         copy_author_action = QAction(FluentIcon.COPY.icon(), "Copy Author Name")
-        copy_author_action.triggered.connect(lambda: QApplication.clipboard().setText(author))
+        copy_author_action.triggered.connect(
+            lambda: QApplication.clipboard().setText(author)
+        )
 
         menu.addAction(copy_title_action)
         menu.addAction(copy_author_action)
 
         menu.exec(event.globalPos())
+
 
 class ModDetailsPanel(QWidget):
     def __init__(self, parent=None):
@@ -445,10 +512,10 @@ class ModDetailsPanel(QWidget):
         self.all_resources = []
         self.compatibility_status = "INCOMPATIBLE"
 
-        all_types = ['EBX', 'RES', 'CHUNK', 'LEGACY']
-        if 'LEGACY' in all_types:
-            all_types.remove('LEGACY')
-            self.all_resource_types = ['LEGACY'] + sorted(all_types)
+        all_types = ["EBX", "RES", "CHUNK", "LEGACY"]
+        if "LEGACY" in all_types:
+            all_types.remove("LEGACY")
+            self.all_resource_types = ["LEGACY"] + sorted(all_types)
         else:
             self.all_resource_types = sorted(all_types)
 
@@ -464,8 +531,10 @@ class ModDetailsPanel(QWidget):
         self.placeholder_initial = BodyLabel("Select a mod to see its affected assets.")
         self.placeholder_initial.setAlignment(Qt.AlignCenter)
 
-        self.placeholder_no_files = BodyLabel(f"This mod does not affect any of the following assets types:\n"
-                                              f"{', '.join(self.all_resource_types)}")
+        self.placeholder_no_files = BodyLabel(
+            f"This mod does not affect any of the following assets types:\n"
+            f"{', '.join(self.all_resource_types)}"
+        )
         self.placeholder_no_files.setAlignment(Qt.AlignCenter)
 
         self.details_widget = QWidget()
@@ -473,7 +542,7 @@ class ModDetailsPanel(QWidget):
         details_layout.setContentsMargins(0, 0, 0, 0)
         details_layout.setSpacing(8)
         title_layout = QHBoxLayout()
-        title_layout.setContentsMargins(0,0,0,0)
+        title_layout.setContentsMargins(0, 0, 0, 0)
         self.title_label = BodyLabel("Affected Assets")
         setFont(self.title_label, 14, QFont.Weight.Bold)
         self.filter_combo = ComboBox()
@@ -515,16 +584,19 @@ class ModDetailsPanel(QWidget):
 
     def _show_context_menu(self, pos):
         item = self.resources_list.itemAt(pos)
-        if not item: return
+        if not item:
+            return
 
         name = item.data(Qt.UserRole)
         type_str = item.data(Qt.UserRole + 1)
         legacy_name = item.data(Qt.UserRole + 2)
-        text_to_copy = legacy_name if type_str == 'LEGACY' and legacy_name else name
+        text_to_copy = legacy_name if type_str == "LEGACY" and legacy_name else name
 
         menu = RoundMenu(parent=self)
         copy_action = QAction(FluentIcon.COPY.icon(), "Copy File Name")
-        copy_action.triggered.connect(lambda: QApplication.clipboard().setText(text_to_copy))
+        copy_action.triggered.connect(
+            lambda: QApplication.clipboard().setText(text_to_copy)
+        )
         menu.addAction(copy_action)
         menu.exec(self.resources_list.mapToGlobal(pos))
 
@@ -537,17 +609,21 @@ class ModDetailsPanel(QWidget):
             return
 
         self.compatibility_status = mod_info.get("compatibility_status", "INCOMPATIBLE")
-        resources = mod_info.get('resources', [])
+        resources = mod_info.get("resources", [])
 
         filtered_resources = [
-            r for r in resources if r.get('type') != 'EMBEDDED' and
-            (r.get('legacy_chunk_name') or r.get('name', '')).lower().replace('\\', '/')
+            r
+            for r in resources
+            if r.get("type") != "EMBEDDED"
+            and (r.get("legacy_chunk_name") or r.get("name", ""))
+            .lower()
+            .replace("\\", "/")
         ]
 
         def sort_key(r):
-            res_type = r.get('type', '')
-            is_legacy = 0 if res_type == 'LEGACY' else 1
-            name = (r.get('legacy_chunk_name') or r.get('name', '')).lower()
+            res_type = r.get("type", "")
+            is_legacy = 0 if res_type == "LEGACY" else 1
+            name = (r.get("legacy_chunk_name") or r.get("name", "")).lower()
             return (is_legacy, res_type, name)
 
         self.all_resources = sorted(filtered_resources, key=sort_key)
@@ -573,20 +649,22 @@ class ModDetailsPanel(QWidget):
 
         max_width = 0
         row_height = 38
-        font = QFont(); font.setPixelSize(13); fm = QFontMetrics(font)
+        font = QFont()
+        font.setPixelSize(13)
+        fm = QFontMetrics(font)
         visible_item_count = 0
 
         for res in self.all_resources:
-            if current_filter == "All Types" or res.get('type') == current_filter:
+            if current_filter == "All Types" or res.get("type") == current_filter:
                 visible_item_count += 1
                 list_item = QListWidgetItem()
                 list_item.setSizeHint(QSize(200, row_height))
-                list_item.setData(Qt.UserRole, res.get('name', 'N/A'))
-                list_item.setData(Qt.UserRole + 1, res.get('type', 'N/A'))
-                list_item.setData(Qt.UserRole + 2, res.get('legacy_chunk_name'))
+                list_item.setData(Qt.UserRole, res.get("name", "N/A"))
+                list_item.setData(Qt.UserRole + 1, res.get("type", "N/A"))
+                list_item.setData(Qt.UserRole + 2, res.get("legacy_chunk_name"))
 
-                type_str = res.get('type')
-                if type_str == 'LEGACY':
+                type_str = res.get("type")
+                if type_str == "LEGACY":
                     if self.compatibility_status == "COMPATIBLE":
                         bg_color = QColor(0, 255, 0, 15)
                     else:
@@ -595,7 +673,11 @@ class ModDetailsPanel(QWidget):
 
                 self.resources_list.addItem(list_item)
 
-                name = res.get('legacy_chunk_name') if type_str == 'LEGACY' and res.get('legacy_chunk_name') else res.get('name')
+                name = (
+                    res.get("legacy_chunk_name")
+                    if type_str == "LEGACY" and res.get("legacy_chunk_name")
+                    else res.get("name")
+                )
                 badge_width = self.resources_list.itemDelegate().uniform_badge_width
                 name_width = fm.horizontalAdvance(str(name))
                 item_width = badge_width + name_width + 40
@@ -609,10 +691,13 @@ class ModDetailsPanel(QWidget):
 
         self.resources_list.setFixedSize(final_width, total_height)
 
+
 class ButtonManager(QObject):
     customCheckModeChanged = Signal(bool)
 
-    def __init__(self, config_manager: ConfigManager, game_manager: GameManager, main_window):
+    def __init__(
+        self, config_manager: ConfigManager, game_manager: GameManager, main_window
+    ):
         super().__init__()
         self.config_manager = config_manager
         self.game_manager = game_manager
@@ -625,7 +710,7 @@ class ButtonManager(QObject):
         toggle_container = QWidget()
         toggle_container.setMaximumWidth(150)
         toggle_layout = QHBoxLayout(toggle_container)
-        toggle_layout.setContentsMargins(0,0,0,0)
+        toggle_layout.setContentsMargins(0, 0, 0, 0)
         toggle_layout.setSpacing(5)
 
         self.local_files_toggle = CheckBox("Custom Check")
@@ -635,8 +720,18 @@ class ButtonManager(QObject):
         toggle_layout.addWidget(self.local_files_toggle, 0, Qt.AlignVCenter)
 
         button_configs = {
-            "locate": (" Locate", FluentIcon.FOLDER, self.locate_mod, "locate_mod_button"),
-            "search": (" Google it", FluentIcon.SEARCH, self.search_mod, "search_mod_button"),
+            "locate": (
+                " Locate",
+                FluentIcon.FOLDER,
+                self.locate_mod,
+                "locate_mod_button",
+            ),
+            "search": (
+                " Google it",
+                FluentIcon.SEARCH,
+                self.search_mod,
+                "search_mod_button",
+            ),
         }
         for name, config in button_configs.items():
             btn = QPushButton(config[0])
@@ -667,7 +762,9 @@ class ButtonManager(QObject):
 
     def _select_file_in_explorer(self, path: str):
         if sys.platform == "win32":
-            subprocess.run(['explorer', '/select,', os.path.normpath(path)], check=False)
+            subprocess.run(
+                ["explorer", "/select,", os.path.normpath(path)], check=False
+            )
 
     def locate_mod(self):
         if not self.selected_mod_info:
@@ -695,6 +792,7 @@ class ButtonManager(QObject):
 
     def _on_local_files_mode_changed(self, is_checked):
         self.customCheckModeChanged.emit(is_checked)
+
 
 class ModsCompatibilityInfo(BaseWindow):
     def __init__(self, parent=None):
@@ -725,7 +823,9 @@ class ModsCompatibilityInfo(BaseWindow):
 
     def center_window(self):
         screen = QGuiApplication.primaryScreen().geometry()
-        self.move((screen.width() - self.width()) // 2, (screen.height() - self.height()) // 2)
+        self.move(
+            (screen.width() - self.width()) // 2, (screen.height() - self.height()) // 2
+        )
 
     def _start_icon_loader(self):
         self.icon_thread = QThread()
@@ -758,17 +858,25 @@ class ModsCompatibilityInfo(BaseWindow):
     def _setup_ui(self):
         self._setup_title_bar()
         self.main_content_widget = QWidget()
-        self.main_content_widget.setStyleSheet("QWidget { background: transparent; border: none; }")
+        self.main_content_widget.setStyleSheet(
+            "QWidget { background: transparent; border: none; }"
+        )
         self.container_layout = QVBoxLayout(self.main_content_widget)
         self.container_layout.setContentsMargins(20, 15, 20, 20)
         self.container_layout.setSpacing(12)
 
         self.controls_panel = ControlsPanel()
-        self.controls_panel.profile_combo.currentTextChanged.connect(self._on_profile_changed)
+        self.controls_panel.profile_combo.currentTextChanged.connect(
+            self._on_profile_changed
+        )
         self.controls_panel.filter_author.currentTextChanged.connect(self._apply_filter)
         self.controls_panel.filter_enabled.addItems(["All", "Enabled", "Disabled"])
-        self.controls_panel.filter_enabled.currentTextChanged.connect(self._apply_filter)
-        self.controls_panel.filter_compat.addItems(["All", "Compatible", "Uncertain", "Incompatible"])
+        self.controls_panel.filter_enabled.currentTextChanged.connect(
+            self._apply_filter
+        )
+        self.controls_panel.filter_compat.addItems(
+            ["All", "Compatible", "Uncertain", "Incompatible"]
+        )
         self.controls_panel.filter_compat.currentTextChanged.connect(self._apply_filter)
 
         stats_layout = self._create_stats_layout()
@@ -783,7 +891,7 @@ class ModsCompatibilityInfo(BaseWindow):
 
         main_content_layout = QHBoxLayout()
         main_content_layout.setSpacing(12)
-        main_content_layout.setContentsMargins(0,0,0,0)
+        main_content_layout.setContentsMargins(0, 0, 0, 0)
 
         self.mods_scroll_area = ScrollArea()
         self.mods_scroll_area.setWidgetResizable(True)
@@ -794,7 +902,9 @@ class ModsCompatibilityInfo(BaseWindow):
 
         self.scroll_widget = QWidget()
         self.scroll_widget.setObjectName("DropAreaWidget")
-        self.scroll_widget.setStyleSheet('QWidget#DropAreaWidget { border: none; background: transparent; }')
+        self.scroll_widget.setStyleSheet(
+            "QWidget#DropAreaWidget { border: none; background: transparent; }"
+        )
         self.scroll_layout = QVBoxLayout(self.scroll_widget)
         self.scroll_layout.setContentsMargins(8, 0, 8, 8)
         self.scroll_layout.setSpacing(6)
@@ -827,8 +937,12 @@ class ModsCompatibilityInfo(BaseWindow):
         separator.setStyleSheet(SEPARATOR_STYLE)
         separator.setFixedHeight(1)
 
-        self.button_manager = ButtonManager(self.config_manager, self.game_manager, self)
-        self.button_manager.customCheckModeChanged.connect(self._toggle_local_files_mode)
+        self.button_manager = ButtonManager(
+            self.config_manager, self.game_manager, self
+        )
+        self.button_manager.customCheckModeChanged.connect(
+            self._toggle_local_files_mode
+        )
         buttons_widget = self.button_manager.create_buttons()
 
         separator2 = QFrame()
@@ -837,7 +951,7 @@ class ModsCompatibilityInfo(BaseWindow):
 
         self.bottom_bar_widget = QWidget()
         bottom_layout = QVBoxLayout(self.bottom_bar_widget)
-        bottom_layout.setContentsMargins(0,0,0,0)
+        bottom_layout.setContentsMargins(0, 0, 0, 0)
         bottom_layout.setSpacing(0)
         bottom_layout.addWidget(separator2)
         bottom_layout.addWidget(buttons_widget)
@@ -908,9 +1022,16 @@ class ModsCompatibilityInfo(BaseWindow):
         return stats_layout
 
     def _setup_title_bar(self):
-        title_bar = TitleBar(window=self, title=TITLE, icon_path=ICON_PATH, spacer_width=SPACER_WIDTH,
-                             show_max_button=SHOW_MAX_BUTTON, show_min_button=SHOW_MIN_BUTTON,
-                             show_close_button=SHOW_CLOSE_BUTTON, bar_height=BAR_HEIGHT)
+        title_bar = TitleBar(
+            window=self,
+            title=TITLE,
+            icon_path=ICON_PATH,
+            spacer_width=SPACER_WIDTH,
+            show_max_button=SHOW_MAX_BUTTON,
+            show_min_button=SHOW_MIN_BUTTON,
+            show_close_button=SHOW_CLOSE_BUTTON,
+            bar_height=BAR_HEIGHT,
+        )
         title_bar.create_title_bar()
 
     def _on_mod_selected(self, mod_info: dict):
@@ -939,20 +1060,27 @@ class ModsCompatibilityInfo(BaseWindow):
         else:
             self.list_stack.setCurrentWidget(self.mods_scroll_area)
 
-    def _start_fetching_data(self, profile_name: Optional[str] = None, custom_file_paths: Optional[List[str]] = None):
+    def _start_fetching_data(
+        self,
+        profile_name: Optional[str] = None,
+        custom_file_paths: Optional[List[str]] = None,
+    ):
         if self.data_thread and self.data_thread.isRunning():
             return
-        if self.icon_worker: self.icon_worker.clear_queue()
+        if self.icon_worker:
+            self.icon_worker.clear_queue()
 
         self.data_thread = QThread()
-        self.data_worker = DataFetchWorker(self.game_manager, self.config_manager, profile_name, custom_file_paths)
+        self.data_worker = DataFetchWorker(
+            self.game_manager, self.config_manager, profile_name, custom_file_paths
+        )
         self.data_worker.moveToThread(self.data_thread)
 
         self.data_thread.started.connect(self.data_worker.run)
         self.data_worker.finished.connect(self._on_data_fetched)
         self.data_worker.finished.connect(self.data_thread.quit)
         self.data_worker.finished.connect(self.data_worker.deleteLater)
-        self.data_thread.finished.connect(lambda: setattr(self, 'data_thread', None))
+        self.data_thread.finished.connect(lambda: setattr(self, "data_thread", None))
         self.data_thread.finished.connect(self.data_thread.deleteLater)
 
         self.data_thread.start()
@@ -973,7 +1101,7 @@ class ModsCompatibilityInfo(BaseWindow):
         current_game_tu = result.get("current_game_tu", "-")
         mods = result.get("mods", [])
 
-        authors = sorted(list(set(mod.get('author', 'Unknown') for mod in mods)))
+        authors = sorted(list(set(mod.get("author", "Unknown") for mod in mods)))
         self.controls_panel.filter_author.blockSignals(True)
         self.controls_panel.filter_author.clear()
         self.controls_panel.filter_author.addItems(["All Authors"] + authors)
@@ -990,9 +1118,15 @@ class ModsCompatibilityInfo(BaseWindow):
             self.controls_panel.filter_compat.setDisabled(not mods)
 
         enabled_count = sum(1 for mod in mods if mod.get("is_enabled", False))
-        compatible_count = sum(1 for mod in mods if mod.get("compatibility_status") == "COMPATIBLE")
-        uncertain_count = sum(1 for mod in mods if mod.get("compatibility_status") == "UNCERTAIN")
-        incompatible_count = sum(1 for mod in mods if mod.get("compatibility_status") == "INCOMPATIBLE")
+        compatible_count = sum(
+            1 for mod in mods if mod.get("compatibility_status") == "COMPATIBLE"
+        )
+        uncertain_count = sum(
+            1 for mod in mods if mod.get("compatibility_status") == "UNCERTAIN"
+        )
+        incompatible_count = sum(
+            1 for mod in mods if mod.get("compatibility_status") == "INCOMPATIBLE"
+        )
 
         self.game_version_card.setVersion(current_game_tu)
         self.total_card.value_label.setText(str(len(mods)))
@@ -1041,7 +1175,9 @@ class ModsCompatibilityInfo(BaseWindow):
             self.show_loading(False)
             return
 
-        self._mod_generator = (mod for mod in sorted(mods, key=lambda x: x.get('title', '')))
+        self._mod_generator = (
+            mod for mod in sorted(mods, key=lambda x: x.get("title", ""))
+        )
         self._mod_populator_timer.start()
 
     def _process_mod_batch(self):
@@ -1053,7 +1189,9 @@ class ModsCompatibilityInfo(BaseWindow):
                 mod_info = next(self._mod_generator)
                 card = ModCard(mod_info, is_local_files_check=self.is_local_files_mode)
                 card.setProperty("is_enabled", mod_info.get("is_enabled", False))
-                card.setProperty("compatibility_status", mod_info.get("compatibility_status"))
+                card.setProperty(
+                    "compatibility_status", mod_info.get("compatibility_status")
+                )
                 card.modSelected.connect(self._on_mod_selected)
                 self.mod_widgets.append(card)
                 self.scroll_layout.addWidget(card)
@@ -1062,7 +1200,9 @@ class ModsCompatibilityInfo(BaseWindow):
                 if file_path in self.pixmap_cache:
                     card.set_icon(self.pixmap_cache[file_path])
                 elif card.icon_data and self.icon_worker:
-                    self.icon_worker.add_task(card, card.icon_data, card.icon_format, file_path)
+                    self.icon_worker.add_task(
+                        card, card.icon_data, card.icon_format, file_path
+                    )
 
             except StopIteration:
                 self._mod_populator_timer.stop()
@@ -1086,7 +1226,7 @@ class ModsCompatibilityInfo(BaseWindow):
         for card in self.mod_widgets:
             show = True
             compat_status = card.property("compatibility_status")
-            author = card.mod_info.get('author', 'Unknown')
+            author = card.mod_info.get("author", "Unknown")
 
             if author_filter != "All Authors" and author != author_filter:
                 show = False
@@ -1095,7 +1235,11 @@ class ModsCompatibilityInfo(BaseWindow):
                 show = False
             elif show and compat_filter == "Uncertain" and compat_status != "UNCERTAIN":
                 show = False
-            elif show and compat_filter == "Incompatible" and compat_status != "INCOMPATIBLE":
+            elif (
+                show
+                and compat_filter == "Incompatible"
+                and compat_status != "INCOMPATIBLE"
+            ):
                 show = False
 
             if not self.is_local_files_mode:
@@ -1111,7 +1255,8 @@ class ModsCompatibilityInfo(BaseWindow):
             self.scroll_widget.setUpdatesEnabled(True)
 
     def _on_profile_changed(self, profile_name: str):
-        if self.controls_panel.profile_combo.signalsBlocked(): return
+        if self.controls_panel.profile_combo.signalsBlocked():
+            return
         self._show_list_loading(True)
         self._start_fetching_data(profile_name=profile_name)
 
@@ -1172,7 +1317,9 @@ class ModsCompatibilityInfo(BaseWindow):
             self.uncertain_card.value_label.setText("0")
             self.incompatible_card.value_label.setText("0")
         else:
-            self.scroll_widget.setStyleSheet('QWidget#DropAreaWidget { border: none; background: transparent; }')
+            self.scroll_widget.setStyleSheet(
+                "QWidget#DropAreaWidget { border: none; background: transparent; }"
+            )
             self.scroll_layout.setContentsMargins(8, 0, 8, 8)
             self.controls_panel.filter_author.setDisabled(False)
             self.controls_panel.filter_compat.setDisabled(False)
@@ -1183,7 +1330,9 @@ class ModsCompatibilityInfo(BaseWindow):
                 self._start_fetching_data()
 
     def _browse_for_mods(self):
-        files, _ = QFileDialog.getOpenFileNames(self, "Select mod files", "", "FIFA Mod Files (*.fifamod)")
+        files, _ = QFileDialog.getOpenFileNames(
+            self, "Select mod files", "", "FIFA Mod Files (*.fifamod)"
+        )
         if files:
             new_files = [f for f in files if f not in self.custom_file_paths]
             self.custom_file_paths.extend(new_files)
@@ -1194,7 +1343,7 @@ class ModsCompatibilityInfo(BaseWindow):
     def dragEnterEvent(self, event):
         if self.is_local_files_mode and event.mimeData().hasUrls():
             urls = event.mimeData().urls()
-            if any(url.toLocalFile().endswith('.fifamod') for url in urls):
+            if any(url.toLocalFile().endswith(".fifamod") for url in urls):
                 self.scroll_widget.setProperty("isHovering", True)
                 self.scroll_widget.style().polish(self.scroll_widget)
                 for widget in self.custom_placeholder_widgets:
@@ -1216,13 +1365,19 @@ class ModsCompatibilityInfo(BaseWindow):
             for widget in self.custom_placeholder_widgets:
                 widget.setStyleSheet("")
             if event.mimeData().hasUrls():
-                files = [url.toLocalFile() for url in event.mimeData().urls() if url.toLocalFile().endswith('.fifamod')]
+                files = [
+                    url.toLocalFile()
+                    for url in event.mimeData().urls()
+                    if url.toLocalFile().endswith(".fifamod")
+                ]
                 if files:
                     new_files = [f for f in files if f not in self.custom_file_paths]
                     self.custom_file_paths.extend(new_files)
                     if self.custom_file_paths:
                         self._show_list_loading(True)
-                        self._start_fetching_data(custom_file_paths=self.custom_file_paths)
+                        self._start_fetching_data(
+                            custom_file_paths=self.custom_file_paths
+                        )
                     event.acceptProposedAction()
 
     def closeEvent(self, event):
@@ -1230,9 +1385,15 @@ class ModsCompatibilityInfo(BaseWindow):
         super().closeEvent(event)
 
     def _cleanup_threads(self):
-        if self.icon_worker: self.icon_worker.is_running = False
-        if self.icon_thread: self.icon_thread.quit(); self.icon_thread.wait()
-        if self.data_thread and self.data_thread.isRunning(): self.data_thread.quit(); self.data_thread.wait()
+        if self.icon_worker:
+            self.icon_worker.is_running = False
+        if self.icon_thread:
+            self.icon_thread.quit()
+            self.icon_thread.wait()
+        if self.data_thread and self.data_thread.isRunning():
+            self.data_thread.quit()
+            self.data_thread.wait()
+
 
 def main():
     app = QApplication(sys.argv)
@@ -1244,6 +1405,7 @@ def main():
     window.center_window()
     window.show()
     sys.exit(app.exec())
+
 
 if __name__ == "__main__":
     main()

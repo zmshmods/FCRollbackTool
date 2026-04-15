@@ -114,7 +114,7 @@ class ToolUpdaterWindow(BaseWindow):
 
             latest_version = self.tool_update_manager.getManifestToolVersion()
             if latest_version == "Unknown Version":
-                logger.error(f"Failed to checking for updates, skipping update check.")
+                logger.error("Failed to checking for updates, skipping update check.")
                 return False
 
             reminder_file = os.path.join(AppDataManager.getDataFolder(), "reminder_timer.ini")

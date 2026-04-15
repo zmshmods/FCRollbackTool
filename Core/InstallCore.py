@@ -129,7 +129,7 @@ class InstallCore(QThread):
             self.wait()
 
     def ensure_admin_privileges(self):
-        """Check for admin privileges by attempting to write a temp file. Restarts application if needed."""
+        """Check for admin privileges by attempting to write a temp file. Raises error if needed."""
         from pathlib import Path
         import os
 
@@ -144,45 +144,14 @@ class InstallCore(QThread):
             os.remove(test_file)
         except PermissionError:
             logger.warning(f"Permission denied to write to {dest_dir}")
-            
-            auto_elevate = ConfigManager().getConfigKeyAutoElevateAdminWithoutPrompt()
-            
-            if auto_elevate:
-                resp = "Yes"
-                logger.info("Auto-elevating without prompt based on configuration.")
-            else:
-                msg = (
-                    f"Administrator privileges are required to install updates in this directory:\n{dest_dir}\n\n"
-                    "Do you want to restart the tool as an Administrator to continue?"
-                )
-                from Core.NotificationManager import NotificationHandler
-                resp = NotificationHandler.showConfirmation(msg)
-            
-            if resp == "Yes":
-                if getattr(sys, "frozen", False):
-                    executable = sys.executable
-                    args = f'--auto-install "{self.update_name}" "{self.tab_key}" "{self.game_path}" "{self.file_path}"'
-                else:
-                    executable = sys.executable
-                    args = f'"{sys.argv[0]}" --auto-install "{self.update_name}" "{self.tab_key}" "{self.game_path}" "{self.file_path}"'
 
-                self.is_canceled = True
-                ret = ctypes.windll.shell32.ShellExecuteW(
-                    None, "runas", executable, args, None, 1
-                )
-                if int(ret) > 32:
-                    logger.info(
-                        "Successfully requested admin privileges for auto-install restart."
-                    )
-                    os._exit(0)
-                else:
-                    raise PermissionError(
-                        f"Failed to gain Administrator privileges (Code {ret}). Cannot continue."
-                    )
-            else:
-                raise PermissionError(
-                    f"Permission denied to write to {dest_dir}. Run the tool as Administrator."
-                )
+            folder_name = os.path.basename(os.path.dirname(dest_dir))
+            error_msg = (
+                f"Access denied to the directory:\n{dest_dir}\n\n"
+                f"To resolve this, run the tool as an Administrator\n"
+                f'or move your game folder outside of the "{folder_name}" folder.'
+            )
+            raise PermissionError(error_msg)
 
     def run(self):
         """Execute installation process based on tab_key."""
@@ -380,15 +349,18 @@ class InstallCore(QThread):
                 if not os.path.exists(seven_z):
                     raise FileNotFoundError(f"7z tool not found at: {seven_z}")
 
-                list_cmd =[seven_z, "l", "-ba", "-slt", str(file_path)]
-                if pwd: list_cmd.insert(2, f"-p{pwd}")
-                
+                list_cmd = [seven_z, "l", "-ba", "-slt", str(file_path)]
+                if pwd:
+                    list_cmd.insert(2, f"-p{pwd}")
+
                 startupinfo = subprocess.STARTUPINFO()
                 startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-                
-                result = subprocess.run(list_cmd, capture_output=True, text=True, startupinfo=startupinfo)
-                
-                archive_files =[]
+
+                result = subprocess.run(
+                    list_cmd, capture_output=True, text=True, startupinfo=startupinfo
+                )
+
+                archive_files = []
                 current_path = None
                 is_dir = False
                 for line in result.stdout.splitlines():
@@ -406,54 +378,83 @@ class InstallCore(QThread):
 
                 root_dir = None
                 exe_path = None
-                found_exes =[]
+                found_exes = []
                 for file in archive_files:
                     if file.lower().endswith(".exe"):
                         found_exes.append(os.path.basename(file))
-                    if os.path.basename(file).lower() in [exe.lower() for exe in expected_exes]:
+                    if os.path.basename(file).lower() in [
+                        exe.lower() for exe in expected_exes
+                    ]:
                         exe_path = file
                         root_dir = os.path.dirname(file)
-                        logger.debug(f"Found executable: {os.path.basename(file)} at: {file}, root directory: {root_dir}")
+                        logger.debug(
+                            f"Found executable: {os.path.basename(file)} at: {file}, root directory: {root_dir}"
+                        )
                         break
-                        
+
                 if not exe_path:
-                    raise ValueError(f"No expected executable ({', '.join(expected_exes)}), Please ensure the archive or folder you want to install it contains the game's executable file")
+                    raise ValueError(
+                        f"No expected executable ({', '.join(expected_exes)}), Please ensure the archive or folder you want to install it contains the game's executable file"
+                    )
 
                 files_to_extract = (
                     archive_files
                     if not root_dir
-                    else[f for f in archive_files if f.startswith(root_dir + "/") or f == exe_path]
+                    else [
+                        f
+                        for f in archive_files
+                        if f.startswith(root_dir + "/") or f == exe_path
+                    ]
                 )
-                logger.debug(f"Extracting {len(files_to_extract)} files from root directory: {root_dir or 'archive root'}")
+                logger.debug(
+                    f"Extracting {len(files_to_extract)} files from root directory: {root_dir or 'archive root'}"
+                )
 
-                delete_targets =[]
+                delete_targets = []
                 for file in files_to_extract:
-                    rel_path = file.replace(os.sep, "/") if not root_dir else os.path.relpath(file, root_dir).replace(os.sep, "/")
+                    rel_path = (
+                        file.replace(os.sep, "/")
+                        if not root_dir
+                        else os.path.relpath(file, root_dir).replace(os.sep, "/")
+                    )
                     final_dest = os.path.join(dest_dir, rel_path)
                     delete_targets.append(final_dest)
                 for d in delete_targets:
                     self.delete_existing_file(d)
 
-                list_file_path = os.path.join(self.app_data_mgr.getTempFolder(), f"extract_list_{os.path.basename(file_path)}.txt")
+                list_file_path = os.path.join(
+                    self.app_data_mgr.getTempFolder(),
+                    f"extract_list_{os.path.basename(file_path)}.txt",
+                )
                 os.makedirs(os.path.dirname(list_file_path), exist_ok=True)
                 with open(list_file_path, "w", encoding="utf-8") as f:
                     f.write("\n".join(files_to_extract))
 
-                extract_cmd = [seven_z, "x", str(file_path), f"-o{dest_dir}", f"@{list_file_path}", "-y", "-bb3", "-bsp1", "-scsUTF-8"]
+                extract_cmd = [
+                    seven_z,
+                    "x",
+                    str(file_path),
+                    f"-o{dest_dir}",
+                    f"@{list_file_path}",
+                    "-y",
+                    "-bb3",
+                    "-bsp1",
+                    "-scsUTF-8",
+                ]
                 if pwd:
                     extract_cmd.insert(2, f"-p{pwd}")
 
                 process = subprocess.Popen(
-                    extract_cmd, 
-                    stdout=subprocess.PIPE, 
-                    stderr=subprocess.STDOUT, 
-                    text=True, 
-                    bufsize=1, 
-                    encoding="utf-8", 
-                    errors="replace", 
-                    startupinfo=startupinfo
+                    extract_cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    bufsize=1,
+                    encoding="utf-8",
+                    errors="replace",
+                    startupinfo=startupinfo,
                 )
-                
+
                 current_progress = 0
                 current_file = ""
 
@@ -463,42 +464,56 @@ class InstallCore(QThread):
                         if self.is_canceled:
                             process.terminate()
                             return
-                        
+
                         output = line.strip()
-                        file_match = re.match(r'^(?:-\s|Extracting\s+)(.+)$', output)
+                        file_match = re.match(r"^(?:-\s|Extracting\s+)(.+)$", output)
                         if file_match:
                             filename = file_match.group(1).strip()
                             if filename:
                                 current_file = filename.replace("\\", "/")
                                 display_file = current_file
-                                
+
                                 if root_dir:
-                                    top_folder = root_dir.split('/')[0] + '/'
-                                    if current_file.lower().startswith(top_folder.lower()):
-                                        display_file = current_file[len(top_folder):]
-                                
-                                self.emit_state(InstallState.INSTALLING_FILES, current_progress, display_file)
-                                
+                                    top_folder = root_dir.split("/")[0] + "/"
+                                    if current_file.lower().startswith(
+                                        top_folder.lower()
+                                    ):
+                                        display_file = current_file[len(top_folder) :]
+
+                                self.emit_state(
+                                    InstallState.INSTALLING_FILES,
+                                    current_progress,
+                                    display_file,
+                                )
+
                         elif "%" in output:
-                            pct_match = re.search(r'(\d+)%', output)
+                            pct_match = re.search(r"(\d+)%", output)
                             if pct_match:
                                 current_progress = int(pct_match.group(1))
-                                self.emit_state(InstallState.INSTALLING_FILES, current_progress, display_file)
+                                self.emit_state(
+                                    InstallState.INSTALLING_FILES,
+                                    current_progress,
+                                    display_file,
+                                )
 
                 process.wait()
-                
+
                 if os.path.exists(list_file_path):
                     os.remove(list_file_path)
 
                 src_root = os.path.join(dest_dir, root_dir) if root_dir else dest_dir
-                parent_folder = os.path.join(dest_dir, root_dir.split("/")[0]) if root_dir else dest_dir
-                
+                parent_folder = (
+                    os.path.join(dest_dir, root_dir.split("/")[0])
+                    if root_dir
+                    else dest_dir
+                )
+
                 if root_dir and os.path.exists(src_root):
-                    files =[]
+                    files = []
                     for root, _, filenames in os.walk(src_root):
                         files.extend(os.path.join(root, fname) for fname in filenames)
 
-                    dst_list =[]
+                    dst_list = []
                     for src in files:
                         rel_path = os.path.relpath(src, src_root).replace(os.sep, "/")
                         dst = os.path.join(dest_dir, rel_path)
@@ -520,12 +535,18 @@ class InstallCore(QThread):
                     for root, dirs, _ in os.walk(src_root):
                         for d in dirs:
                             src_subdir = os.path.join(root, d)
-                            rel_subdir = os.path.relpath(src_subdir, src_root).replace(os.sep, "/")
+                            rel_subdir = os.path.relpath(src_subdir, src_root).replace(
+                                os.sep, "/"
+                            )
                             dst_subdir = os.path.join(dest_dir, rel_subdir)
                             os.makedirs(dst_subdir, exist_ok=True)
 
-                    if not os.path.exists(os.path.join(dest_dir, os.path.basename(exe_path))):
-                        raise ValueError(f"Failed to move executable {os.path.basename(exe_path)} to {dest_dir}")
+                    if not os.path.exists(
+                        os.path.join(dest_dir, os.path.basename(exe_path))
+                    ):
+                        raise ValueError(
+                            f"Failed to move executable {os.path.basename(exe_path)} to {dest_dir}"
+                        )
 
                     shutil.rmtree(parent_folder, ignore_errors=True)
 
@@ -634,9 +655,7 @@ class InstallCore(QThread):
                 self.completed_signal.emit()
         except Exception as e:
             if isinstance(e, PermissionError):
-                ErrorHandler.handleError(
-                    f"Failed to install Title Update {self.update_name}: {str(e)}\n\nTo fix this, run the tool as administrator or move your game folder outside of the Program Files folder."
-                )
+                ErrorHandler.handleError(str(e))
             else:
                 ErrorHandler.handleError(
                     f"Failed to install Title Update {self.update_name}: {str(e)}"
@@ -674,24 +693,32 @@ class InstallCore(QThread):
                 if not os.path.exists(seven_z):
                     raise FileNotFoundError(f"7z tool not found at: {seven_z}")
 
-                extract_cmd = [seven_z, "x", str(file_path), f"-o{dst_path}", "-y", "-bb3", "-bsp1"]
-                if pwd: 
+                extract_cmd = [
+                    seven_z,
+                    "x",
+                    str(file_path),
+                    f"-o{dst_path}",
+                    "-y",
+                    "-bb3",
+                    "-bsp1",
+                ]
+                if pwd:
                     extract_cmd.insert(2, f"-p{pwd}")
 
                 startupinfo = subprocess.STARTUPINFO()
                 startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-                
+
                 process = subprocess.Popen(
-                    extract_cmd, 
-                    stdout=subprocess.PIPE, 
-                    stderr=subprocess.STDOUT, 
-                    text=True, 
-                    bufsize=1, 
-                    encoding="utf-8", 
-                    errors="replace", 
-                    startupinfo=startupinfo
+                    extract_cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    bufsize=1,
+                    encoding="utf-8",
+                    errors="replace",
+                    startupinfo=startupinfo,
                 )
-                
+
                 current_progress = 0
                 current_file = ""
 
@@ -700,19 +727,23 @@ class InstallCore(QThread):
                         if self.is_canceled:
                             process.terminate()
                             return
-                        
+
                         output = line.strip()
                         if output.startswith("- ") or output.startswith("Extracting"):
-                            filename = output.replace("- ", "").replace("Extracting  ", "").strip()
+                            filename = (
+                                output.replace("- ", "")
+                                .replace("Extracting  ", "")
+                                .strip()
+                            )
                             if filename:
                                 current_file = filename.replace("\\", "/")
                                 self.emit_state(state, current_progress, current_file)
                         elif "%" in output:
-                            match = re.search(r'(\d+)%', output)
+                            match = re.search(r"(\d+)%", output)
                             if match:
                                 current_progress = int(match.group(1))
                                 self.emit_state(state, current_progress, current_file)
-                        
+
                 process.wait()
 
                 logger.info(f"Extracted squad file to {dst_path}")
@@ -785,7 +816,9 @@ class InstallOptions:
             time.sleep(0.5)
 
             if os.path.exists(backup_file):
-                logger.info(f"A backup file already exists with today's date, skipping backup: {backup_file}")
+                logger.info(
+                    f"A backup file already exists with today's date, skipping backup: {backup_file}"
+                )
                 return
 
             shutil.make_archive(backup_file[:-4], "zip", settings_path)

@@ -7,14 +7,42 @@ from collections import Counter
 from functools import cmp_to_key
 
 from PySide6.QtCore import Qt, QThread, Signal, QObject, QTimer, QSize, QRect
-from PySide6.QtGui import (QFont, QColor, QFontMetrics, QPainter, QAction,
-                           QGuiApplication, QPalette)
-from PySide6.QtWidgets import (QApplication, QVBoxLayout, QWidget, QHBoxLayout, QFrame,
-                               QPushButton, QStackedWidget, QListWidgetItem)
+from PySide6.QtGui import (
+    QFont,
+    QColor,
+    QFontMetrics,
+    QPainter,
+    QAction,
+    QGuiApplication,
+    QPalette,
+)
+from PySide6.QtWidgets import (
+    QApplication,
+    QVBoxLayout,
+    QWidget,
+    QHBoxLayout,
+    QFrame,
+    QPushButton,
+    QStackedWidget,
+    QListWidgetItem,
+)
 
-from qfluentwidgets import (ComboBox, ListWidget, ListItemDelegate, SimpleCardWidget, FluentIcon, Theme, setTheme,
-                            setThemeColor, BodyLabel, CaptionLabel, setFont, isDarkTheme,
-                            RoundMenu, SearchLineEdit)
+from qfluentwidgets import (
+    ComboBox,
+    ListWidget,
+    ListItemDelegate,
+    SimpleCardWidget,
+    FluentIcon,
+    Theme,
+    setTheme,
+    setThemeColor,
+    BodyLabel,
+    CaptionLabel,
+    setFont,
+    isDarkTheme,
+    RoundMenu,
+    SearchLineEdit,
+)
 
 from UIComponents.Personalization import BaseWindow
 from UIComponents.MainStyles import MainStyles
@@ -26,13 +54,14 @@ from Core.Logger import logger
 from Libraries.SteamDDLib.app.manifest_parser import Manifest
 
 TITLE = "Files Changelog:"
-WINDOW_SIZE = (990, 640)
+WINDOW_SIZE = (1026, 640)
 THEME_COLOR = "#00FF00"
 ICON_PATH = "Data/Assets/Icons/ic_fluent_history_24_filled.png"
 SEPARATOR_STYLE = "background-color: rgba(255, 255, 255, 0.08);"
 CARD_STYLE_NORMAL = "SimpleCardWidget { background-color: rgba(255, 255, 255, 0.01); border: 1px solid transparent; border-radius: 5px; }"
 CARD_STYLE_HOVER = "SimpleCardWidget { background-color: rgba(255, 255, 255, 0.04); border: 1px solid transparent; border-radius: 5px; }"
 CARD_STYLE_SELECTED = "SimpleCardWidget { background-color: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 5px; }"
+
 
 class DataFetchWorker(QObject):
     finished = Signal(str, dict)
@@ -46,19 +75,38 @@ class DataFetchWorker(QObject):
             data = self.gm.fetchDepotChangelog(self.g_id, self.d_type, self.m_id) or {}
             self.finished.emit(self.d_type, data)
         except Exception as e:
-            logger.error(f"Exception in DataFetchWorker for {self.d_type}: {e}", exc_info=True)
+            logger.error(
+                f"Exception in DataFetchWorker for {self.d_type}: {e}", exc_info=True
+            )
             self.finished.emit(self.d_type, {})
+
 
 class ManifestFetchWorker(QObject):
     finished = Signal(str, object)
 
-    def __init__(self, gm: GameManager, game_id: str, depot_type: str, depot_id: str, manifest_id: str):
+    def __init__(
+        self,
+        gm: GameManager,
+        game_id: str,
+        depot_type: str,
+        depot_id: str,
+        manifest_id: str,
+    ):
         super().__init__()
-        self.gm, self.game_id, self.depot_type, self.depot_id, self.manifest_id = gm, game_id, depot_type, depot_id, manifest_id
+        self.gm, self.game_id, self.depot_type, self.depot_id, self.manifest_id = (
+            gm,
+            game_id,
+            depot_type,
+            depot_id,
+            manifest_id,
+        )
 
     def run(self):
-        manifest = self.gm.fetchDepotManifest(self.game_id, self.depot_type, self.depot_id, self.manifest_id)
+        manifest = self.gm.fetchDepotManifest(
+            self.game_id, self.depot_type, self.depot_id, self.manifest_id
+        )
         self.finished.emit(self.depot_type, manifest)
+
 
 class FileListItemDelegate(ListItemDelegate):
     def _format_bytes(self, size):
@@ -66,7 +114,7 @@ class FileListItemDelegate(ListItemDelegate):
             return ""
         prefix = "+" if size > 0 else "-"
         size = abs(size)
-        power, n, labels = 1024, 0, {0: 'B', 1: 'KB', 2: 'MB', 3: 'GB', 4: 'TB'}
+        power, n, labels = 1024, 0, {0: "B", 1: "KB", 2: "MB", 3: "GB", 4: "TB"}
         while size >= power and n < len(labels) - 1:
             size /= power
             n += 1
@@ -94,7 +142,7 @@ class FileListItemDelegate(ListItemDelegate):
             painter.drawRoundedRect(option.rect, 5, 5)
 
         name = file_info.get("name", "N/A")
-        type_str = os.path.splitext(name)[1].upper().replace('.', '')
+        type_str = os.path.splitext(name)[1].upper().replace(".", "")
 
         padding = 8
         badge_font = QFont()
@@ -104,7 +152,12 @@ class FileListItemDelegate(ListItemDelegate):
         type_badge_rect = QRect()
         if type_str:
             type_badge_width = fm_badge.horizontalAdvance(type_str) + 16
-            type_badge_rect = QRect(option.rect.left() + padding, option.rect.center().y() - 11, type_badge_width, 22)
+            type_badge_rect = QRect(
+                option.rect.left() + padding,
+                option.rect.center().y() - 11,
+                type_badge_width,
+                22,
+            )
             painter.setBrush(QColor(128, 128, 128, 35))
             painter.setPen(Qt.NoPen)
             painter.drawRoundedRect(type_badge_rect, 4, 4)
@@ -114,7 +167,12 @@ class FileListItemDelegate(ListItemDelegate):
             painter.drawText(type_badge_rect, Qt.AlignCenter, type_str)
 
         fixed_badge_width = 85
-        status_badge_rect = QRect(option.rect.right() - padding - fixed_badge_width, option.rect.center().y() - 11, fixed_badge_width, 22)
+        status_badge_rect = QRect(
+            option.rect.right() - padding - fixed_badge_width,
+            option.rect.center().y() - 11,
+            fixed_badge_width,
+            22,
+        )
 
         if status == "Added":
             bg_color, text_color = QColor(108, 203, 95, 40), QColor(138, 233, 125)
@@ -134,7 +192,9 @@ class FileListItemDelegate(ListItemDelegate):
 
         size_diff = 0
         if status == "Modified":
-            size_diff = int(file_info.get("changes", {}).get("size", {}).get("new", 0)) - int(file_info.get("changes", {}).get("size", {}).get("old", 0))
+            size_diff = int(
+                file_info.get("changes", {}).get("size", {}).get("new", 0)
+            ) - int(file_info.get("changes", {}).get("size", {}).get("old", 0))
         elif status == "Added":
             size_diff = int(file_info.get("size", 0))
         elif status == "Removed":
@@ -147,20 +207,32 @@ class FileListItemDelegate(ListItemDelegate):
         name_font.setPixelSize(13)
         fm_name = QFontMetrics(name_font)
 
-        left_bound = type_badge_rect.right() + padding if type_str else option.rect.left() + padding
+        left_bound = (
+            type_badge_rect.right() + padding
+            if type_str
+            else option.rect.left() + padding
+        )
         right_bound = status_badge_rect.left() - padding
-        available_width = right_bound - left_bound - size_text_width - (padding if size_text else 0)
+        available_width = (
+            right_bound - left_bound - size_text_width - (padding if size_text else 0)
+        )
 
         elided_text = fm_name.elidedText(name, Qt.ElideMiddle, available_width)
 
         painter.setPen(QColor("white"))
         painter.setFont(name_font)
-        painter.drawText(QRect(left_bound, option.rect.y(), available_width, option.rect.height()), Qt.AlignVCenter | Qt.AlignLeft, elided_text)
+        painter.drawText(
+            QRect(left_bound, option.rect.y(), available_width, option.rect.height()),
+            Qt.AlignVCenter | Qt.AlignLeft,
+            elided_text,
+        )
 
         if size_text:
             name_width = fm_name.horizontalAdvance(elided_text)
             size_x_pos = left_bound + name_width + padding
-            size_rect = QRect(size_x_pos, option.rect.y(), size_text_width, option.rect.height())
+            size_rect = QRect(
+                size_x_pos, option.rect.y(), size_text_width, option.rect.height()
+            )
             if size_diff > 0:
                 painter.setPen(QColor("#6CCB5F"))
             elif size_diff < 0:
@@ -174,6 +246,7 @@ class FileListItemDelegate(ListItemDelegate):
 
     def sizeHint(self, option, index):
         return QSize(200, 42)
+
 
 class StatsCard(SimpleCardWidget):
     clicked = Signal()
@@ -203,12 +276,12 @@ class StatsCard(SimpleCardWidget):
         self.value_label.setText(value)
 
     def enterEvent(self, event):
-        self.is_hovered=True
+        self.is_hovered = True
         self.setStyleSheet(CARD_STYLE_HOVER)
         super().enterEvent(event)
 
     def leaveEvent(self, event):
-        self.is_hovered=False
+        self.is_hovered = False
         self.setStyleSheet(CARD_STYLE_NORMAL)
         super().leaveEvent(event)
 
@@ -218,9 +291,12 @@ class StatsCard(SimpleCardWidget):
 
     def mouseReleaseEvent(self, event):
         self.setStyleSheet(CARD_STYLE_HOVER if self.is_hovered else CARD_STYLE_NORMAL)
-        if event.button() == Qt.LeftButton and self.rect().contains(event.position().toPoint()):
+        if event.button() == Qt.LeftButton and self.rect().contains(
+            event.position().toPoint()
+        ):
             self.clicked.emit()
         super().mouseReleaseEvent(event)
+
 
 class ComplexStatsCard(SimpleCardWidget):
     clicked = Signal()
@@ -267,19 +343,21 @@ class ComplexStatsCard(SimpleCardWidget):
         if diff == 0:
             self.diff_label.setStyleSheet("color: gray;")
         else:
-            self.diff_label.setStyleSheet("color: #6CCB5F;" if diff > 0 else "color: #FF99A4;")
+            self.diff_label.setStyleSheet(
+                "color: #6CCB5F;" if diff > 0 else "color: #FF99A4;"
+            )
 
         self.diff_label.adjustSize()
         self._update_diff_label_position()
         self.value_label.setText(str(new_total))
 
     def enterEvent(self, event):
-        self.is_hovered=True
+        self.is_hovered = True
         self.setStyleSheet(CARD_STYLE_HOVER)
         super().enterEvent(event)
 
     def leaveEvent(self, event):
-        self.is_hovered=False
+        self.is_hovered = False
         self.setStyleSheet(CARD_STYLE_NORMAL)
         super().leaveEvent(event)
 
@@ -289,9 +367,12 @@ class ComplexStatsCard(SimpleCardWidget):
 
     def mouseReleaseEvent(self, event):
         self.setStyleSheet(CARD_STYLE_HOVER if self.is_hovered else CARD_STYLE_NORMAL)
-        if event.button() == Qt.LeftButton and self.rect().contains(event.position().toPoint()):
+        if event.button() == Qt.LeftButton and self.rect().contains(
+            event.position().toPoint()
+        ):
             self.clicked.emit()
         super().mouseReleaseEvent(event)
+
 
 class DepotsSizeCard(SimpleCardWidget):
     def __init__(self, label: str):
@@ -330,7 +411,7 @@ class DepotsSizeCard(SimpleCardWidget):
             return "±0 B"
         prefix = "+" if size > 0 else "-"
         size = abs(size)
-        power, n, labels = 1024, 0, {0: 'B', 1: 'KB', 2: 'MB', 3: 'GB', 4: 'TB'}
+        power, n, labels = 1024, 0, {0: "B", 1: "KB", 2: "MB", 3: "GB", 4: "TB"}
         while size >= power and n < len(labels) - 1:
             size /= power
             n += 1
@@ -339,7 +420,7 @@ class DepotsSizeCard(SimpleCardWidget):
     def _format_total_bytes(self, size):
         if not isinstance(size, (int, float)) or size == 0:
             return "0 B"
-        power, n, labels = 1024, 0, {0: 'B', 1: 'KB', 2: 'MB', 3: 'GB', 4: 'TB'}
+        power, n, labels = 1024, 0, {0: "B", 1: "KB", 2: "MB", 3: "GB", 4: "TB"}
         while size >= power and n < len(labels) - 1:
             size /= power
             n += 1
@@ -350,11 +431,14 @@ class DepotsSizeCard(SimpleCardWidget):
         if diff == 0:
             self.diff_label.setStyleSheet("color: gray;")
         else:
-            self.diff_label.setStyleSheet("color: #6CCB5F;" if diff > 0 else "color: #FF99A4;")
+            self.diff_label.setStyleSheet(
+                "color: #6CCB5F;" if diff > 0 else "color: #FF99A4;"
+            )
 
         self.diff_label.adjustSize()
         self._update_diff_label_position()
         self.value_label.setText(self._format_total_bytes(new_total))
+
 
 class DepotVersionCard(SimpleCardWidget):
     def __init__(self):
@@ -380,11 +464,20 @@ class DepotVersionCard(SimpleCardWidget):
     def setVersion(self, date_text: str):
         self.version_label.setText(date_text)
 
+
 class FilesChangelogWindow(BaseWindow):
-    def __init__(self, game_manager: GameManager, game_root_path: str, game_id: str,
-                 main_depot_id: str, eng_us_depot_id: Optional[str],
-                 main_manifest_id: str, eng_us_manifest_id: Optional[str],
-                 update_name: str, parent=None):
+    def __init__(
+        self,
+        game_manager: GameManager,
+        game_root_path: str,
+        game_id: str,
+        main_depot_id: str,
+        eng_us_depot_id: Optional[str],
+        main_manifest_id: str,
+        eng_us_manifest_id: Optional[str],
+        update_name: str,
+        parent=None,
+    ):
         super().__init__(parent)
         self.game_manager = game_manager
         self.game_root_path = game_root_path
@@ -423,10 +516,14 @@ class FilesChangelogWindow(BaseWindow):
 
     def center_window(self):
         screen = QGuiApplication.primaryScreen().geometry()
-        self.move((screen.width() - self.width()) // 2, (screen.height() - self.height()) // 2)
+        self.move(
+            (screen.width() - self.width()) // 2, (screen.height() - self.height()) // 2
+        )
 
     def _setup_ui(self):
-        TitleBar(window=self, title=f"{TITLE} {self.update_name}", icon_path=ICON_PATH).create_title_bar()
+        TitleBar(
+            window=self, title=f"{TITLE} {self.update_name}", icon_path=ICON_PATH
+        ).create_title_bar()
         self.main_content_widget = QWidget()
         self.main_content_widget.setStyleSheet("background: transparent; border: none;")
 
@@ -450,7 +547,9 @@ class FilesChangelogWindow(BaseWindow):
         self.loading_widget = QWidget(self)
         loading_page_layout = QVBoxLayout(self.loading_widget)
         loading_page_layout.addStretch()
-        loading_page_layout.addWidget(LoadingSpinner(self.loading_widget), alignment=Qt.AlignCenter)
+        loading_page_layout.addWidget(
+            LoadingSpinner(self.loading_widget), alignment=Qt.AlignCenter
+        )
         loading_page_label = BodyLabel("Fetching all depot data...")
         loading_page_label.setAlignment(Qt.AlignCenter)
         loading_page_layout.addWidget(loading_page_label)
@@ -491,7 +590,9 @@ class FilesChangelogWindow(BaseWindow):
         self.view_mode_combo.currentIndexChanged.connect(self._on_view_mode_changed)
 
         self.filter_status_combo = ComboBox()
-        self.filter_status_combo.addItems(["All Changes", "Added", "Removed", "Modified"])
+        self.filter_status_combo.addItems(
+            ["All Changes", "Added", "Removed", "Modified"]
+        )
         self.filter_status_combo.setFixedWidth(140)
         self.filter_status_combo.setFixedHeight(28)
         self.filter_status_combo.currentTextChanged.connect(self._populate_list)
@@ -545,9 +646,24 @@ class FilesChangelogWindow(BaseWindow):
         self.modified_card = StatsCard("Modified")
 
         self.total_card.clicked.connect(lambda: self.view_mode_combo.setCurrentIndex(1))
-        self.added_card.clicked.connect(lambda: (self.filter_status_combo.setCurrentText("Added"), self.view_mode_combo.setCurrentIndex(0)))
-        self.removed_card.clicked.connect(lambda: (self.filter_status_combo.setCurrentText("Removed"), self.view_mode_combo.setCurrentIndex(0)))
-        self.modified_card.clicked.connect(lambda: (self.filter_status_combo.setCurrentText("Modified"), self.view_mode_combo.setCurrentIndex(0)))
+        self.added_card.clicked.connect(
+            lambda: (
+                self.filter_status_combo.setCurrentText("Added"),
+                self.view_mode_combo.setCurrentIndex(0),
+            )
+        )
+        self.removed_card.clicked.connect(
+            lambda: (
+                self.filter_status_combo.setCurrentText("Removed"),
+                self.view_mode_combo.setCurrentIndex(0),
+            )
+        )
+        self.modified_card.clicked.connect(
+            lambda: (
+                self.filter_status_combo.setCurrentText("Modified"),
+                self.view_mode_combo.setCurrentIndex(0),
+            )
+        )
 
         layout.addWidget(self.version_card)
         layout.addWidget(self.size_diff_card)
@@ -566,7 +682,7 @@ class FilesChangelogWindow(BaseWindow):
         self.bottom_bar_widget.setFixedHeight(46)
 
         bottom_main_layout = QVBoxLayout(self.bottom_bar_widget)
-        bottom_main_layout.setContentsMargins(0,0,0,0)
+        bottom_main_layout.setContentsMargins(0, 0, 0, 0)
         bottom_main_layout.setSpacing(0)
 
         separator = QFrame()
@@ -575,7 +691,7 @@ class FilesChangelogWindow(BaseWindow):
 
         btn_container = QWidget()
         btn_layout = QHBoxLayout(btn_container)
-        btn_layout.setContentsMargins(10,0,10,0)
+        btn_layout.setContentsMargins(10, 0, 10, 0)
 
         self.locate_button = QPushButton(" Locate")
         self.locate_button.setIcon(FluentIcon.FOLDER.icon())
@@ -603,7 +719,13 @@ class FilesChangelogWindow(BaseWindow):
 
     def _fetchAllDataInitially(self):
         thread = QThread()
-        worker = ManifestFetchWorker(self.game_manager, self.game_id, "Main", self.main_depot_id, self.main_manifest_id)
+        worker = ManifestFetchWorker(
+            self.game_manager,
+            self.game_id,
+            "Main",
+            self.main_depot_id,
+            self.main_manifest_id,
+        )
         worker.moveToThread(thread)
         thread.started.connect(worker.run)
         worker.finished.connect(self._on_main_manifest_fetched)
@@ -612,31 +734,55 @@ class FilesChangelogWindow(BaseWindow):
 
     def _on_main_manifest_fetched(self, depot_type, manifest_data):
         if not manifest_data:
-            ErrorHandler.handleError("This update has no depot manifest data available.")
+            ErrorHandler.handleError(
+                "This update has no depot manifest data available."
+            )
             self.close()
             return
 
         self.main_manifest_data = manifest_data
         self.fetches_completed = 1
-        
+
         self._fetch_remaining_data()
-        
+
     def _fetch_remaining_data(self):
         tasks = [("changelog", "Main", self.main_manifest_id, self.main_depot_id)]
         if self.eng_us_manifest_id and self.eng_us_depot_id:
-            tasks.extend([("changelog", "Language", self.eng_us_manifest_id, self.eng_us_depot_id),
-                          ("manifest", "Language", self.eng_us_manifest_id, self.eng_us_depot_id)])
+            tasks.extend(
+                [
+                    (
+                        "changelog",
+                        "Language",
+                        self.eng_us_manifest_id,
+                        self.eng_us_depot_id,
+                    ),
+                    (
+                        "manifest",
+                        "Language",
+                        self.eng_us_manifest_id,
+                        self.eng_us_depot_id,
+                    ),
+                ]
+            )
 
         self.fetches_to_complete = 1 + len(tasks)
-        
+
         for fetch_type, depot_type_str, manifest_id, depot_id in tasks:
             thread = QThread()
             worker = None
             if fetch_type == "changelog":
-                worker = DataFetchWorker(self.game_manager, self.game_id, depot_type_str, manifest_id)
+                worker = DataFetchWorker(
+                    self.game_manager, self.game_id, depot_type_str, manifest_id
+                )
             else:
-                worker = ManifestFetchWorker(self.game_manager, self.game_id, depot_type_str, depot_id, manifest_id)
-            
+                worker = ManifestFetchWorker(
+                    self.game_manager,
+                    self.game_id,
+                    depot_type_str,
+                    depot_id,
+                    manifest_id,
+                )
+
             worker.moveToThread(thread)
             thread.started.connect(worker.run)
             worker.finished.connect(self._on_fetch_complete)
@@ -660,14 +806,38 @@ class FilesChangelogWindow(BaseWindow):
             self._processAllFetchedData()
 
     def _processAllFetchedData(self):
-        changelog_data = self._merge_depot_data(self.main_changelog_data, self.lang_changelog_data)
-        manifest_data = self._merge_manifest_data(self.main_manifest_data, self.lang_manifest_data)
+        changelog_data = self._merge_depot_data(
+            self.main_changelog_data, self.lang_changelog_data
+        )
+        manifest_data = self._merge_manifest_data(
+            self.main_manifest_data, self.lang_manifest_data
+        )
 
-        changelog_files_map = {f["name"]: f for status, key in [("Modified", "modified"), ("Added", "added"), ("Removed", "deleted")] for f in changelog_data.get(key, []) for f in [dict(f, status=status)]}
+        changelog_files_map = {
+            f["name"]: f
+            for status, key in [
+                ("Modified", "modified"),
+                ("Added", "added"),
+                ("Removed", "deleted"),
+            ]
+            for f in changelog_data.get(key, [])
+            for f in [dict(f, status=status)]
+        }
         self.all_changelog_files = list(changelog_files_map.values())
 
         if manifest_data:
-            self.all_depot_files = [changelog_files_map.get(f.name, {"name": f.name, "size": f.size, "sha": f.sha, "status": "Unchanged"}) for f in manifest_data.files.values()]
+            self.all_depot_files = [
+                changelog_files_map.get(
+                    f.name,
+                    {
+                        "name": f.name,
+                        "size": f.size,
+                        "sha": f.sha,
+                        "status": "Unchanged",
+                    },
+                )
+                for f in manifest_data.files.values()
+            ]
 
         self.show_loading(False)
         self._populate_list()
@@ -685,8 +855,12 @@ class FilesChangelogWindow(BaseWindow):
         manifest_to_process = None
 
         if depot_choice == "All Depots":
-            changelog_to_process = self._merge_depot_data(self.main_changelog_data, self.lang_changelog_data)
-            manifest_to_process = self._merge_manifest_data(self.main_manifest_data, self.lang_manifest_data)
+            changelog_to_process = self._merge_depot_data(
+                self.main_changelog_data, self.lang_changelog_data
+            )
+            manifest_to_process = self._merge_manifest_data(
+                self.main_manifest_data, self.lang_manifest_data
+            )
         elif depot_choice == "Main":
             changelog_to_process = self.main_changelog_data
             manifest_to_process = self.main_manifest_data
@@ -706,16 +880,35 @@ class FilesChangelogWindow(BaseWindow):
             file_diff = new_files - old_files
 
             source_list = self.all_changelog_files
-            main_names = {f.name for f in (self.main_manifest_data.files.values() if self.main_manifest_data else [])}
+            main_names = {
+                f.name
+                for f in (
+                    self.main_manifest_data.files.values()
+                    if self.main_manifest_data
+                    else []
+                )
+            }
 
             if depot_choice == "Main":
-                source_list = [f for f in self.all_changelog_files if f.get("name") in main_names]
+                source_list = [
+                    f for f in self.all_changelog_files if f.get("name") in main_names
+                ]
             elif depot_choice == "Language (eng_us)":
-                source_list = [f for f in self.all_changelog_files if f.get("name") not in main_names]
+                source_list = [
+                    f
+                    for f in self.all_changelog_files
+                    if f.get("name") not in main_names
+                ]
 
-            self.added_card.setValue(str(sum(1 for f in source_list if f['status'] == 'Added')))
-            self.removed_card.setValue(str(sum(1 for f in source_list if f['status'] == 'Removed')))
-            self.modified_card.setValue(str(sum(1 for f in source_list if f['status'] == 'Modified')))
+            self.added_card.setValue(
+                str(sum(1 for f in source_list if f["status"] == "Added"))
+            )
+            self.removed_card.setValue(
+                str(sum(1 for f in source_list if f["status"] == "Removed"))
+            )
+            self.modified_card.setValue(
+                str(sum(1 for f in source_list if f["status"] == "Modified"))
+            )
         else:
             self.added_card.setValue("0")
             self.removed_card.setValue("0")
@@ -731,12 +924,23 @@ class FilesChangelogWindow(BaseWindow):
         self.size_diff_card.setValue(diff=size_diff, new_total=new_total_size)
 
     def _get_current_source_data(self):
-        source_list = self.all_depot_files if self.view_mode_combo.currentText() == "All Depot Files" else self.all_changelog_files
+        source_list = (
+            self.all_depot_files
+            if self.view_mode_combo.currentText() == "All Depot Files"
+            else self.all_changelog_files
+        )
         depot_choice = self.depot_combo.currentText()
         if depot_choice == "All Depots":
             return source_list
 
-        main_names = {f.name for f in (self.main_manifest_data.files.values() if self.main_manifest_data else [])}
+        main_names = {
+            f.name
+            for f in (
+                self.main_manifest_data.files.values()
+                if self.main_manifest_data
+                else []
+            )
+        }
         if depot_choice == "Main":
             return [f for f in source_list if f.get("name") in main_names]
         else:
@@ -748,19 +952,35 @@ class FilesChangelogWindow(BaseWindow):
 
         status_filter = self.filter_status_combo.currentText()
         type_data = self.filter_type_combo.currentData()
-        search_text = self.search_bar.text().lower().replace('\\', '/')
+        search_text = self.search_bar.text().lower().replace("\\", "/")
         is_all_files_mode = self.view_mode_combo.currentText() == "All Depot Files"
 
         filtered_files = [
-            f for f in source_data
-            if (is_all_files_mode or status_filter == "All Changes" or f.get("status") == status_filter) and
-               (type_data is None or os.path.splitext(f.get("name", ""))[1].upper().replace('.', '') == type_data) and
-               (not search_text or search_text in f.get("name", "").lower().replace('\\', '/'))
+            f
+            for f in source_data
+            if (
+                is_all_files_mode
+                or status_filter == "All Changes"
+                or f.get("status") == status_filter
+            )
+            and (
+                type_data is None
+                or os.path.splitext(f.get("name", ""))[1].upper().replace(".", "")
+                == type_data
+            )
+            and (
+                not search_text
+                or search_text in f.get("name", "").lower().replace("\\", "/")
+            )
         ]
 
         sorted_files = sorted(filtered_files, key=cmp_to_key(self._changelog_compare))
 
-        type_counts = Counter(os.path.splitext(f.get("name", ""))[1].upper().replace('.', '') for f in source_data if f.get("name"))
+        type_counts = Counter(
+            os.path.splitext(f.get("name", ""))[1].upper().replace(".", "")
+            for f in source_data
+            if f.get("name")
+        )
         self._populate_type_filter(type_counts)
 
         for file_info in sorted_files:
@@ -777,21 +997,31 @@ class FilesChangelogWindow(BaseWindow):
         self.filter_type_combo.clear()
         self.filter_type_combo.addItem("All Types", userData=None)
         for type_str, count in sorted(type_counts.items()):
-            self.filter_type_combo.addItem(f"{type_str or 'No Ext'} ({count})", userData=type_str)
+            self.filter_type_combo.addItem(
+                f"{type_str or 'No Ext'} ({count})", userData=type_str
+            )
         index = self.filter_type_combo.findData(current_selection)
         self.filter_type_combo.setCurrentIndex(index if index != -1 else 0)
         self.filter_type_combo.blockSignals(False)
 
     def _natural_sort_key(self, s: str):
-        return [int(text) if text.isdigit() else text for text in re.split('([0-9]+)', s.lower())]
+        return [
+            int(text) if text.isdigit() else text
+            for text in re.split("([0-9]+)", s.lower())
+        ]
 
     def _changelog_compare(self, item1: Dict, item2: Dict):
         sort_order = {"Added": 0, "Removed": 1, "Modified": 2, "Unchanged": 3}
-        order1 = sort_order.get(item1.get('status'), 4)
-        order2 = sort_order.get(item2.get('status'), 4)
+        order1 = sort_order.get(item1.get("status"), 4)
+        order2 = sort_order.get(item2.get("status"), 4)
         if order1 != order2:
             return -1 if order1 < order2 else 1
-        return -1 if self._natural_sort_key(item1.get('name', '')) < self._natural_sort_key(item2.get('name', '')) else 1
+        return (
+            -1
+            if self._natural_sort_key(item1.get("name", ""))
+            < self._natural_sort_key(item2.get("name", ""))
+            else 1
+        )
 
     def _update_locate_button_state(self, current, _):
         self.locate_button.setEnabled(current is not None)
@@ -812,9 +1042,13 @@ class FilesChangelogWindow(BaseWindow):
         else:
             status = item.data(Qt.UserRole).get("status", "")
             if status == "Removed":
-                ErrorHandler.handleError("This file was removed in the update and does not exist in your game folder.")
+                ErrorHandler.handleError(
+                    "This file was removed in the update and does not exist in your game folder."
+                )
             else:
-                ErrorHandler.handleError(f"Could not find the file in your game directory:\n\n{full_path}")
+                ErrorHandler.handleError(
+                    f"Could not find the file in your game directory:\n\n{full_path}"
+                )
 
     def _show_context_menu(self, pos):
         if not (item := self.list_widget.itemAt(pos)):
@@ -823,38 +1057,59 @@ class FilesChangelogWindow(BaseWindow):
         file_info = item.data(Qt.UserRole)
         relative_path = file_info.get("name", "")
         status = file_info.get("status")
-        file_hash = file_info.get("sha", "") if self.view_mode_combo.currentIndex() == 1 else \
-                    (file_info.get("changes", {}).get("sha", {}).get("new", "") if status == "Modified" else file_info.get("sha", ""))
+        file_hash = (
+            file_info.get("sha", "")
+            if self.view_mode_combo.currentIndex() == 1
+            else (
+                file_info.get("changes", {}).get("sha", {}).get("new", "")
+                if status == "Modified"
+                else file_info.get("sha", "")
+            )
+        )
 
         menu = RoundMenu(parent=self)
         full_path = os.path.normpath(os.path.join(self.game_root_path, relative_path))
         full_path_action = QAction(FluentIcon.COPY.icon(), "Copy Path in Game Folder")
-        full_path_action.triggered.connect(lambda: QApplication.clipboard().setText(full_path))
+        full_path_action.triggered.connect(
+            lambda: QApplication.clipboard().setText(full_path)
+        )
         menu.addAction(full_path_action)
 
-        if '/' in relative_path or '\\' in relative_path:
+        if "/" in relative_path or "\\" in relative_path:
             path_action = QAction(FluentIcon.COPY.icon(), "Copy Relative Path")
-            path_action.triggered.connect(lambda: QApplication.clipboard().setText(relative_path))
+            path_action.triggered.connect(
+                lambda: QApplication.clipboard().setText(relative_path)
+            )
             menu.addAction(path_action)
             name_action = QAction(FluentIcon.COPY.icon(), "Copy File Name")
-            name_action.triggered.connect(lambda: QApplication.clipboard().setText(os.path.basename(relative_path)))
+            name_action.triggered.connect(
+                lambda: QApplication.clipboard().setText(
+                    os.path.basename(relative_path)
+                )
+            )
             menu.addAction(name_action)
         else:
             name_action = QAction(FluentIcon.COPY.icon(), "Copy File Name")
-            name_action.triggered.connect(lambda: QApplication.clipboard().setText(relative_path))
+            name_action.triggered.connect(
+                lambda: QApplication.clipboard().setText(relative_path)
+            )
             menu.addAction(name_action)
 
         if file_hash:
             menu.addSeparator()
             sha1_action = QAction(FluentIcon.FINGERPRINT.icon(), "Copy SHA1")
-            sha1_action.triggered.connect(lambda: QApplication.clipboard().setText(file_hash))
+            sha1_action.triggered.connect(
+                lambda: QApplication.clipboard().setText(file_hash)
+            )
             menu.addAction(sha1_action)
 
         menu.exec(self.list_widget.mapToGlobal(pos))
 
     def _merge_depot_data(self, data1: Dict, data2: Dict) -> Dict:
-        if not data1: return data2
-        if not data2: return data1
+        if not data1:
+            return data2
+        if not data2:
+            return data1
 
         merged = {"header_changes": {}, "added": [], "modified": [], "deleted": []}
         h1 = data1.get("header_changes", {})
@@ -862,8 +1117,10 @@ class FilesChangelogWindow(BaseWindow):
 
         for key in ["total_files", "total_chunks", "total_bytes"]:
             merged["header_changes"][key] = {
-                "old": int(h1.get(key, {}).get("old", 0)) + int(h2.get(key, {}).get("old", 0)),
-                "new": int(h1.get(key, {}).get("new", 0)) + int(h2.get(key, {}).get("new", 0))
+                "old": int(h1.get(key, {}).get("old", 0))
+                + int(h2.get(key, {}).get("old", 0)),
+                "new": int(h1.get(key, {}).get("new", 0))
+                + int(h2.get(key, {}).get("new", 0)),
             }
 
         merged["header_changes"]["creation_date"] = h1.get("creation_date", {})
@@ -872,15 +1129,24 @@ class FilesChangelogWindow(BaseWindow):
 
         return merged
 
-    def _merge_manifest_data(self, m1: Optional[Manifest], m2: Optional[Manifest]) -> Optional[Manifest]:
-        if not m1: return m2
-        if not m2: return m1
+    def _merge_manifest_data(
+        self, m1: Optional[Manifest], m2: Optional[Manifest]
+    ) -> Optional[Manifest]:
+        if not m1:
+            return m2
+        if not m2:
+            return m1
 
         return Manifest(
-            depot_id=f"{m1.depot_id}+{m2.depot_id}", manifest_id=f"{m1.manifest_id}+{m2.manifest_id}",
-            creation_date=m1.creation_date, total_files=m1.total_files + m2.total_files,
-            total_chunks=m1.total_chunks + m2.total_chunks, total_bytes=m1.total_bytes + m2.total_bytes,
-            total_compressed_bytes=m1.total_compressed_bytes + m2.total_compressed_bytes, files={**m1.files, **m2.files}
+            depot_id=f"{m1.depot_id}+{m2.depot_id}",
+            manifest_id=f"{m1.manifest_id}+{m2.manifest_id}",
+            creation_date=m1.creation_date,
+            total_files=m1.total_files + m2.total_files,
+            total_chunks=m1.total_chunks + m2.total_chunks,
+            total_bytes=m1.total_bytes + m2.total_bytes,
+            total_compressed_bytes=m1.total_compressed_bytes
+            + m2.total_compressed_bytes,
+            files={**m1.files, **m2.files},
         )
 
     def closeEvent(self, event):
@@ -890,6 +1156,7 @@ class FilesChangelogWindow(BaseWindow):
                 thread.wait()
         super().closeEvent(event)
 
+
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     app.setStyleSheet(MainStyles())
@@ -898,9 +1165,12 @@ if __name__ == "__main__":
     window = FilesChangelogWindow(
         game_manager=GameManager(),
         game_root_path="C:\\Program Files (x86)\\Steam\\steamapps\\common\\FC 26",
-        game_id="FC26", main_depot_id="3405691", eng_us_depot_id="3405692",
-        main_manifest_id="2521253029469654291", eng_us_manifest_id="4559926266552614532",
-        update_name="FC26 - Version 1.0.3"
+        game_id="FC26",
+        main_depot_id="3405691",
+        eng_us_depot_id="3405692",
+        main_manifest_id="2521253029469654291",
+        eng_us_manifest_id="4559926266552614532",
+        update_name="FC26 - Version 1.0.3",
     )
     window.center_window()
     window.show()

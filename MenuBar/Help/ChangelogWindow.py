@@ -93,7 +93,7 @@ class ChangelogWindow(BaseWindow):
 
         top_layout = QHBoxLayout()
         self.title_label = BodyLabel("FC Rollback Tool")
-        self.title_label.setStyleSheet("font-size: 16px; font-weight: bold;")
+        self.title_label.setStyleSheet("font-size: 16px; font-weight: bold; color: white;")
 
         top_layout.addWidget(self.title_label)
         top_layout.addStretch()
@@ -119,6 +119,7 @@ class ChangelogWindow(BaseWindow):
         loading_layout.setSpacing(10)
         loading_layout.addWidget(LoadingSpinner(self))
         loading_label = QLabel("Loading...", self)
+        loading_label.setStyleSheet("color: white;")
         loading_label.setAlignment(Qt.AlignCenter)
         loading_layout.addWidget(loading_label)
         self.stack.addWidget(loading_widget)

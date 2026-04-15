@@ -150,40 +150,7 @@ class SelectGameWindow(BaseWindow):
         self.main_window = MainWindow(self.config_manager, self.game_manager, content)
         self.main_window.show()
 
-        if "--auto-install" in sys.argv:
-            try:
-                idx: int = sys.argv.index("--auto-install")
-                if len(sys.argv) > idx + 4:
-                    update_name: str = sys.argv[idx + 1]
-                    tab_key: str = sys.argv[idx + 2]
-                    game_path: str = sys.argv[idx + 3]
-                    file_path: str = sys.argv[idx + 4]
 
-                    from PySide6.QtWidgets import QWidget
-
-                    table_comp: QWidget | None = (
-                        self.main_window.main_container.get_table_component(tab_key)
-                    )
-
-                    from UIWindows.InstallWindow import InstallWindow
-
-                    self.main_window._auto_install_window = InstallWindow(
-                        update_name=update_name,
-                        tab_key=tab_key,
-                        game_path=game_path,
-                        file_path=file_path,
-                        table_component=table_comp,
-                        parent=None,
-                    )
-                    self.main_window._auto_install_window.show()
-                    MainWindow.center_child_window(
-                        self.main_window, self.main_window._auto_install_window
-                    )
-
-                    del sys.argv[idx : idx + 5]
-
-            except Exception as e:
-                logger.error(f"Auto-install failed: {e}")
 
         self.close()
 

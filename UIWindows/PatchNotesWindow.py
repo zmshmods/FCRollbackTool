@@ -17,7 +17,7 @@ from Core.GameManager import GameManager
 
 # Constants
 WINDOW_TITLE = "Patch Notes"
-WINDOW_SIZE = (990, 640)
+WINDOW_SIZE = (1026, 640)
 THEME_COLOR = "#00FF00"
 ICON_PATH = "Data/Assets/Icons/ic_fluent_fire_24_filled.png"
 SEPARATOR_STYLE = "background-color: rgba(255, 255, 255, 0.1);"

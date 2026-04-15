@@ -517,16 +517,6 @@ class SettingsWindow(BaseWindow):
         
         card_layout.addWidget(delete_live_container)
 
-        separator = self._create_separator(height=1)
-        card_layout.addWidget(separator)
-
-        auto_elevate_cb = CheckBox("Auto-elevate administrator privileges without confirmation prompt")
-        auto_elevate_cb.setStyleSheet(TEXT_STYLE)
-        auto_elevate_cb.setChecked(self.config_mgr.getConfigKeyAutoElevateAdminWithoutPrompt())
-        auto_elevate_cb.stateChanged.connect(lambda state: self.config_mgr.setConfigKeyAutoElevateAdminWithoutPrompt(state == Qt.CheckState.Checked.value))
-        apply_tooltip(auto_elevate_cb, "autoElevateAdmin")
-        card_layout.addWidget(auto_elevate_cb)
-
         layout.addWidget(card)
         layout.addStretch()
         return widget

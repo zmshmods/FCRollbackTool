@@ -552,7 +552,12 @@ class ButtonManager:
         btn_layout.setContentsMargins(10, 0, 10, 0)
         btn_layout.setSpacing(5)
 
-        for btn_name in ["settings", "change_game", "open_profile", "delete_from_profile"]:
+        for btn_name in [
+            "settings",
+            "change_game",
+            "open_profile",
+            "delete_from_profile",
+        ]:
             btn_layout.addWidget(self.buttons[btn_name])
 
         btn_layout.addStretch()
@@ -1252,7 +1257,7 @@ class ButtonManager:
                     [self.game_manager.getTabKeyTitleUpdates()],
                 ),
                 (
-                    'Auto-elevate administrator privileges without confirmation prompt',
+                    "Auto-elevate administrator privileges without confirmation prompt",
                     self.config_manager.getConfigKeyAutoElevateAdminWithoutPrompt,
                     self.config_manager.setConfigKeyAutoElevateAdminWithoutPrompt,
                     "autoElevateAdmin",
@@ -1263,9 +1268,9 @@ class ButtonManager:
                     ],
                 ),
             ]
-            
+
             options.sort(key=lambda opt: tab not in opt[4])
-            
+
             for text, get, set, tooltip, tabs in options:
                 chk = CheckBox(text)
                 chk.setTristate(False)
@@ -1371,7 +1376,11 @@ class ButtonManager:
                     background-color: #303030;
                 }
             """)
-            chk2.toggled.connect(lambda checked: self.config_manager.setConfigKeyAutoInstallAfterDownload(checked))
+            chk2.toggled.connect(
+                lambda checked: (
+                    self.config_manager.setConfigKeyAutoInstallAfterDownload(checked)
+                )
+            )
             apply_tooltip(chk2, "auto_install_download_checkbox")
             act2 = QWidgetAction(menu)
             act2.setDefaultWidget(chk2)

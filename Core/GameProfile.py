@@ -1,15 +1,16 @@
 import os
 
-class GameProfile():
+
+class GameProfile:
     id: str
     display_name: str
     exe_name: str
     registry_key: str
     steam_app_id: int
-    
+
     registry_value_name: str = "Install Dir"
     app_data_folder_name: str
-    
+
     live_editor_registry_key: str
     live_editor_registry_value_name: str = "Install Dir"
 
@@ -21,37 +22,40 @@ class GameProfile():
     @property
     def version(self) -> str:
         return "".join(filter(str.isdigit, self.id))
-        
+
     @property
     def settings_path(self) -> str:
         base_path = os.path.expandvars(r"%localappdata%")
         return os.path.join(base_path, self.app_data_folder_name, "settings")
-        
+
     @property
     def live_tuning_path(self) -> str:
         base_path = os.path.expandvars(r"%localappdata%\Temp")
-        return os.path.join(base_path, self.app_data_folder_name, "onlinecache0", "attribdb.bin")
+        return os.path.join(
+            base_path, self.app_data_folder_name, "onlinecache0", "attribdb.bin"
+        )
 
     @property
     def mod_manager_profile_name(self) -> str:
         return self.id
-    
+
     @property
     def fet_data_profile_name(self) -> str:
         return self.display_name
-        
+
+
 class FC24Profile(GameProfile):
     id = "FC24"
     display_name = "EA SPORTS FC 24"
     exe_name = "FC24.exe"
     registry_key = [
         r"SOFTWARE\Wow6432Node\EA Games\EA Sports FC 24",
-        r"SOFTWARE\EA SPORTS\EA SPORTS FC 24"
+        r"SOFTWARE\EA SPORTS\EA SPORTS FC 24",
     ]
     steam_app_id = 2195250
-    
+
     app_data_folder_name = "FC 24"
-    
+
     live_editor_registry_key = r"SOFTWARE\Live Editor\FC 24"
     live_editor_registry_value_name = "Data Dir"
 
@@ -60,19 +64,21 @@ class FC24Profile(GameProfile):
         base_path = os.path.expanduser(r"~\Documents")
         return os.path.join(base_path, self.app_data_folder_name, "settings")
 
+
 class FC25Profile(GameProfile):
     id = "FC25"
     display_name = "EA SPORTS FC 25"
     exe_name = "FC25.exe"
     registry_key = [
         r"SOFTWARE\WOW6432Node\EA Sports\EA SPORTS FC 25",
-        r"SOFTWARE\EA SPORTS\EA SPORTS FC 25"
+        r"SOFTWARE\EA SPORTS\EA SPORTS FC 25",
     ]
     steam_app_id = 2669321
-    
+
     app_data_folder_name = display_name
-    
+
     live_editor_registry_key = r"SOFTWARE\Live Editor\FC 25"
+
 
 class FC26Profile(GameProfile):
     id = "FC26"
@@ -80,13 +86,14 @@ class FC26Profile(GameProfile):
     exe_name = "FC26.exe"
     registry_key = [
         r"SOFTWARE\WOW6432Node\EA Sports\EA SPORTS FC 26",
-        r"SOFTWARE\EA SPORTS\EA SPORTS FC 26"
+        r"SOFTWARE\EA SPORTS\EA SPORTS FC 26",
     ]
     steam_app_id = 3405690
-    
+
     app_data_folder_name = display_name
-    
+
     live_editor_registry_key = r"SOFTWARE\Live Editor\FC 26"
+
 
 class GameProfileManager:
     def __init__(self):
