@@ -217,7 +217,6 @@ class InstallWindow(BaseWindow):
             self.install_thread.cancel_signal.connect(self.handle_install_canceled)
             # Connect request_table_update signal if table_component is provided and tab_key is TitleUpdates
             if (self.table_component and 
-                self.tab_key == self.game_mgr.getTabKeyTitleUpdates() and 
                 hasattr(self.table_component, 'update_table')):
                 self.install_thread.request_table_update.connect(self.table_component.update_table)
                 logger.debug(f"Connected request_table_update signal for {self.tab_key}")

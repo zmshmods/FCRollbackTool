@@ -1256,17 +1256,6 @@ class ButtonManager:
                     "deleteLiveTuningUpdate",
                     [self.game_manager.getTabKeyTitleUpdates()],
                 ),
-                (
-                    "Auto-elevate administrator privileges without confirmation prompt",
-                    self.config_manager.getConfigKeyAutoElevateAdminWithoutPrompt,
-                    self.config_manager.setConfigKeyAutoElevateAdminWithoutPrompt,
-                    "autoElevateAdmin",
-                    [
-                        self.game_manager.getTabKeyTitleUpdates(),
-                        self.game_manager.getTabKeySquadsUpdates(),
-                        self.game_manager.getTabKeyFutSquadsUpdates(),
-                    ],
-                ),
             ]
 
             options.sort(key=lambda opt: tab not in opt[4])

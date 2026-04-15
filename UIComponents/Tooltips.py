@@ -124,7 +124,6 @@ TOOLTIPS = {
     "deleteLiveTuningUpdate": {"text": "This automatically deletes the Live Tuning Update file (attribdb.bin) after rolling back your title update.\nThis helps eliminate any changes to gameplay attributes, keeping the game using the original gameplay data from the title update only.", 
                                "formats": {"This helps eliminate any changes to gameplay attributes, keeping the game using the original gameplay data from the title update only.": ["highlight"]}, 
                                "position": ToolTipPosition.BOTTOM_LEFT, "delay": 880},
-    "autoElevateAdmin": {"text": "Automatically run the tool as Administrator when required without showing a confirmation message.", "position": ToolTipPosition.BOTTOM, "delay": 880},
     "deleteLiveTuningNow": {"text": "Delete Live Tuning Update", "position": ToolTipPosition.TOP, "delay": 880},
     "openLiveTuningFolder": {"text": "Locate", "position": ToolTipPosition.TOP, "delay": 880},
 
