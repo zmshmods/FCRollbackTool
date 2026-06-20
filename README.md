@@ -20,7 +20,7 @@ A tool designed to manage updates for EA Sports FC games and allows you to easil
 |--------------|---------------|--------------|
 | <p align="center"><strong>EA Sports FC 26</strong></p> | <p align="center">✅</p> | <p align="center">✅</p> |
 | <p align="center"><strong>EA Sports FC 25</strong></p> | <p align="center">✅</p> | <p align="center">✅</p> |
-| <p align="center"><strong>EA Sports FC 24</strong></p> | <p align="center">✅</p> | <p align="center">✅</p> |
+| <p align="center"><strong>EA Sports FC 24</strong></p> | <p align="center">✅ Unstable</p> | <p align="center">✅</p> |
 
 ---
 
