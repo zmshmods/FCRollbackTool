@@ -33,7 +33,7 @@ BOLD_STYLE = "font-size: 16px; font-weight: bold; color: rgba(255, 255, 255, 0.9
 NORMAL_STYLE = "font-size: 14px; color: rgba(255, 255, 255, 0.7); background-color: transparent;"
 
 class DownloadWindow(BaseWindow):
-    auto_install_requested_signal = Signal()
+    auto_install_requested_signal = Signal(str)
     
     def __init__(self, update_name, download_url, short_game_name, tab_key, file_name=None, parent=None):
         super().__init__(parent=parent)
@@ -182,7 +182,7 @@ class DownloadWindow(BaseWindow):
         self.progress_ring.setValue(100)
         self.update_info_label()
         if self.config_manager.getConfigKeyAutoInstallAfterDownload():
-            self.auto_install_requested_signal.emit()
+            self.auto_install_requested_signal.emit(self.update_name)
             self.close()
         else:
             QTimer.singleShot(1000, self.close)

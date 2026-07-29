@@ -1040,7 +1040,7 @@ class ButtonManager:
         except Exception as e:
             ErrorHandler.handleError(f"Failed to start download: {str(e)}")
 
-    def start_install(self) -> None:
+    def start_install(self, target_update_name: Optional[str] = None) -> None:
         try:
             tab_key: str = self.game_manager.getTabKeys()[
                 self.main_container.tab_container.currentIndex()
@@ -1049,7 +1049,7 @@ class ButtonManager:
             if not table or not hasattr(table, "table"):
                 raise ValueError("Invalid table component")
 
-            update_name: Optional[str] = self.game_manager.getSelectedUpdate(
+            update_name: Optional[str] = target_update_name or self.game_manager.getSelectedUpdate(
                 tab_key, table
             )
             if not update_name:
