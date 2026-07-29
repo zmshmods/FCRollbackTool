@@ -171,6 +171,7 @@ class DownloadCore(QThread):
                     [
                         aria2c_path,
                         "--log-level=debug",
+                        "--check-certificate=false",
                         "--dir",
                         os.path.join(AppDataManager.getTempFolder(), self.update_name),
                         "--continue=true",
@@ -279,16 +280,30 @@ class DownloadCore(QThread):
 
             if source == "aria2":
                 log_progress = self.config_manager.getConfigKeyLogDownloadProgress()
+                stdout_errors = []
                 while not self.cancel_flag and (line := self.process.stdout.readline()):
                     while self.is_paused and not self.cancel_flag:
                         time.sleep(0.1)
-                    is_progress_line = line.strip().startswith("[") and "#" in line
+                    line_str = line.strip()
+                    clean_line = re.sub(r"\x1b\[[0-9;]*[a-zA-Z]|\[[0-9;]+m", "", line_str)
+                    if clean_line and (
+                        "[ERROR]" in clean_line
+                        or "Exception" in clean_line
+                        or "errorCode" in clean_line
+                        or "->" in clean_line
+                        or "failure" in clean_line.lower()
+                        or "revoked" in clean_line.lower()
+                        or clean_line.startswith("(")
+                    ):
+                        stdout_errors.append(clean_line)
+
+                    is_progress_line = line_str.startswith("[") and "#" in line_str
                     if (
                         self.config_manager.getConfigKeyEnableDownloadLogs()
                         and (not is_progress_line or log_progress)
-                        and line.strip()
+                        and line_str
                     ):
-                        self.download_logger.debug(f"aria2c stdout: {line.strip()}")
+                        self.download_logger.debug(f"aria2c stdout: {line_str}")
                     if is_progress_line:
                         patterns = [
                             r"(\d+\.?\d*[KMG]?i?B)/(\d+\.?\d*[KMG]?i?B)",
@@ -328,29 +343,40 @@ class DownloadCore(QThread):
 
                 returncode = self.process.wait()
                 stderr_output = self.process.stderr.read()
+                clean_stderr = (
+                    re.sub(r"\x1b\[[0-9;]*[a-zA-Z]|\[[0-9;]+m", "", stderr_output.strip())
+                    if stderr_output
+                    else ""
+                )
                 if (
                     self.config_manager.getConfigKeyEnableDownloadLogs()
-                    and stderr_output.strip()
+                    and clean_stderr
                 ):
                     self.download_logger.debug(
-                        f"aria2c stderr: {stderr_output.strip()}"
+                        f"aria2c stderr: {clean_stderr}"
                     )
 
                 if returncode != 0:
                     self.error_occurred = True
                     try:
+                        captured_errs = "\n".join(stdout_errors).strip() if stdout_errors else ""
+                        detail_msg = captured_errs or clean_stderr
+
+                        fail_header = "Download failed."
+                        if detail_msg:
+                            err_body = f"{fail_header}\n{detail_msg}"
+                        elif self.config_manager.getConfigKeyEnableDownloadLogs():
+                            err_body = f"{fail_header}\nCheck Logs > DownloadLog for details."
+                        else:
+                            err_body = fail_header
+
                         exitStatus = {
-                            1: "Unknown error occurred during download.\n"
-                            + (
-                                "Check Logs > DownloadLog for details."
-                                if self.config_manager.getConfigKeyEnableDownloadLogs()
-                                else ""
-                            ),
-                            2: "Download timed out.",
-                            3: "Resource not found on server.",
-                            4: "Too many file not found errors.",
+                            1: err_body,
+                            2: f"Download timed out.\n{detail_msg}" if detail_msg else "Download timed out.",
+                            3: f"Resource not found on server.\n{detail_msg}" if detail_msg else "Resource not found on server.",
+                            4: f"Too many file not found errors.\n{detail_msg}" if detail_msg else "Too many file not found errors.",
                             5: "Download speed too slow.",
-                            6: "Internet connection issue.",
+                            6: f"Internet connection issue.\n{detail_msg}" if detail_msg else "Internet connection issue.",
                             7: "Download interrupted with unfinished tasks.",
                             8: "Server does not support resume.",
                             9: "Not enough disk space.",
@@ -362,13 +388,13 @@ class DownloadCore(QThread):
                             16: "Could not create/truncate file.",
                             17: "File I/O error.",
                             18: "Could not create directory.",
-                            19: "Name resolution failed.",
-                            22: "Invalid HTTP response.",
-                            23: "Too many redirects.",
-                            24: "HTTP authorization failed.",
+                            19: f"Name resolution failed.\n{detail_msg}" if detail_msg else "Name resolution failed.",
+                            22: f"Invalid HTTP response.\n{detail_msg}" if detail_msg else "Invalid HTTP response.",
+                            23: f"Too many redirects.\n{detail_msg}" if detail_msg else "Too many redirects.",
+                            24: f"HTTP authorization failed.\n{detail_msg}" if detail_msg else "HTTP authorization failed.",
                         }
                         error_message = exitStatus.get(
-                            returncode, f"Unknown error with exit code: {returncode}"
+                            returncode, f"Download failed (Code {returncode}).\n{detail_msg}"
                         )
                         if error_message:
                             ErrorHandler.handleError(error_message)

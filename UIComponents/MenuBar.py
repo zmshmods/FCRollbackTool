@@ -178,7 +178,11 @@ class MenuBar:
                     lambda: self.show_window(LiveEditorCompatibilityInfo)
                 ))
 
-        menu.addAction(self._create_action("Mods Compatibility Info", "mods_compatibility", lambda: self.show_window(ModsCompatibilityInfo)))
+        mods_compatibility_action = self._create_action(
+            "Mods Compatibility Info", "mods_compatibility", lambda: self.show_window(ModsCompatibilityInfo)
+        )
+        mods_compatibility_action.setEnabled(False)
+        menu.addAction(mods_compatibility_action)
         menu.addAction(self._create_action("FET TU Changes Folder Renamer", "fet_tu_changes_renamer", lambda: self.show_window(FETTUChangelogFoldersRenamer)))
         menu.exec(button.mapToGlobal(QPoint(button.rect().bottomLeft().x(), button.rect().bottomLeft().y())))
 

@@ -180,15 +180,15 @@ class FETTUChangelogFoldersRenamer(BaseWindow):
         self.table.setAlternatingRowColors(True)
         self.table.verticalHeader().hide()
 
-        self.table.itemDelegate().setSelectedRowColor(color=None, alpha=0)
-        self.table.itemDelegate().setHoverRowColor(color=None, alpha=0)
-        self.table.itemDelegate().setAlternateRowColor(color=None, alpha=2)
-        self.table.itemDelegate().setPressedRowColor(color=None, alpha=0)
-        self.table.itemDelegate().setPriorityOrder(
-            ["alternate", "selected", "pressed", "hover"]
-        )
-        self.table.itemDelegate().setShowIndicator(False)
-        self.table.itemDelegate().setRowBorderRadius(0)
+        # self.table.itemDelegate().setSelectedRowColor(color=None, alpha=0)
+        # self.table.itemDelegate().setHoverRowColor(color=None, alpha=0)
+        # self.table.itemDelegate().setAlternateRowColor(color=None, alpha=2)
+        # self.table.itemDelegate().setPressedRowColor(color=None, alpha=0)
+        # self.table.itemDelegate().setPriorityOrder(
+        #     ["alternate", "selected", "pressed", "hover"]
+        # )
+        # self.table.itemDelegate().setShowIndicator(False)
+        # self.table.itemDelegate().setRowBorderRadius(0)
 
     def _create_button_bar(self):
         bottom_widget = QWidget(fixedHeight=48)

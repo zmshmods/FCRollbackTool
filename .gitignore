@@ -171,3 +171,4 @@ nuitka-crash-report.xml
 /.FRTEXE
 cd
 compile_log.txt
+build_exe.py
